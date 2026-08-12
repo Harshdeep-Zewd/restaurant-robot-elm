@@ -3,11 +3,15 @@ import path from 'path';
 import fs from 'fs';
 
 const dbDir = path.join(__dirname, '../../data');
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
+let dbPath = path.join(dbDir, 'elm_platform.db');
+try {
+  if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true });
+  }
+} catch (e) {
+  dbPath = ':memory:';
 }
 
-const dbPath = path.join(dbDir, 'elm_platform.db');
 export const db = new Database(dbPath);
 
 // Enable foreign keys

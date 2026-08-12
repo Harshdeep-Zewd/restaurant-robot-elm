@@ -13,6 +13,9 @@
     "start": "npm run start --workspace=server",
     "seed": "npm run seed --workspace=server"
   },
+  "engines": {
+    "node": "20.x"
+  },
   "devDependencies": {
     "concurrently": "^8.2.2"
   }
