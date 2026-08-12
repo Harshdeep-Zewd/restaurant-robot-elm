@@ -6,6 +6,15 @@ export const api = {
     return res.json();
   },
 
+  createProject: async (data: { key: string; name: string; description?: string }) => {
+    const res = await fetch(`${API_BASE}/projects`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
   getTrackers: async (projectId: number) => {
     const res = await fetch(`${API_BASE}/projects/${projectId}/trackers`);
     return res.json();

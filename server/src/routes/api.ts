@@ -15,8 +15,43 @@ const upload = multer({ dest: uploadDir });
 
 // --- PROJECTS & TRACKERS ---
 router.get('/projects', (req, res) => {
-  const projects = db.prepare('SELECT * FROM projects').all();
+  const projects = db.prepare('SELECT * FROM projects ORDER BY id DESC').all();
   res.json(projects);
+});
+
+router.post('/projects', (req, res) => {
+  const { key, name, description } = req.body;
+  if (!key || !name) {
+    return res.status(400).json({ error: 'Key and Name are required' });
+  }
+
+  const result = db.prepare(`
+    INSERT INTO projects (key, name, description)
+    VALUES (?, ?, ?)
+  `).run(key.toUpperCase(), name, description || '');
+
+  const projectId = Number(result.lastInsertRowid);
+
+  // Auto-initialize standard engineering trackers for new project
+  const insertTracker = db.prepare(`
+    INSERT INTO trackers (project_id, key, name, type, prefix)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+
+  insertTracker.run(projectId, 'SYS-REQ', 'System Requirements', 'REQUIREMENT', `${key.toUpperCase()}-SYS-`);
+  insertTracker.run(projectId, 'SW-REQ', 'Software Requirements', 'REQUIREMENT', `${key.toUpperCase()}-SW-`);
+  insertTracker.run(projectId, 'ARCH', 'System Architecture', 'ARCHITECTURE', `${key.toUpperCase()}-ARCH-`);
+  insertTracker.run(projectId, 'RISK', 'Risks & Hazards', 'RISK', `${key.toUpperCase()}-RISK-`);
+  insertTracker.run(projectId, 'SYS-TST', 'System Test Cases', 'TEST_CASE', `${key.toUpperCase()}-TST-`);
+  insertTracker.run(projectId, 'TST-SET', 'Test Sets', 'TEST_SET', `${key.toUpperCase()}-SET-`);
+
+  // Audit log
+  db.prepare(`
+    INSERT INTO audit_logs (project_id, user_id, action, entity_type, entity_id, details_json)
+    VALUES (?, 1, 'CREATE', 'PROJECT', ?, ?)
+  `).run(projectId, projectId, JSON.stringify({ key, name }));
+
+  res.json({ success: true, id: projectId, key: key.toUpperCase() });
 });
 
 router.get('/projects/:projectId/trackers', (req, res) => {
