@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { X, Save, History, Link as LinkIcon } from 'lucide-react';
-import { EngineeringObject } from '../types/elm';
+import { X, Save, History, ShieldAlert, Cpu, Activity, User, Folder } from 'lucide-react';
+import { EngineeringObject, RequirementType, SafetyLevel, TestSubProcess, Folder as FolderType } from '../types/elm';
 
 interface ObjectDetailPaneProps {
   objectId: number;
   object?: EngineeringObject;
+  folders?: FolderType[];
   onClose: () => void;
   onUpdateObject: (id: number, updates: Partial<EngineeringObject>) => void;
   onSelectForImpact?: (objId: number) => void;
@@ -13,16 +14,20 @@ interface ObjectDetailPaneProps {
 export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
   objectId,
   object,
+  folders,
   onClose,
   onUpdateObject,
   onSelectForImpact
 }) => {
-  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'VERSIONS' | 'RELATIONSHIPS'>('OVERVIEW');
+  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'VERSIONS'>('OVERVIEW');
   const [title, setTitle] = useState('');
   const [desc, setDesc] = useState('');
   const [status, setStatus] = useState('DRAFT');
   const [priority, setPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>('MEDIUM');
-  const [changeReason, setChangeReason] = useState('');
+  const [reqType, setReqType] = useState<RequirementType>('Functional Requirement');
+  const [safetyLevel, setSafetyLevel] = useState<SafetyLevel>('ASIL-D');
+  const [testProcess, setTestProcess] = useState<TestSubProcess>('System Testing');
+  const [folderId, setFolderId] = useState<number | null>(null);
 
   useEffect(() => {
     if (object) {
@@ -30,24 +35,34 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
       setDesc(object.description || '');
       setStatus(object.status);
       setPriority(object.priority);
+      setReqType(object.requirement_type || 'Functional Requirement');
+      setSafetyLevel(object.safety_level || 'ASIL-D');
+      setTestProcess(object.test_subprocess || 'System Testing');
+      setFolderId(object.folder_id || null);
     }
   }, [object]);
 
   if (!object) return null;
+
+  const selectedFolder = folders?.find(f => f.id === folderId);
 
   const handleSave = () => {
     onUpdateObject(objectId, {
       title: title.trim(),
       description: desc.trim(),
       status,
-      priority
+      priority,
+      requirement_type: reqType,
+      safety_level: safetyLevel,
+      test_subprocess: testProcess,
+      folder_id: folderId,
+      folder_name: selectedFolder?.name || null
     });
-    setChangeReason('');
   };
 
   return (
     <div style={{
-      width: '450px',
+      width: '460px',
       backgroundColor: 'var(--bg-sidebar)',
       borderLeft: '1px solid var(--border-color)',
       display: 'flex',
@@ -73,7 +88,9 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
               v{object.version}
             </span>
           </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{object.type}</div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+            Tracker: <strong style={{ color: 'var(--text-main)' }}>{object.tracker_name || object.type}</strong>
+          </div>
         </div>
 
         <button onClick={onClose} style={{ color: 'var(--text-muted)', background: 'transparent' }}>
@@ -95,7 +112,7 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
             background: 'transparent'
           }}
         >
-          Overview
+          Overview & Metadata
         </button>
         <button
           onClick={() => setActiveTab('VERSIONS')}
@@ -129,6 +146,74 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
               />
             </div>
 
+            {/* Author / Creator Badge */}
+            <div style={{ backgroundColor: 'var(--bg-dark)', padding: '10px 14px', borderRadius: '6px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Created By Author</span>
+              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-cyan)' }}>Zewd</span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
+                  REQUIREMENT TYPE
+                </label>
+                <select value={reqType} onChange={(e) => setReqType(e.target.value as any)} style={{ width: '100%', fontSize: '0.8rem' }}>
+                  <option value="Functional Requirement">Functional Requirement</option>
+                  <option value="Non-Functional Requirement">Non-Functional Requirement</option>
+                  <option value="Variable">Variable</option>
+                  <option value="Parameter">Parameter</option>
+                  <option value="Folder">Folder</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
+                  PARENT FOLDER
+                </label>
+                <select value={folderId || ''} onChange={(e) => setFolderId(e.target.value ? Number(e.target.value) : null)} style={{ width: '100%', fontSize: '0.8rem' }}>
+                  <option value="">No Parent Folder</option>
+                  {folders?.map(f => (
+                    <option key={f.id} value={f.id}>{f.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
+                  SAFETY LEVEL (ASIL/SIL)
+                </label>
+                <select value={safetyLevel} onChange={(e) => setSafetyLevel(e.target.value as any)} style={{ width: '100%', fontSize: '0.8rem' }}>
+                  <option value="ASIL-D">ASIL-D (Highest Safety)</option>
+                  <option value="ASIL-C">ASIL-C</option>
+                  <option value="ASIL-B">ASIL-B</option>
+                  <option value="ASIL-A">ASIL-A</option>
+                  <option value="SIL-3">SIL-3</option>
+                  <option value="SIL-2">SIL-2</option>
+                  <option value="SIL-1">SIL-1</option>
+                  <option value="Standard / Non-Safety">Standard / Non-Safety</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
+                  TEST-SUB PROCESS
+                </label>
+                <select value={testProcess} onChange={(e) => setTestProcess(e.target.value as any)} style={{ width: '100%', fontSize: '0.8rem' }}>
+                  <option value="System Testing">System Testing</option>
+                  <option value="Integration Testing">Integration Testing</option>
+                  <option value="SW Testing">SW Testing</option>
+                  <option value="Unit Testing">Unit Testing</option>
+                  <option value="HIL Testing">HIL (Hardware-in-Loop)</option>
+                  <option value="Black-Box Testing">Black-Box Testing</option>
+                  <option value="Grey-Box Testing">Grey-Box Testing</option>
+                  <option value="White-Box Testing">White-Box Testing</option>
+                  <option value="Field Testing">Field Testing</option>
+                </select>
+              </div>
+            </div>
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
@@ -160,26 +245,12 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
                 DESCRIPTION & RATIONALE
               </label>
               <textarea
-                rows={5}
+                rows={4}
                 value={desc}
                 onChange={(e) => setDesc(e.target.value)}
                 style={{ width: '100%', fontSize: '0.85rem' }}
               />
             </div>
-
-            {object.metadata && (
-              <div style={{ backgroundColor: 'var(--bg-dark)', padding: '12px', borderRadius: '8px', marginBottom: '16px' }}>
-                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '8px' }}>
-                  STRUCTURED METADATA
-                </div>
-                {Object.entries(object.metadata).map(([k, v]) => (
-                  <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', padding: '4px 0' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>{k}:</span>
-                    <span style={{ fontWeight: 600 }}>{String(v)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
 
             <button
               onClick={handleSave}
@@ -205,15 +276,17 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
         {activeTab === 'VERSIONS' && (
           <div>
             <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '12px' }}>
-              REVISION HISTORY
+              REVISION HISTORY (AUTHOR: ZEWD)
             </div>
             <div style={{ backgroundColor: 'var(--bg-dark)', padding: '12px', borderRadius: '8px', marginBottom: '10px', borderLeft: '3px solid var(--accent-cyan)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', fontWeight: 700 }}>
                 <span className="mono">Version {object.version} (Current)</span>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Today</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Author: Zewd</span>
               </div>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-main)', marginTop: '4px' }}>{object.title}</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', marginTop: '4px' }}>Status: {object.status}</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', marginTop: '4px' }}>
+                Type: {object.requirement_type || 'Functional Requirement'} | Safety: {object.safety_level || 'ASIL-D'}
+              </div>
             </div>
           </div>
         )}

@@ -10,7 +10,7 @@ import { RisksMatrixView } from './components/RisksMatrixView';
 import { BaselinesView } from './components/BaselinesView';
 import { ArtifactsView } from './components/ArtifactsView';
 import { AuditView } from './components/AuditView';
-import { Project, Tracker, EngineeringObject, Folder } from './types/elm';
+import { Project, Tracker, EngineeringObject, Folder, RequirementType, SafetyLevel, TestSubProcess } from './types/elm';
 
 const INITIAL_PROJECTS: Project[] = [
   {
@@ -38,75 +38,75 @@ const INITIAL_FOLDERS: Folder[] = [
 
 const INITIAL_OBJECTS: EngineeringObject[] = [
   {
-    id: 1, tracker_id: 1, folder_id: 1, object_key: 'SYS-REQ-001',
+    id: 1, tracker_id: 1, tracker_name: 'System Requirements', folder_id: 1, folder_name: 'Navigation & Perception', object_key: 'SYS-REQ-001',
     title: 'Obstacle Detection & Local Rerouting Latency',
     description: 'The autonomous navigation system shall detect dynamic obstacles within 3.0 meters and compute a local collision avoidance trajectory within < 50 milliseconds.',
-    type: 'REQUIREMENT', status: 'APPROVED', priority: 'CRITICAL', owner_id: 1, owner_name: 'Alex Chen', version: 1,
+    type: 'REQUIREMENT', requirement_type: 'Functional Requirement', safety_level: 'ASIL-D', test_subprocess: 'System Testing',
+    status: 'APPROVED', priority: 'CRITICAL', owner_id: 1, owner_name: 'Zewd', created_by_name: 'Zewd', version: 1,
     metadata: { rationale: 'Prevent collision in high-density dining room environments.', source: 'ISO 13482 Standard', verificationMethod: 'Test' },
     created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   },
   {
-    id: 2, tracker_id: 1, folder_id: 2, object_key: 'SYS-REQ-002',
+    id: 2, tracker_id: 1, tracker_name: 'System Requirements', folder_id: 2, folder_name: 'Safety & Emergency Stop', object_key: 'SYS-REQ-002',
     title: 'Physical & Software Emergency Braking Distance',
     description: 'When an emergency stop signal is triggered, the robot shall come to a complete stop within 0.35 meters from a cruising speed of 1.5 m/s.',
-    type: 'REQUIREMENT', status: 'APPROVED', priority: 'CRITICAL', owner_id: 1, owner_name: 'Alex Chen', version: 1,
+    type: 'REQUIREMENT', requirement_type: 'Functional Requirement', safety_level: 'ASIL-D', test_subprocess: 'HIL Testing',
+    status: 'APPROVED', priority: 'CRITICAL', owner_id: 1, owner_name: 'Zewd', created_by_name: 'Zewd', version: 1,
     metadata: { rationale: 'Guarantee patron safety when sudden obstacles step directly into path.', source: 'Safety Hazard Analysis SHA-2026-01', verificationMethod: 'Test' },
     created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   },
   {
-    id: 3, tracker_id: 1, folder_id: 3, object_key: 'SYS-REQ-003',
+    id: 3, tracker_id: 1, tracker_name: 'System Requirements', folder_id: 3, folder_name: 'Payload & Thermal Containment', object_key: 'SYS-REQ-003',
     title: 'Active Hot Food Bay Thermal Maintenance',
     description: 'The insulated payload compartment shall maintain hot soup and plated meals at a minimum internal temperature of 65°C for up to 25 minutes of transit.',
-    type: 'REQUIREMENT', status: 'REVIEW', priority: 'MEDIUM', owner_id: 3, owner_name: 'Marcus Vance', version: 1,
+    type: 'REQUIREMENT', requirement_type: 'Non-Functional Requirement', safety_level: 'Standard / Non-Safety', test_subprocess: 'Black-Box Testing',
+    status: 'REVIEW', priority: 'MEDIUM', owner_id: 1, owner_name: 'Zewd', created_by_name: 'Zewd', version: 1,
     metadata: { rationale: 'Ensure food quality and customer satisfaction during peak dining hours.', source: 'PRD §4.2', verificationMethod: 'Inspection' },
     created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   },
   {
-    id: 4, tracker_id: 2, folder_id: null, object_key: 'SW-REQ-001',
+    id: 4, tracker_id: 2, tracker_name: 'Software Requirements', folder_id: null, folder_name: null, object_key: 'SW-REQ-001',
     title: 'ROS2 Nav2 DWB Dynamic Local Planner Configuration',
     description: 'The software stack shall integrate ROS2 Iron Nav2 DWB local planner tuned with 20Hz local costmap updates using Ouster 3D LiDAR point cloud scans.',
-    type: 'REQUIREMENT', status: 'APPROVED', priority: 'HIGH', owner_id: 2, owner_name: 'Sarah Jenkins', version: 1,
+    type: 'REQUIREMENT', requirement_type: 'Parameter', safety_level: 'ASIL-C', test_subprocess: 'SW Testing',
+    status: 'APPROVED', priority: 'HIGH', owner_id: 1, owner_name: 'Zewd', created_by_name: 'Zewd', version: 1,
     metadata: { rationale: 'Real-time reactive navigation in tight restaurant table aisles.', source: 'Derived from SYS-REQ-001' },
     created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   },
   {
-    id: 5, tracker_id: 3, folder_id: null, object_key: 'ARCH-001',
+    id: 5, tracker_id: 3, tracker_name: 'System Architecture', folder_id: null, folder_name: null, object_key: 'ARCH-001',
     title: 'RoboServ-X1 Main Cyber-Physical System',
     description: 'Top-level system architecture encapsulating Mobility Base, Sensor Suite, Thermal Bay, Compute, and Power.',
-    type: 'ARCHITECTURE', status: 'APPROVED', priority: 'CRITICAL', owner_id: 1, owner_name: 'Alex Chen', version: 1,
+    type: 'ARCHITECTURE', requirement_type: 'Folder', safety_level: 'ASIL-D', test_subprocess: 'Integration Testing',
+    status: 'APPROVED', priority: 'CRITICAL', owner_id: 1, owner_name: 'Zewd', created_by_name: 'Zewd', version: 1,
     metadata: { archType: 'System', subsystems: ['Mobility', 'Sensors', 'Payload', 'Compute'] },
     created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   },
   {
-    id: 6, tracker_id: 4, folder_id: null, object_key: 'RISK-001',
+    id: 6, tracker_id: 4, tracker_name: 'Risks & Hazards', folder_id: null, folder_name: null, object_key: 'RISK-001',
     title: 'Robot Collision with Fast-Moving Dining Room Patron',
     description: 'Hazard: Uncontrolled physical contact with customer in crowded dining area resulting in minor injury or food spill.',
-    type: 'RISK', status: 'REVIEW', priority: 'CRITICAL', owner_id: 1, owner_name: 'Alex Chen', version: 1,
+    type: 'RISK', requirement_type: 'Non-Functional Requirement', safety_level: 'ASIL-D', test_subprocess: 'Field Testing',
+    status: 'REVIEW', priority: 'CRITICAL', owner_id: 1, owner_name: 'Zewd', created_by_name: 'Zewd', version: 1,
     metadata: { hazard: 'Kinetic collision at 1.5 m/s', severity: 5, exposure: 4, avoidance: 3, riskRating: 60, mitigation: 'SYS-REQ-001 & SYS-REQ-002' },
     created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   },
   {
-    id: 7, tracker_id: 5, folder_id: null, object_key: 'SYS-TST-001',
+    id: 7, tracker_id: 5, tracker_name: 'System Test Cases', folder_id: null, folder_name: null, object_key: 'SYS-TST-001',
     title: 'Dynamic Pedestrian Avoidance & Latency Test',
     description: 'Verify that the robot detects a dynamic human target walking across its path at 1.0 m/s and computes a non-colliding path.',
-    type: 'TEST_CASE', status: 'APPROVED', priority: 'CRITICAL', owner_id: 4, owner_name: 'Elena Rostova', version: 1,
+    type: 'TEST_CASE', requirement_type: 'Functional Requirement', safety_level: 'ASIL-D', test_subprocess: 'System Testing',
+    status: 'APPROVED', priority: 'CRITICAL', owner_id: 1, owner_name: 'Zewd', created_by_name: 'Zewd', version: 1,
     metadata: { objective: 'Validate <50ms response time.', preconditions: 'Nav2 active in simulator.' },
     created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   },
   {
-    id: 8, tracker_id: 5, folder_id: null, object_key: 'SYS-TST-002',
+    id: 8, tracker_id: 5, tracker_name: 'System Test Cases', folder_id: null, folder_name: null, object_key: 'SYS-TST-002',
     title: 'Emergency Stop Braking Distance Field Test',
     description: 'Perform hard emergency stop triggers at maximum operational velocity (1.5 m/s) and record stopping distance.',
-    type: 'TEST_CASE', status: 'APPROVED', priority: 'CRITICAL', owner_id: 4, owner_name: 'Elena Rostova', version: 1,
+    type: 'TEST_CASE', requirement_type: 'Functional Requirement', safety_level: 'ASIL-D', test_subprocess: 'HIL Testing',
+    status: 'APPROVED', priority: 'CRITICAL', owner_id: 1, owner_name: 'Zewd', created_by_name: 'Zewd', version: 1,
     metadata: { objective: 'Verify stopping distance <= 0.35m.', preconditions: 'Dry tile surface.' },
-    created_at: new Date().toISOString(), updated_at: new Date().toISOString()
-  },
-  {
-    id: 9, tracker_id: 6, folder_id: null, object_key: 'TST-SET-001',
-    title: 'Safety & ISO 13482 Validation Test Set',
-    description: 'Comprehensive safety suite combining dynamic obstacle avoidance and e-stop braking tests.',
-    type: 'TEST_SET', status: 'APPROVED', priority: 'CRITICAL', owner_id: 1, owner_name: 'Alex Chen', version: 1,
-    metadata: { targetRelease: 'Release 2.4' },
     created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   }
 ];
@@ -165,28 +165,45 @@ export const App: React.FC = () => {
     setActiveView('DASHBOARD');
   };
 
-  // Phase 2: Create Object
-  const handleCreateObject = (data: { tracker_id: number; folder_id?: number | null; title: string; description?: string; priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'; metadata?: any }) => {
+  // Create Object with expanded engineering fields
+  const handleCreateObject = (data: {
+    tracker_id: number;
+    folder_id?: number | null;
+    title: string;
+    description?: string;
+    requirement_type?: RequirementType;
+    safety_level?: SafetyLevel;
+    test_subprocess?: TestSubProcess;
+    priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+    metadata?: any;
+  }) => {
     const tracker = allTrackers.find(t => t.id === data.tracker_id);
     if (!tracker) return;
 
+    const folder = allFolders.find(f => f.id === data.folder_id);
     const count = allObjects.filter(o => o.tracker_id === tracker.id).length;
     const object_key = `${tracker.prefix}${String(count + 1).padStart(3, '0')}`;
 
     const newObj: EngineeringObject = {
       id: Date.now(),
       tracker_id: tracker.id,
+      tracker_name: tracker.name,
       folder_id: data.folder_id || null,
+      folder_name: folder?.name || null,
       object_key,
       title: data.title,
       description: data.description || '',
       type: tracker.type,
+      requirement_type: data.requirement_type || 'Functional Requirement',
+      safety_level: data.safety_level || 'ASIL-D',
+      test_subprocess: data.test_subprocess || 'System Testing',
       status: 'DRAFT',
       priority: data.priority || 'MEDIUM',
       owner_id: 1,
-      owner_name: 'Alex Chen',
+      owner_name: 'Zewd',
+      created_by_name: 'Zewd',
       version: 1,
-      metadata: data.metadata || { rationale: 'New item creation', source: 'Manual entry' },
+      metadata: data.metadata || { rationale: 'Created via workspace UI', source: 'Manual entry' },
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -194,14 +211,14 @@ export const App: React.FC = () => {
     setAllObjects(prev => [newObj, ...prev]);
   };
 
-  // Phase 2: Update Object
+  // Update Object
   const handleUpdateObject = (id: number, updates: Partial<EngineeringObject>) => {
     setAllObjects(prev => prev.map(o => {
       if (o.id === id) {
         return {
           ...o,
           ...updates,
-          version: updates.title || updates.description || updates.status ? o.version + 1 : o.version,
+          version: updates.title || updates.description || updates.status || updates.requirement_type || updates.safety_level ? o.version + 1 : o.version,
           updated_at: new Date().toISOString()
         };
       }

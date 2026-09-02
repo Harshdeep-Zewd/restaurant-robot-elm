@@ -33,18 +33,30 @@ export interface Folder {
   position: number;
 }
 
+export type RequirementType = 'Functional Requirement' | 'Non-Functional Requirement' | 'Variable' | 'Parameter' | 'Folder';
+
+export type SafetyLevel = 'ASIL-D' | 'ASIL-C' | 'ASIL-B' | 'ASIL-A' | 'SIL-3' | 'SIL-2' | 'SIL-1' | 'Standard / Non-Safety';
+
+export type TestSubProcess = 'Black-Box Testing' | 'Grey-Box Testing' | 'White-Box Testing' | 'Unit Testing' | 'Integration Testing' | 'SW Testing' | 'System Testing' | 'HIL Testing' | 'Field Testing';
+
 export interface EngineeringObject {
   id: number;
   tracker_id: number;
+  tracker_name?: string;
   folder_id: number | null;
+  folder_name?: string | null;
   object_key: string;
   title: string;
   description: string;
   type: string;
+  requirement_type?: RequirementType;
+  safety_level?: SafetyLevel;
+  test_subprocess?: TestSubProcess;
   status: string;
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   owner_id: number;
   owner_name?: string;
+  created_by_name?: string;
   version: number;
   metadata?: Record<string, any>;
   created_at: string;

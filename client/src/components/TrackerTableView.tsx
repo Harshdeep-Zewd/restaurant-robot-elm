@@ -1,13 +1,23 @@
 import React, { useState } from 'react';
-import { Plus, Folder, ChevronRight } from 'lucide-react';
-import { Tracker, Folder as FolderType, EngineeringObject } from '../types/elm';
+import { Plus, Folder, ChevronRight, ShieldAlert, Cpu, Activity } from 'lucide-react';
+import { Tracker, Folder as FolderType, EngineeringObject, RequirementType, SafetyLevel, TestSubProcess } from '../types/elm';
 import { ObjectDetailPane } from './ObjectDetailPane';
 
 interface TrackerTableViewProps {
   tracker: Tracker;
   objects: EngineeringObject[];
   folders: FolderType[];
-  onCreateObject: (data: { tracker_id: number; folder_id?: number | null; title: string; description?: string; priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'; metadata?: any }) => void;
+  onCreateObject: (data: {
+    tracker_id: number;
+    folder_id?: number | null;
+    title: string;
+    description?: string;
+    requirement_type?: RequirementType;
+    safety_level?: SafetyLevel;
+    test_subprocess?: TestSubProcess;
+    priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+    metadata?: any;
+  }) => void;
   onUpdateObject: (id: number, updates: Partial<EngineeringObject>) => void;
   onSelectObjectForImpact?: (objId: number) => void;
 }
@@ -25,8 +35,14 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  // New Record Form Fields
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
+  const [newFolderId, setNewFolderId] = useState<number | null>(null);
+  const [newReqType, setNewReqType] = useState<RequirementType>('Functional Requirement');
+  const [newSafetyLevel, setNewSafetyLevel] = useState<SafetyLevel>('ASIL-D');
+  const [newTestProcess, setNewTestProcess] = useState<TestSubProcess>('System Testing');
   const [newPriority, setNewPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>('MEDIUM');
 
   // Filter objects in memory
@@ -43,7 +59,9 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
     filteredObjects = filteredObjects.filter(o =>
       o.object_key.toLowerCase().includes(s) ||
       o.title.toLowerCase().includes(s) ||
-      o.description.toLowerCase().includes(s)
+      o.description.toLowerCase().includes(s) ||
+      (o.requirement_type && o.requirement_type.toLowerCase().includes(s)) ||
+      (o.safety_level && o.safety_level.toLowerCase().includes(s))
     );
   }
 
@@ -53,11 +71,14 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
 
     onCreateObject({
       tracker_id: tracker.id,
-      folder_id: selectedFolderId,
+      folder_id: newFolderId || selectedFolderId,
       title: newTitle.trim(),
       description: newDesc.trim(),
+      requirement_type: newReqType,
+      safety_level: newSafetyLevel,
+      test_subprocess: newTestProcess,
       priority: newPriority,
-      metadata: { rationale: 'Created via workspace UI', source: 'Manual entry' }
+      metadata: { rationale: 'Created via workspace UI', author: 'Zewd' }
     });
 
     setShowCreateModal(false);
@@ -84,6 +105,17 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
     }
   };
 
+  const getSafetyBadge = (level?: SafetyLevel) => {
+    if (!level) return <span style={{ color: 'var(--text-muted)' }}>-</span>;
+    if (level.startsWith('ASIL')) {
+      return <span style={{ color: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.15)', border: '1px solid #ef4444', padding: '2px 6px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 700 }}>{level}</span>;
+    }
+    if (level.startsWith('SIL')) {
+      return <span style={{ color: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.15)', border: '1px solid #f59e0b', padding: '2px 6px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 700 }}>{level}</span>;
+    }
+    return <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{level}</span>;
+  };
+
   return (
     <div style={{ display: 'flex', height: 'calc(100vh - 60px)', overflow: 'hidden' }}>
       {/* Left Folder Tree Sidebar */}
@@ -95,7 +127,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
         overflowY: 'auto'
       }}>
         <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '12px' }}>
-          Folders / Categories
+          Folders / Sub-systems
         </div>
 
         <button
@@ -201,18 +233,21 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
           </div>
         </div>
 
-        {/* Engineering Data Table */}
+        {/* Expanded Engineering Table */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {filteredObjects.length > 0 ? (
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
               <thead>
                 <tr style={{ backgroundColor: 'var(--bg-sidebar)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-                  <th style={{ padding: '12px 16px', fontWeight: 600 }}>KEY</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600 }}>TITLE & SUMMARY</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600 }}>STATUS</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600 }}>PRIORITY</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600 }}>VER</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600 }}>OWNER</th>
+                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>KEY</th>
+                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>TITLE & SUMMARY</th>
+                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>REQ TYPE</th>
+                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>SAFETY LEVEL</th>
+                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>TEST PROCESS</th>
+                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>STATUS</th>
+                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>PRIORITY</th>
+                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>VER</th>
+                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>CREATED BY</th>
                 </tr>
               </thead>
               <tbody>
@@ -226,19 +261,32 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                       cursor: 'pointer'
                     }}
                   >
-                    <td style={{ padding: '12px 16px', fontWeight: 700, color: 'var(--accent-cyan)' }} className="mono">
+                    <td style={{ padding: '12px 14px', fontWeight: 700, color: 'var(--accent-cyan)' }} className="mono">
                       {obj.object_key}
                     </td>
-                    <td style={{ padding: '12px 16px' }}>
+                    <td style={{ padding: '12px 14px' }}>
                       <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{obj.title}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '450px' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '320px' }}>
                         {obj.description}
                       </div>
                     </td>
-                    <td style={{ padding: '12px 16px' }}>{getStatusBadge(obj.status)}</td>
-                    <td style={{ padding: '12px 16px' }}>{getPriorityBadge(obj.priority)}</td>
-                    <td style={{ padding: '12px 16px' }} className="mono">v{obj.version}</td>
-                    <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>{obj.owner_name || 'Alex Chen'}</td>
+                    <td style={{ padding: '12px 14px' }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', backgroundColor: 'rgba(56, 189, 248, 0.1)', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
+                        {obj.requirement_type || 'Functional Requirement'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px 14px' }}>{getSafetyBadge(obj.safety_level)}</td>
+                    <td style={{ padding: '12px 14px' }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--accent-emerald)' }}>
+                        {obj.test_subprocess || 'System Testing'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px 14px' }}>{getStatusBadge(obj.status)}</td>
+                    <td style={{ padding: '12px 14px' }}>{getPriorityBadge(obj.priority)}</td>
+                    <td style={{ padding: '12px 14px' }} className="mono">v{obj.version}</td>
+                    <td style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--accent-cyan)' }}>
+                      {obj.created_by_name || obj.owner_name || 'Zewd'}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -246,7 +294,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
           ) : (
             <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
               <div style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '8px' }}>No items found in {tracker.name}</div>
-              <p style={{ fontSize: '0.85rem', marginBottom: '16px' }}>Click below to create the first engineering object for this tracker.</p>
+              <p style={{ fontSize: '0.85rem', marginBottom: '16px' }}>Click below to create the first engineering record for this tracker.</p>
               <button
                 onClick={() => setShowCreateModal(true)}
                 style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 600, fontSize: '0.85rem' }}
@@ -263,13 +311,14 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
         <ObjectDetailPane
           objectId={selectedObjectId}
           object={objects.find(o => o.id === selectedObjectId)}
+          folders={folders}
           onClose={() => setSelectedObjectId(null)}
           onUpdateObject={onUpdateObject}
           onSelectForImpact={onSelectObjectForImpact}
         />
       )}
 
-      {/* Object Creation Modal */}
+      {/* Expanded Object Creation Modal */}
       {showCreateModal && (
         <div style={{
           position: 'fixed',
@@ -284,8 +333,10 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
             backgroundColor: 'var(--bg-card)',
             border: '1px solid var(--border-color)',
             borderRadius: '12px',
-            width: '500px',
-            padding: '24px'
+            width: '560px',
+            padding: '24px',
+            maxHeight: '90vh',
+            overflowY: 'auto'
           }}>
             <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '16px' }}>Create New {tracker.name.slice(0, -1)}</h3>
 
@@ -302,7 +353,103 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                 />
               </div>
 
-              <div style={{ marginBottom: '14px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>Requirement Type</label>
+                  <select
+                    value={newReqType}
+                    onChange={(e) => setNewReqType(e.target.value as any)}
+                    style={{ width: '100%' }}
+                  >
+                    <option value="Functional Requirement">Functional Requirement</option>
+                    <option value="Non-Functional Requirement">Non-Functional Requirement</option>
+                    <option value="Variable">Variable</option>
+                    <option value="Parameter">Parameter</option>
+                    <option value="Folder">Folder</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>Parent Folder</label>
+                  <select
+                    value={newFolderId || ''}
+                    onChange={(e) => setNewFolderId(e.target.value ? Number(e.target.value) : null)}
+                    style={{ width: '100%' }}
+                  >
+                    <option value="">No Parent Folder (Root)</option>
+                    {folders.map(f => (
+                      <option key={f.id} value={f.id}>{f.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>Safety Level (SIL / ASIL)</label>
+                  <select
+                    value={newSafetyLevel}
+                    onChange={(e) => setNewSafetyLevel(e.target.value as any)}
+                    style={{ width: '100%' }}
+                  >
+                    <option value="ASIL-D">ASIL-D (Highest Safety)</option>
+                    <option value="ASIL-C">ASIL-C</option>
+                    <option value="ASIL-B">ASIL-B</option>
+                    <option value="ASIL-A">ASIL-A</option>
+                    <option value="SIL-3">SIL-3</option>
+                    <option value="SIL-2">SIL-2</option>
+                    <option value="SIL-1">SIL-1</option>
+                    <option value="Standard / Non-Safety">Standard / Non-Safety</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>Test-Sub Process</label>
+                  <select
+                    value={newTestProcess}
+                    onChange={(e) => setNewTestProcess(e.target.value as any)}
+                    style={{ width: '100%' }}
+                  >
+                    <option value="System Testing">System Testing</option>
+                    <option value="Integration Testing">Integration Testing</option>
+                    <option value="SW Testing">SW Testing</option>
+                    <option value="Unit Testing">Unit Testing</option>
+                    <option value="HIL Testing">HIL (Hardware-in-Loop)</option>
+                    <option value="Black-Box Testing">Black-Box Testing</option>
+                    <option value="Grey-Box Testing">Grey-Box Testing</option>
+                    <option value="White-Box Testing">White-Box Testing</option>
+                    <option value="Field Testing">Field Testing</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>Priority</label>
+                  <select
+                    value={newPriority}
+                    onChange={(e) => setNewPriority(e.target.value as any)}
+                    style={{ width: '100%' }}
+                  >
+                    <option value="LOW">LOW</option>
+                    <option value="MEDIUM">MEDIUM</option>
+                    <option value="HIGH">HIGH</option>
+                    <option value="CRITICAL">CRITICAL</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>Created By</label>
+                  <input
+                    type="text"
+                    disabled
+                    value="Zewd"
+                    style={{ width: '100%', backgroundColor: 'var(--bg-dark)', color: 'var(--accent-cyan)', fontWeight: 700 }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>Description & Rationale</label>
                 <textarea
                   rows={3}
@@ -311,20 +458,6 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                   style={{ width: '100%' }}
                   placeholder="Detailed engineering specification..."
                 />
-              </div>
-
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>Priority</label>
-                <select
-                  value={newPriority}
-                  onChange={(e) => setNewPriority(e.target.value as any)}
-                  style={{ width: '100%' }}
-                >
-                  <option value="LOW">LOW</option>
-                  <option value="MEDIUM">MEDIUM</option>
-                  <option value="HIGH">HIGH</option>
-                  <option value="CRITICAL">CRITICAL</option>
-                </select>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
@@ -339,7 +472,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                   type="submit"
                   style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 600 }}
                 >
-                  Create Record
+                  Create Record (Author: Zewd)
                 </button>
               </div>
             </form>

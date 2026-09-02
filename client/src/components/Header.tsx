@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bot, Search, Plus, FolderPlus, ChevronDown, Check } from 'lucide-react';
+import { Bot, Search, Plus, FolderPlus, ChevronDown, Check, User } from 'lucide-react';
 import { Project } from '../types/elm';
 
 interface HeaderProps {
@@ -197,6 +197,7 @@ export const Header: React.FC<HeaderProps> = ({
           <span>New Project</span>
         </button>
 
+        {/* Author / Creator Profile Avatar */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -208,15 +209,19 @@ export const Header: React.FC<HeaderProps> = ({
             width: '32px',
             height: '32px',
             borderRadius: '50%',
-            backgroundColor: '#38bdf8',
+            backgroundColor: '#0284c7',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             fontWeight: 700,
-            color: '#000',
+            color: '#fff',
             fontSize: '0.85rem'
           }}>
-            AC
+            Z
+          </div>
+          <div>
+            <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>Zewd</div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Lead Systems Engineer</div>
           </div>
         </div>
       </div>
