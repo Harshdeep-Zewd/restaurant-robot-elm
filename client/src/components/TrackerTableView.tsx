@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Folder, ChevronRight } from 'lucide-react';
+import { Plus, Folder, ChevronRight, ListOrdered } from 'lucide-react';
 import { Tracker, Folder as FolderType, EngineeringObject, RequirementType, SafetyLevel, TestSubProcess, Relationship, TestStep } from '../types/elm';
 import { ObjectDetailPane } from './ObjectDetailPane';
 
@@ -19,6 +19,8 @@ interface TrackerTableViewProps {
     safety_level?: SafetyLevel;
     test_subprocess?: TestSubProcess;
     priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+    test_step_action?: string;
+    test_step_expected?: string;
     metadata?: any;
   }) => void;
   onUpdateObject: (id: number, updates: Partial<EngineeringObject>) => void;
@@ -59,6 +61,12 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
   const [newTestProcess, setNewTestProcess] = useState<TestSubProcess>('System Testing');
   const [newPriority, setNewPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>('MEDIUM');
 
+  // Test Case Specific Step 1 Fields
+  const [newStepAction, setNewStepAction] = useState('');
+  const [newStepExpected, setNewStepExpected] = useState('');
+
+  const isTestCaseTracker = tracker.type === 'TEST_CASE' || tracker.key.includes('TST');
+
   let filteredObjects = objects;
 
   if (selectedFolderId !== null) {
@@ -91,12 +99,16 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
       safety_level: newSafetyLevel,
       test_subprocess: newTestProcess,
       priority: newPriority,
+      test_step_action: newStepAction.trim() || undefined,
+      test_step_expected: newStepExpected.trim() || undefined,
       metadata: { rationale: 'Created via workspace UI', author: 'Zewd' }
     });
 
     setShowCreateModal(false);
     setNewTitle('');
     setNewDesc('');
+    setNewStepAction('');
+    setNewStepExpected('');
     setNewPriority('MEDIUM');
   };
 
@@ -255,11 +267,11 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                   <th style={{ padding: '12px 14px', fontWeight: 600 }}>TITLE & SUMMARY</th>
                   <th style={{ padding: '12px 14px', fontWeight: 600 }}>REQ TYPE</th>
                   <th style={{ padding: '12px 14px', fontWeight: 600 }}>SAFETY LEVEL</th>
-                  <th style={{ padding: '12px 14px', fontWeight 600 }}>TEST PROCESS</th>
+                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>TEST PROCESS</th>
                   <th style={{ padding: '12px 14px', fontWeight: 600 }}>STATUS</th>
-                  <th style={{ padding: '12px 14px', fontWeight 600 }}>PRIORITY</th>
-                  <th style={{ padding: '12px 14px', fontWeight 600 }}>VER</th>
-                  <th style={{ padding: '12px 14px', fontWeight 600 }}>CREATED BY</th>
+                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>PRIORITY</th>
+                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>VER</th>
+                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>CREATED BY</th>
                 </tr>
               </thead>
               <tbody>
@@ -337,7 +349,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
         />
       )}
 
-      {/* Modal */}
+      {/* Expanded Modal with Test Steps section for Test Cases */}
       {showCreateModal && (
         <div style={{
           position: 'fixed',
@@ -352,7 +364,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
             backgroundColor: 'var(--bg-card)',
             border: '1px solid var(--border-color)',
             borderRadius: '12px',
-            width: '560px',
+            width: '580px',
             padding: '24px',
             maxHeight: '90vh',
             overflowY: 'auto'
@@ -467,6 +479,42 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                   />
                 </div>
               </div>
+
+              {/* Initial Test Step Section (Shown for Test Case trackers) */}
+              {isTestCaseTracker && (
+                <div style={{ backgroundColor: 'var(--bg-dark)', border: '1px solid var(--accent-cyan)', borderRadius: '8px', padding: '14px', marginBottom: '14px' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--accent-cyan)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <ListOrdered size={16} />
+                    <span>Initial Test Step #1 (Procedure Step)</span>
+                  </div>
+
+                  <div style={{ marginBottom: '8px' }}>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
+                      Step 1: Action / Instruction
+                    </label>
+                    <input
+                      type="text"
+                      value={newStepAction}
+                      onChange={(e) => setNewStepAction(e.target.value)}
+                      style={{ width: '100%', fontSize: '0.85rem' }}
+                      placeholder="e.g. Accelerate base to 1.5 m/s and hit wireless e-stop button..."
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
+                      Step 1: Expected Result
+                    </label>
+                    <input
+                      type="text"
+                      value={newStepExpected}
+                      onChange={(e) => setNewStepExpected(e.target.value)}
+                      style={{ width: '100%', fontSize: '0.85rem' }}
+                      placeholder="e.g. Mechanical brakes engage and stop robot within <= 0.35m."
+                    />
+                  </div>
+                </div>
+              )}
 
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>Description & Rationale</label>

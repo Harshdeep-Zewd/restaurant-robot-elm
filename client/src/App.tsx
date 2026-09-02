@@ -130,7 +130,6 @@ const INITIAL_RELATIONSHIPS: Relationship[] = [
 ];
 
 const INITIAL_TEST_STEPS: TestStep[] = [
-  // Test steps for SYS-TST-001 (id: 7)
   {
     id: 1, test_case_id: 7, step_number: 1,
     action: 'Initialize ROS2 Iron Nav2 stack and load 3D LiDAR point cloud costmap in restaurant dining room environment.',
@@ -146,7 +145,6 @@ const INITIAL_TEST_STEPS: TestStep[] = [
     action: 'Monitor robot velocity and trajectory during local bypass maneuver.',
     expected_result: 'Robot maintains smooth velocity profile (> 0.5 m/s) without erratic oscillation or emergency brake locking.'
   },
-  // Test steps for SYS-TST-002 (id: 8)
   {
     id: 4, test_case_id: 8, step_number: 1,
     action: 'Accelerate RoboServ-X1 robot base to maximum cruising speed of 1.5 m/s on dry tile flooring.',
@@ -228,6 +226,8 @@ export const App: React.FC = () => {
     safety_level?: SafetyLevel;
     test_subprocess?: TestSubProcess;
     priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+    test_step_action?: string;
+    test_step_expected?: string;
     metadata?: any;
   }) => {
     const tracker = allTrackers.find(t => t.id === data.tracker_id);
@@ -236,9 +236,10 @@ export const App: React.FC = () => {
     const folder = allFolders.find(f => f.id === data.folder_id);
     const count = allObjects.filter(o => o.tracker_id === tracker.id).length;
     const object_key = `${tracker.prefix}${String(count + 1).padStart(3, '0')}`;
+    const newObjId = Date.now();
 
     const newObj: EngineeringObject = {
-      id: Date.now(),
+      id: newObjId,
       tracker_id: tracker.id,
       tracker_name: tracker.name,
       folder_id: data.folder_id || null,
@@ -262,6 +263,18 @@ export const App: React.FC = () => {
     };
 
     setAllObjects(prev => [newObj, ...prev]);
+
+    // Automatically attach Initial Test Step 1 if provided for a Test Case
+    if (data.test_step_action && data.test_step_expected) {
+      const initialStep: TestStep = {
+        id: Date.now() + 1,
+        test_case_id: newObjId,
+        step_number: 1,
+        action: data.test_step_action.trim(),
+        expected_result: data.test_step_expected.trim()
+      };
+      setTestSteps(prev => [...prev, initialStep]);
+    }
   };
 
   const handleUpdateObject = (id: number, updates: Partial<EngineeringObject>) => {
@@ -292,7 +305,6 @@ export const App: React.FC = () => {
     setRelationships(prev => prev.filter(r => r.id !== id));
   };
 
-  // Test Step Actions
   const handleAddTestStep = (test_case_id: number, action: string, expected_result: string) => {
     const existing = testSteps.filter(s => s.test_case_id === test_case_id);
     const newStep: TestStep = {
