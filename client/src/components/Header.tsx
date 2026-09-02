@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { Bot, Search, GitBranch, Plus, FolderPlus, ChevronDown, Loader2 } from 'lucide-react';
+import { Bot, Search, Plus, FolderPlus, ChevronDown, Check } from 'lucide-react';
 import { Project } from '../types/elm';
 
 interface HeaderProps {
   project: Project | null;
   projects: Project[];
   onSelectProject: (p: Project) => void;
-  onCreateProject: (data: { key: string; name: string; description?: string }) => Promise<void>;
+  onCreateProject: (data: { key: string; name: string; description?: string }) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
 }
@@ -19,32 +19,26 @@ export const Header: React.FC<HeaderProps> = ({
   searchQuery,
   setSearchQuery
 }) => {
-  const [showProjectDropdown, setShowProjectDropdown] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const [key, setKey] = useState('');
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!key.trim() || !name.trim()) {
-      alert('Please provide both Project Name and Project Key Prefix.');
-      return;
-    }
+    if (!key.trim() || !name.trim()) return;
 
-    try {
-      setIsSubmitting(true);
-      await onCreateProject({ key: key.trim(), name: name.trim(), description: desc });
-      setShowCreateModal(false);
-      setKey('');
-      setName('');
-      setDesc('');
-    } catch (err: any) {
-      alert(`Error creating project: ${err.message || 'Failed to create project'}`);
-    } finally {
-      setIsSubmitting(false);
-    }
+    onCreateProject({
+      key: key.trim().toUpperCase(),
+      name: name.trim(),
+      description: desc.trim()
+    });
+
+    setShowModal(false);
+    setKey('');
+    setName('');
+    setDesc('');
   };
 
   return (
@@ -75,10 +69,10 @@ export const Header: React.FC<HeaderProps> = ({
           <span>RoboServ ELM</span>
         </div>
 
-        {/* Project Selector & Switcher */}
+        {/* Project Selector Dropdown */}
         <div style={{ position: 'relative' }}>
           <button
-            onClick={() => setShowProjectDropdown(!showProjectDropdown)}
+            onClick={() => setShowDropdown(!showDropdown)}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -97,10 +91,10 @@ export const Header: React.FC<HeaderProps> = ({
             <ChevronDown size={14} color="var(--text-muted)" />
           </button>
 
-          {showProjectDropdown && (
+          {showDropdown && (
             <div style={{
               position: 'absolute',
-              top: '40px',
+              top: '42px',
               left: 0,
               width: '320px',
               backgroundColor: 'var(--bg-card)',
@@ -119,7 +113,7 @@ export const Header: React.FC<HeaderProps> = ({
                   key={p.id}
                   onClick={() => {
                     onSelectProject(p);
-                    setShowProjectDropdown(false);
+                    setShowDropdown(false);
                   }}
                   style={{
                     display: 'flex',
@@ -139,15 +133,15 @@ export const Header: React.FC<HeaderProps> = ({
                     <div style={{ fontWeight: 600 }}>{p.name}</div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{p.description || 'No description'}</div>
                   </div>
-                  <span className="mono badge badge-verified">{p.key}</span>
+                  {project?.id === p.id && <Check size={16} color="var(--accent-cyan)" />}
                 </button>
               ))}
 
               <div style={{ borderTop: '1px solid var(--border-color)', marginTop: '6px', paddingTop: '6px' }}>
                 <button
                   onClick={() => {
-                    setShowProjectDropdown(false);
-                    setShowCreateModal(true);
+                    setShowDropdown(false);
+                    setShowModal(true);
                   }}
                   style={{
                     display: 'flex',
@@ -172,7 +166,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-        {/* Search bar */}
+        {/* Search Input */}
         <div style={{ position: 'relative', width: '260px' }}>
           <Search size={16} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--text-muted)' }} />
           <input
@@ -184,15 +178,16 @@ export const Header: React.FC<HeaderProps> = ({
           />
         </div>
 
+        {/* Primary "+ New Project" Button */}
         <button
-          onClick={() => setShowCreateModal(true)}
+          onClick={() => setShowModal(true)}
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
             backgroundColor: 'var(--primary)',
             color: '#fff',
-            padding: '6px 12px',
+            padding: '6px 14px',
             borderRadius: '6px',
             fontWeight: 600,
             fontSize: '0.85rem'
@@ -227,11 +222,11 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* New Project Modal */}
-      {showCreateModal && (
+      {showModal && (
         <div style={{
           position: 'fixed',
           top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.7)',
+          backgroundColor: 'rgba(0,0,0,0.75)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -242,11 +237,12 @@ export const Header: React.FC<HeaderProps> = ({
             border: '1px solid var(--border-color)',
             borderRadius: '12px',
             width: '480px',
-            padding: '24px'
+            padding: '24px',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.6)'
           }}>
             <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '16px' }}>Create New Engineering Project</h3>
 
-            <form onSubmit={handleCreate}>
+            <form onSubmit={handleSubmit}>
               <div style={{ marginBottom: '14px' }}>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
                   Project Name *
@@ -289,41 +285,29 @@ export const Header: React.FC<HeaderProps> = ({
                   value={desc}
                   onChange={(e) => setDesc(e.target.value)}
                   style={{ width: '100%' }}
-                  placeholder="Engineering scope and requirements details..."
+                  placeholder="Engineering scope and details..."
                 />
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
                 <button
                   type="button"
-                  disabled={isSubmitting}
-                  onClick={() => setShowCreateModal(false)}
+                  onClick={() => setShowModal(false)}
                   style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--bg-dark)', color: 'var(--text-main)' }}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting}
                   style={{
                     padding: '8px 16px',
                     borderRadius: '6px',
                     backgroundColor: 'var(--primary)',
                     color: '#fff',
-                    fontWeight: 600,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px'
+                    fontWeight: 600
                   }}
                 >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 size={16} className="animate-spin" />
-                      <span>Creating...</span>
-                    </>
-                  ) : (
-                    <span>Create & Initialize Project</span>
-                  )}
+                  Create & Initialize Project
                 </button>
               </div>
             </form>
