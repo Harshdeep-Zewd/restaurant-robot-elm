@@ -2,24 +2,16 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import apiRouter from './routes/api';
-import { seedDatabase } from './db/seed';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// Enable CORS & JSON middleware
+// Enable CORS & JSON body parsing
 app.use(cors());
 app.use(express.json());
 
-// Serve static artifacts
-app.use('/artifacts', express.static(path.join(__dirname, '../storage/artifacts')));
-
-// Ensure database initialized & seeded on server start / cold start
-try {
-  seedDatabase();
-} catch (err) {
-  console.error('Database initialization error:', err);
-}
+// Serve static artifacts if available
+app.use('/artifacts', express.static(path.join('/tmp', 'artifacts')));
 
 // API Routes
 app.use('/api', apiRouter);
@@ -27,6 +19,17 @@ app.use('/api', apiRouter);
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'RoboServ ELM API', timestamp: new Date().toISOString() });
+});
+
+// Catch-all 404 handler for API routes
+app.use('/api/*', (req, res) => {
+  res.status(404).json({ error: 'API route not found' });
+});
+
+// Global error handler returning valid JSON
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('API Error:', err);
+  res.status(500).json({ error: err.message || 'Internal Server Error' });
 });
 
 // Start standalone server if not running in serverless environment
