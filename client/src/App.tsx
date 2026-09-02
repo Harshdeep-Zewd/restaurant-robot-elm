@@ -10,7 +10,7 @@ import { RisksMatrixView } from './components/RisksMatrixView';
 import { BaselinesView } from './components/BaselinesView';
 import { ArtifactsView } from './components/ArtifactsView';
 import { AuditView } from './components/AuditView';
-import { Project, Tracker, EngineeringObject, Folder, RequirementType, SafetyLevel, TestSubProcess } from './types/elm';
+import { Project, Tracker, EngineeringObject, Folder, RequirementType, SafetyLevel, TestSubProcess, Relationship } from './types/elm';
 
 const INITIAL_PROJECTS: Project[] = [
   {
@@ -108,7 +108,25 @@ const INITIAL_OBJECTS: EngineeringObject[] = [
     status: 'APPROVED', priority: 'CRITICAL', owner_id: 1, owner_name: 'Zewd', created_by_name: 'Zewd', version: 1,
     metadata: { objective: 'Verify stopping distance <= 0.35m.', preconditions: 'Dry tile surface.' },
     created_at: new Date().toISOString(), updated_at: new Date().toISOString()
+  },
+  {
+    id: 9, tracker_id: 6, tracker_name: 'Test Sets', folder_id: null, folder_name: null, object_key: 'TST-SET-001',
+    title: 'Safety & ISO 13482 Validation Test Set',
+    description: 'Comprehensive safety suite combining dynamic obstacle avoidance and e-stop braking tests.',
+    type: 'TEST_SET', requirement_type: 'Functional Requirement', safety_level: 'ASIL-D', test_subprocess: 'System Testing',
+    status: 'APPROVED', priority: 'CRITICAL', owner_id: 1, owner_name: 'Zewd', created_by_name: 'Zewd', version: 1,
+    metadata: { targetRelease: 'Release 2.4' },
+    created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   }
+];
+
+const INITIAL_RELATIONSHIPS: Relationship[] = [
+  { id: 1, source_id: 6, target_id: 1, relationship_type: 'MITIGATED_BY' }, // RISK-001 -> MITIGATED_BY -> SYS-REQ-001
+  { id: 2, source_id: 1, target_id: 4, relationship_type: 'DERIVED_TO' },   // SYS-REQ-001 -> DERIVED_TO -> SW-REQ-001
+  { id: 3, source_id: 1, target_id: 7, relationship_type: 'VERIFIED_BY' },  // SYS-REQ-001 -> VERIFIED_BY -> SYS-TST-001
+  { id: 4, source_id: 2, target_id: 8, relationship_type: 'VERIFIED_BY' },  // SYS-REQ-002 -> VERIFIED_BY -> SYS-TST-002
+  { id: 5, source_id: 1, target_id: 5, relationship_type: 'ALLOCATED_TO' }, // SYS-REQ-001 -> ALLOCATED_TO -> ARCH-001
+  { id: 6, source_id: 7, target_id: 9, relationship_type: 'INCLUDED_IN' }   // SYS-TST-001 -> INCLUDED_IN -> TST-SET-001
 ];
 
 export const App: React.FC = () => {
@@ -118,6 +136,7 @@ export const App: React.FC = () => {
   const [selectedTracker, setSelectedTracker] = useState<Tracker | null>(INITIAL_TRACKERS[0]);
   const [allFolders, setAllFolders] = useState<Folder[]>(INITIAL_FOLDERS);
   const [allObjects, setAllObjects] = useState<EngineeringObject[]>(INITIAL_OBJECTS);
+  const [relationships, setRelationships] = useState<Relationship[]>(INITIAL_RELATIONSHIPS);
   
   const [activeView, setActiveView] = useState<ViewMode>('DASHBOARD');
   const [searchQuery, setSearchQuery] = useState('');
@@ -165,7 +184,6 @@ export const App: React.FC = () => {
     setActiveView('DASHBOARD');
   };
 
-  // Create Object with expanded engineering fields
   const handleCreateObject = (data: {
     tracker_id: number;
     folder_id?: number | null;
@@ -203,7 +221,7 @@ export const App: React.FC = () => {
       owner_name: 'Zewd',
       created_by_name: 'Zewd',
       version: 1,
-      metadata: data.metadata || { rationale: 'Created via workspace UI', source: 'Manual entry' },
+      metadata: data.metadata || { rationale: 'Created via workspace UI', author: 'Zewd' },
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -211,7 +229,6 @@ export const App: React.FC = () => {
     setAllObjects(prev => [newObj, ...prev]);
   };
 
-  // Update Object
   const handleUpdateObject = (id: number, updates: Partial<EngineeringObject>) => {
     setAllObjects(prev => prev.map(o => {
       if (o.id === id) {
@@ -224,6 +241,21 @@ export const App: React.FC = () => {
       }
       return o;
     }));
+  };
+
+  // Traceability Linking Actions
+  const handleAddRelationship = (source_id: number, target_id: number, relationship_type: any) => {
+    const newRel: Relationship = {
+      id: Date.now(),
+      source_id,
+      target_id,
+      relationship_type
+    };
+    setRelationships(prev => [...prev, newRel]);
+  };
+
+  const handleDeleteRelationship = (id: number) => {
+    setRelationships(prev => prev.filter(r => r.id !== id));
   };
 
   const handleNavigate = (view: ViewMode, tracker?: Tracker) => {
@@ -265,15 +297,25 @@ export const App: React.FC = () => {
             <TrackerTableView
               tracker={selectedTracker}
               objects={allObjects.filter(o => o.tracker_id === selectedTracker.id)}
+              allObjects={allObjects}
               folders={allFolders.filter(f => f.tracker_id === selectedTracker.id)}
+              relationships={relationships}
               onCreateObject={handleCreateObject}
               onUpdateObject={handleUpdateObject}
+              onAddRelationship={handleAddRelationship}
+              onDeleteRelationship={handleDeleteRelationship}
               onSelectObjectForImpact={handleSelectObjectForImpact}
             />
           )}
 
           {activeView === 'TRACEABILITY' && (
-            <TraceabilityMatrixView trackers={currentTrackers} />
+            <TraceabilityMatrixView
+              trackers={currentTrackers}
+              allObjects={allObjects}
+              relationships={relationships}
+              onAddRelationship={handleAddRelationship}
+              onDeleteRelationship={handleDeleteRelationship}
+            />
           )}
 
           {activeView === 'IMPACT' && impactObjectId && (

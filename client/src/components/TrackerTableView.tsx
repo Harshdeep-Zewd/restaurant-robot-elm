@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { Plus, Folder, ChevronRight, ShieldAlert, Cpu, Activity } from 'lucide-react';
-import { Tracker, Folder as FolderType, EngineeringObject, RequirementType, SafetyLevel, TestSubProcess } from '../types/elm';
+import { Plus, Folder, ChevronRight } from 'lucide-react';
+import { Tracker, Folder as FolderType, EngineeringObject, RequirementType, SafetyLevel, TestSubProcess, Relationship } from '../types/elm';
 import { ObjectDetailPane } from './ObjectDetailPane';
 
 interface TrackerTableViewProps {
   tracker: Tracker;
   objects: EngineeringObject[];
+  allObjects: EngineeringObject[];
   folders: FolderType[];
+  relationships: Relationship[];
   onCreateObject: (data: {
     tracker_id: number;
     folder_id?: number | null;
@@ -19,15 +21,21 @@ interface TrackerTableViewProps {
     metadata?: any;
   }) => void;
   onUpdateObject: (id: number, updates: Partial<EngineeringObject>) => void;
+  onAddRelationship: (source_id: number, target_id: number, type: string) => void;
+  onDeleteRelationship: (id: number) => void;
   onSelectObjectForImpact?: (objId: number) => void;
 }
 
 export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
   tracker,
   objects,
+  allObjects,
   folders,
+  relationships,
   onCreateObject,
   onUpdateObject,
+  onAddRelationship,
+  onDeleteRelationship,
   onSelectObjectForImpact
 }) => {
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
@@ -45,7 +53,6 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
   const [newTestProcess, setNewTestProcess] = useState<TestSubProcess>('System Testing');
   const [newPriority, setNewPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>('MEDIUM');
 
-  // Filter objects in memory
   let filteredObjects = objects;
 
   if (selectedFolderId !== null) {
@@ -118,7 +125,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
 
   return (
     <div style={{ display: 'flex', height: 'calc(100vh - 60px)', overflow: 'hidden' }}>
-      {/* Left Folder Tree Sidebar */}
+      {/* Folder Tree Sidebar */}
       <div style={{
         width: '220px',
         borderRight: '1px solid var(--border-color)',
@@ -184,7 +191,6 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
 
       {/* Main Table Area */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        {/* Table Header Bar */}
         <div style={{
           padding: '16px 24px',
           borderBottom: '1px solid var(--border-color)',
@@ -233,7 +239,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
           </div>
         </div>
 
-        {/* Expanded Engineering Table */}
+        {/* Table */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {filteredObjects.length > 0 ? (
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
@@ -306,19 +312,23 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
         </div>
       </div>
 
-      {/* Right Split-Pane Inspector */}
+      {/* Right Split-Pane Inspector with Traceability Engine */}
       {selectedObjectId && (
         <ObjectDetailPane
           objectId={selectedObjectId}
-          object={objects.find(o => o.id === selectedObjectId)}
+          object={allObjects.find(o => o.id === selectedObjectId)}
+          allObjects={allObjects}
           folders={folders}
+          relationships={relationships}
           onClose={() => setSelectedObjectId(null)}
           onUpdateObject={onUpdateObject}
+          onAddRelationship={onAddRelationship}
+          onDeleteRelationship={onDeleteRelationship}
           onSelectForImpact={onSelectObjectForImpact}
         />
       )}
 
-      {/* Expanded Object Creation Modal */}
+      {/* Modal */}
       {showCreateModal && (
         <div style={{
           position: 'fixed',

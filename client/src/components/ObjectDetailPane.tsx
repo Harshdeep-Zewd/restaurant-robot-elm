@@ -1,25 +1,33 @@
 import React, { useEffect, useState } from 'react';
-import { X, Save, History, ShieldAlert, Cpu, Activity, User, Folder } from 'lucide-react';
-import { EngineeringObject, RequirementType, SafetyLevel, TestSubProcess, Folder as FolderType } from '../types/elm';
+import { X, Save, Link as LinkIcon, Trash2, ArrowRight, ArrowLeft, GitCompare, Plus } from 'lucide-react';
+import { EngineeringObject, RequirementType, SafetyLevel, TestSubProcess, Folder as FolderType, Relationship } from '../types/elm';
 
 interface ObjectDetailPaneProps {
   objectId: number;
   object?: EngineeringObject;
+  allObjects?: EngineeringObject[];
   folders?: FolderType[];
+  relationships?: Relationship[];
   onClose: () => void;
   onUpdateObject: (id: number, updates: Partial<EngineeringObject>) => void;
+  onAddRelationship?: (source_id: number, target_id: number, type: string) => void;
+  onDeleteRelationship?: (id: number) => void;
   onSelectForImpact?: (objId: number) => void;
 }
 
 export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
   objectId,
   object,
-  folders,
+  allObjects = [],
+  folders = [],
+  relationships = [],
   onClose,
   onUpdateObject,
+  onAddRelationship,
+  onDeleteRelationship,
   onSelectForImpact
 }) => {
-  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'VERSIONS'>('OVERVIEW');
+  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'TRACEABILITY' | 'VERSIONS'>('OVERVIEW');
   const [title, setTitle] = useState('');
   const [desc, setDesc] = useState('');
   const [status, setStatus] = useState('DRAFT');
@@ -28,6 +36,11 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
   const [safetyLevel, setSafetyLevel] = useState<SafetyLevel>('ASIL-D');
   const [testProcess, setTestProcess] = useState<TestSubProcess>('System Testing');
   const [folderId, setFolderId] = useState<number | null>(null);
+
+  // Link Modal state
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [targetObjId, setTargetObjId] = useState<number | null>(null);
+  const [relType, setRelType] = useState<string>('VERIFIED_BY');
 
   useEffect(() => {
     if (object) {
@@ -44,7 +57,11 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
 
   if (!object) return null;
 
-  const selectedFolder = folders?.find(f => f.id === folderId);
+  const selectedFolder = folders.find(f => f.id === folderId);
+
+  // Filter links attached to this object
+  const outgoingLinks = relationships.filter(r => r.source_id === objectId);
+  const incomingLinks = relationships.filter(r => r.target_id === objectId);
 
   const handleSave = () => {
     onUpdateObject(objectId, {
@@ -58,6 +75,15 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
       folder_id: folderId,
       folder_name: selectedFolder?.name || null
     });
+  };
+
+  const handleCreateLink = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetObjId || !onAddRelationship) return;
+
+    onAddRelationship(objectId, targetObjId, relType);
+    setShowLinkModal(false);
+    setTargetObjId(null);
   };
 
   return (
@@ -112,7 +138,21 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
             background: 'transparent'
           }}
         >
-          Overview & Metadata
+          Overview
+        </button>
+        <button
+          onClick={() => setActiveTab('TRACEABILITY')}
+          style={{
+            flex: 1,
+            padding: '10px 0',
+            fontSize: '0.8rem',
+            fontWeight: 600,
+            color: activeTab === 'TRACEABILITY' ? 'var(--accent-cyan)' : 'var(--text-muted)',
+            borderBottom: activeTab === 'TRACEABILITY' ? '2px solid var(--accent-cyan)' : 'none',
+            background: 'transparent'
+          }}
+        >
+          Traceability Links ({outgoingLinks.length + incomingLinks.length})
         </button>
         <button
           onClick={() => setActiveTab('VERSIONS')}
@@ -146,7 +186,6 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
               />
             </div>
 
-            {/* Author / Creator Badge */}
             <div style={{ backgroundColor: 'var(--bg-dark)', padding: '10px 14px', borderRadius: '6px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Created By Author</span>
               <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-cyan)' }}>Zewd</span>
@@ -172,7 +211,7 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
                 </label>
                 <select value={folderId || ''} onChange={(e) => setFolderId(e.target.value ? Number(e.target.value) : null)} style={{ width: '100%', fontSize: '0.8rem' }}>
                   <option value="">No Parent Folder</option>
-                  {folders?.map(f => (
+                  {folders.map(f => (
                     <option key={f.id} value={f.id}>{f.name}</option>
                   ))}
                 </select>
@@ -273,6 +312,86 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
           </div>
         )}
 
+        {/* Traceability & Object Links Tab */}
+        {activeTab === 'TRACEABILITY' && (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>Object Traceability Engine</span>
+              <button
+                onClick={() => setShowLinkModal(true)}
+                style={{ fontSize: '0.75rem', padding: '6px 12px', borderRadius: '4px', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}
+              >
+                <Plus size={14} />
+                <span>Link Object ID</span>
+              </button>
+            </div>
+
+            {/* Outgoing Links */}
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-amber)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <ArrowRight size={14} />
+                <span>FORWARD TRACEABILITY (OUTGOING ATTACHMENTS)</span>
+              </div>
+
+              {outgoingLinks.length > 0 ? (
+                outgoingLinks.map(rel => {
+                  const target = allObjects.find(o => o.id === rel.target_id);
+                  return (
+                    <div key={rel.id} style={{ backgroundColor: 'var(--bg-dark)', padding: '10px 12px', borderRadius: '8px', marginBottom: '8px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--accent-amber)', fontWeight: 700 }}>{rel.relationship_type}</div>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-cyan)' }} className="mono">{target?.object_key}</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-main)' }}>{target?.title}</div>
+                      </div>
+                      {onDeleteRelationship && (
+                        <button onClick={() => onDeleteRelationship(rel.id)} style={{ color: 'var(--accent-rose)', background: 'transparent' }}>
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })
+              ) : (
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', backgroundColor: 'var(--bg-dark)', padding: '10px', borderRadius: '6px' }}>
+                  No outgoing links. Click "+ Link Object ID" to attach a test case or downstream item.
+                </div>
+              )}
+            </div>
+
+            {/* Incoming Links */}
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-emerald)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <ArrowLeft size={14} />
+                <span>BACKWARD TRACEABILITY (INCOMING ATTACHMENTS)</span>
+              </div>
+
+              {incomingLinks.length > 0 ? (
+                incomingLinks.map(rel => {
+                  const source = allObjects.find(o => o.id === rel.source_id);
+                  return (
+                    <div key={rel.id} style={{ backgroundColor: 'var(--bg-dark)', padding: '10px 12px', borderRadius: '8px', marginBottom: '8px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--accent-emerald)', fontWeight: 700 }}>{rel.relationship_type} BY</div>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-cyan)' }} className="mono">{source?.object_key}</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-main)' }}>{source?.title}</div>
+                      </div>
+                      {onDeleteRelationship && (
+                        <button onClick={() => onDeleteRelationship(rel.id)} style={{ color: 'var(--accent-rose)', background: 'transparent' }}>
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })
+              ) : (
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', backgroundColor: 'var(--bg-dark)', padding: '10px', borderRadius: '6px' }}>
+                  No incoming links attached.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {activeTab === 'VERSIONS' && (
           <div>
             <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '12px' }}>
@@ -291,6 +410,89 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
           </div>
         )}
       </div>
+
+      {/* Modal for Linking Object IDs */}
+      {showLinkModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.75)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'var(--bg-card)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '12px',
+            width: '450px',
+            padding: '24px'
+          }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '14px' }}>
+              Link <span className="mono" style={{ color: 'var(--accent-cyan)' }}>{object.object_key}</span> to Target Object ID
+            </h3>
+
+            <form onSubmit={handleCreateLink}>
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                  Relationship Type
+                </label>
+                <select
+                  value={relType}
+                  onChange={(e) => setRelType(e.target.value)}
+                  style={{ width: '100%' }}
+                >
+                  <option value="VERIFIED_BY">VERIFIED_BY (Req ➔ Test Case)</option>
+                  <option value="MITIGATED_BY">MITIGATED_BY (Risk ➔ Requirement)</option>
+                  <option value="DERIVED_TO">DERIVED_TO (Sys Req ➔ SW Req)</option>
+                  <option value="ALLOCATED_TO">ALLOCATED_TO (Req ➔ Architecture)</option>
+                  <option value="INCLUDED_IN">INCLUDED_IN (Test Case ➔ Test Set)</option>
+                  <option value="EXECUTED_AS">EXECUTED_AS (Test Set ➔ Test Run)</option>
+                </select>
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                  Select Target Object ID *
+                </label>
+                <select
+                  required
+                  value={targetObjId || ''}
+                  onChange={(e) => setTargetObjId(Number(e.target.value))}
+                  style={{ width: '100%' }}
+                >
+                  <option value="">Select Target Object ID...</option>
+                  {allObjects
+                    .filter(o => o.id !== objectId)
+                    .map(o => (
+                      <option key={o.id} value={o.id}>
+                        {o.object_key} - {o.title} ({o.type})
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowLinkModal(false)}
+                  style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--bg-dark)', color: 'var(--text-main)' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!targetObjId}
+                  style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 600 }}
+                >
+                  Link Objects Now
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

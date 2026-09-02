@@ -1,39 +1,60 @@
-import React, { useEffect, useState } from 'react';
-import { GitCompare, Check, X, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
-import { api } from '../api/client';
-import { Tracker } from '../types/elm';
+import React, { useState } from 'react';
+import { GitCompare, Check, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Tracker, EngineeringObject, Relationship } from '../types/elm';
 
 interface TraceabilityMatrixViewProps {
   trackers: Tracker[];
+  allObjects: EngineeringObject[];
+  relationships: Relationship[];
+  onAddRelationship: (source_id: number, target_id: number, type: string) => void;
+  onDeleteRelationship: (id: number) => void;
 }
 
-export const TraceabilityMatrixView: React.FC<TraceabilityMatrixViewProps> = ({ trackers }) => {
+export const TraceabilityMatrixView: React.FC<TraceabilityMatrixViewProps> = ({
+  trackers,
+  allObjects,
+  relationships,
+  onAddRelationship,
+  onDeleteRelationship
+}) => {
   const [sourceTrackerId, setSourceTrackerId] = useState<number>(trackers[0]?.id || 1);
   const [targetTrackerId, setTargetTrackerId] = useState<number>(trackers[4]?.id || 5);
-  const [matrixData, setMatrixData] = useState<any>(null);
-  const [coverage, setCoverage] = useState<any>(null);
 
-  useEffect(() => {
-    if (sourceTrackerId && targetTrackerId) {
-      api.getTraceabilityMatrix(sourceTrackerId, targetTrackerId).then(setMatrixData).catch(console.error);
-    }
-    api.getTraceabilityCoverage(1).then(setCoverage).catch(console.error);
-  }, [sourceTrackerId, targetTrackerId]);
+  const sources = allObjects.filter(o => o.tracker_id === sourceTrackerId);
+  const targets = allObjects.filter(o => o.tracker_id === targetTrackerId);
 
   const hasLink = (sourceId: number, targetId: number) => {
-    if (!matrixData?.links) return false;
-    return matrixData.links.some((l: any) => l.source_id === sourceId && l.target_id === targetId);
+    return relationships.some(r => r.source_id === sourceId && r.target_id === targetId);
   };
 
-  const toggleLink = async (sourceId: number, targetId: number) => {
-    const existing = matrixData.links.find((l: any) => l.source_id === sourceId && l.target_id === targetId);
-    if (existing) {
-      await api.createRelationship({ source_id: sourceId, target_id: targetId, relationship_type: 'VERIFIED_BY' });
-    } else {
-      await api.createRelationship({ source_id: sourceId, target_id: targetId, relationship_type: 'VERIFIED_BY' });
-    }
-    api.getTraceabilityMatrix(sourceTrackerId, targetTrackerId).then(setMatrixData);
+  const getRelationship = (sourceId: number, targetId: number) => {
+    return relationships.find(r => r.source_id === sourceId && r.target_id === targetId);
   };
+
+  const toggleLink = (sourceId: number, targetId: number) => {
+    const existing = getRelationship(sourceId, targetId);
+    if (existing) {
+      onDeleteRelationship(existing.id);
+    } else {
+      onAddRelationship(sourceId, targetId, 'VERIFIED_BY');
+    }
+  };
+
+  // Coverage statistics
+  const unverifiedReqs = allObjects.filter(o =>
+    o.type === 'REQUIREMENT' &&
+    !relationships.some(r => r.source_id === o.id && r.relationship_type === 'VERIFIED_BY')
+  );
+
+  const orphanTests = allObjects.filter(o =>
+    o.type === 'TEST_CASE' &&
+    !relationships.some(r => r.target_id === o.id && r.relationship_type === 'VERIFIED_BY')
+  );
+
+  const unmitigatedRisks = allObjects.filter(o =>
+    o.type === 'RISK' &&
+    !relationships.some(r => r.source_id === o.id && r.relationship_type === 'MITIGATED_BY')
+  );
 
   return (
     <div style={{ padding: '24px', overflowY: 'auto', height: 'calc(100vh - 60px)' }}>
@@ -41,7 +62,7 @@ export const TraceabilityMatrixView: React.FC<TraceabilityMatrixViewProps> = ({ 
         <div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Bidirectional Traceability Matrix</h1>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Real-time relationship mapping & verification coverage matrix
+            Real-time relationship mapping & verification coverage matrix across unique object IDs
           </p>
         </div>
 
@@ -60,47 +81,51 @@ export const TraceabilityMatrixView: React.FC<TraceabilityMatrixViewProps> = ({ 
       </div>
 
       {/* Coverage Alerts Banner */}
-      {coverage && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '24px' }}>
-          <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '12px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <ShieldCheck size={24} color="var(--accent-emerald)" />
-            <div>
-              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-emerald)' }}>Requirement Verification</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-main)' }}>{coverage.stats.unverifiedCount === 0 ? '100% Requirements Verified' : `${coverage.stats.unverifiedCount} Unverified Requirements`}</div>
-            </div>
-          </div>
-
-          <div style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '12px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <GitCompare size={24} color="var(--accent-cyan)" />
-            <div>
-              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-cyan)' }}>Test Case Allocation</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-main)' }}>{coverage.stats.orphanTestCount === 0 ? 'All Test Cases Mapped to Reqs' : `${coverage.stats.orphanTestCount} Tests Without Requirements`}</div>
-            </div>
-          </div>
-
-          <div style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', padding: '12px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <AlertCircle size={24} color="var(--accent-amber)" />
-            <div>
-              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-amber)' }}>Risk Mitigation Coverage</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-main)' }}>{coverage.stats.unmitigatedRiskCount === 0 ? 'All Risks Have Mitigations' : `${coverage.stats.unmitigatedRiskCount} Unmitigated Risks`}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '24px' }}>
+        <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '12px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <ShieldCheck size={24} color="var(--accent-emerald)" />
+          <div>
+            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-emerald)' }}>Requirement Verification</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-main)' }}>
+              {unverifiedReqs.length === 0 ? '100% Requirements Verified' : `${unverifiedReqs.length} Unverified Requirements`}
             </div>
           </div>
         </div>
-      )}
+
+        <div style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '12px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <GitCompare size={24} color="var(--accent-cyan)" />
+          <div>
+            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-cyan)' }}>Test Case Allocation</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-main)' }}>
+              {orphanTests.length === 0 ? 'All Test Cases Mapped to Reqs' : `${orphanTests.length} Tests Without Requirements`}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', padding: '12px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <AlertCircle size={24} color="var(--accent-amber)" />
+          <div>
+            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-amber)' }}>Risk Mitigation Coverage</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-main)' }}>
+              {unmitigatedRisks.length === 0 ? 'All Risks Have Mitigations' : `${unmitigatedRisks.length} Unmitigated Hazards`}
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* 2D Matrix Table */}
-      {matrixData && (
-        <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '10px', overflowX: 'auto' }}>
+      <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '10px', overflowX: 'auto' }}>
+        {sources.length > 0 && targets.length > 0 ? (
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center' }}>
             <thead>
               <tr style={{ backgroundColor: 'var(--bg-sidebar)', borderBottom: '1px solid var(--border-color)' }}>
                 <th style={{ padding: '14px', textTransform: 'uppercase', fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'left', minWidth: '220px' }}>
                   SOURCE \ TARGET
                 </th>
-                {matrixData.targets?.map((target: any) => (
-                  <th key={target.id} style={{ padding: '12px', fontSize: '0.8rem', minWidth: '120px' }}>
+                {targets.map((target) => (
+                  <th key={target.id} style={{ padding: '12px', fontSize: '0.8rem', minWidth: '130px' }}>
                     <div style={{ color: 'var(--accent-cyan)', fontWeight: 700 }} className="mono">{target.object_key}</div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 400, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '120px' }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 400, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '130px' }}>
                       {target.title}
                     </div>
                   </th>
@@ -108,13 +133,13 @@ export const TraceabilityMatrixView: React.FC<TraceabilityMatrixViewProps> = ({ 
               </tr>
             </thead>
             <tbody>
-              {matrixData.sources?.map((source: any) => (
+              {sources.map((source) => (
                 <tr key={source.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                   <td style={{ padding: '12px 16px', textAlign: 'left', backgroundColor: 'var(--bg-sidebar)' }}>
                     <div style={{ fontWeight: 700, color: 'var(--accent-cyan)' }} className="mono">{source.object_key}</div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-main)' }}>{source.title}</div>
                   </td>
-                  {matrixData.targets?.map((target: any) => {
+                  {targets.map((target) => {
                     const isLinked = hasLink(source.id, target.id);
                     return (
                       <td
@@ -141,8 +166,12 @@ export const TraceabilityMatrixView: React.FC<TraceabilityMatrixViewProps> = ({ 
               ))}
             </tbody>
           </table>
-        </div>
-      )}
+        ) : (
+          <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)' }}>
+            No engineering items found in the selected trackers. Create items in both trackers to render the 2D matrix.
+          </div>
+        )}
+      </div>
     </div>
   );
 };
