@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Folder, ChevronRight } from 'lucide-react';
-import { Tracker, Folder as FolderType, EngineeringObject, RequirementType, SafetyLevel, TestSubProcess, Relationship } from '../types/elm';
+import { Tracker, Folder as FolderType, EngineeringObject, RequirementType, SafetyLevel, TestSubProcess, Relationship, TestStep } from '../types/elm';
 import { ObjectDetailPane } from './ObjectDetailPane';
 
 interface TrackerTableViewProps {
@@ -9,6 +9,7 @@ interface TrackerTableViewProps {
   allObjects: EngineeringObject[];
   folders: FolderType[];
   relationships: Relationship[];
+  testSteps?: TestStep[];
   onCreateObject: (data: {
     tracker_id: number;
     folder_id?: number | null;
@@ -23,6 +24,8 @@ interface TrackerTableViewProps {
   onUpdateObject: (id: number, updates: Partial<EngineeringObject>) => void;
   onAddRelationship: (source_id: number, target_id: number, type: string) => void;
   onDeleteRelationship: (id: number) => void;
+  onAddTestStep?: (test_case_id: number, action: string, expected_result: string) => void;
+  onDeleteTestStep?: (id: number) => void;
   onSelectObjectForImpact?: (objId: number) => void;
 }
 
@@ -32,10 +35,13 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
   allObjects,
   folders,
   relationships,
+  testSteps = [],
   onCreateObject,
   onUpdateObject,
   onAddRelationship,
   onDeleteRelationship,
+  onAddTestStep,
+  onDeleteTestStep,
   onSelectObjectForImpact
 }) => {
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
@@ -249,11 +255,11 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                   <th style={{ padding: '12px 14px', fontWeight: 600 }}>TITLE & SUMMARY</th>
                   <th style={{ padding: '12px 14px', fontWeight: 600 }}>REQ TYPE</th>
                   <th style={{ padding: '12px 14px', fontWeight: 600 }}>SAFETY LEVEL</th>
-                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>TEST PROCESS</th>
+                  <th style={{ padding: '12px 14px', fontWeight 600 }}>TEST PROCESS</th>
                   <th style={{ padding: '12px 14px', fontWeight: 600 }}>STATUS</th>
-                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>PRIORITY</th>
-                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>VER</th>
-                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>CREATED BY</th>
+                  <th style={{ padding: '12px 14px', fontWeight 600 }}>PRIORITY</th>
+                  <th style={{ padding: '12px 14px', fontWeight 600 }}>VER</th>
+                  <th style={{ padding: '12px 14px', fontWeight 600 }}>CREATED BY</th>
                 </tr>
               </thead>
               <tbody>
@@ -312,7 +318,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
         </div>
       </div>
 
-      {/* Right Split-Pane Inspector with Traceability Engine */}
+      {/* Inspector with Test Steps */}
       {selectedObjectId && (
         <ObjectDetailPane
           objectId={selectedObjectId}
@@ -320,10 +326,13 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
           allObjects={allObjects}
           folders={folders}
           relationships={relationships}
+          testSteps={testSteps}
           onClose={() => setSelectedObjectId(null)}
           onUpdateObject={onUpdateObject}
           onAddRelationship={onAddRelationship}
           onDeleteRelationship={onDeleteRelationship}
+          onAddTestStep={onAddTestStep}
+          onDeleteTestStep={onDeleteTestStep}
           onSelectForImpact={onSelectObjectForImpact}
         />
       )}

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { X, Save, Link as LinkIcon, Trash2, ArrowRight, ArrowLeft, GitCompare, Plus } from 'lucide-react';
-import { EngineeringObject, RequirementType, SafetyLevel, TestSubProcess, Folder as FolderType, Relationship } from '../types/elm';
+import { X, Save, Link as LinkIcon, Trash2, ArrowRight, ArrowLeft, Plus, CheckCircle2, ListOrdered } from 'lucide-react';
+import { EngineeringObject, RequirementType, SafetyLevel, TestSubProcess, Folder as FolderType, Relationship, TestStep } from '../types/elm';
 
 interface ObjectDetailPaneProps {
   objectId: number;
@@ -8,10 +8,13 @@ interface ObjectDetailPaneProps {
   allObjects?: EngineeringObject[];
   folders?: FolderType[];
   relationships?: Relationship[];
+  testSteps?: TestStep[];
   onClose: () => void;
   onUpdateObject: (id: number, updates: Partial<EngineeringObject>) => void;
   onAddRelationship?: (source_id: number, target_id: number, type: string) => void;
   onDeleteRelationship?: (id: number) => void;
+  onAddTestStep?: (test_case_id: number, action: string, expected_result: string) => void;
+  onDeleteTestStep?: (id: number) => void;
   onSelectForImpact?: (objId: number) => void;
 }
 
@@ -21,13 +24,16 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
   allObjects = [],
   folders = [],
   relationships = [],
+  testSteps = [],
   onClose,
   onUpdateObject,
   onAddRelationship,
   onDeleteRelationship,
+  onAddTestStep,
+  onDeleteTestStep,
   onSelectForImpact
 }) => {
-  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'TRACEABILITY' | 'VERSIONS'>('OVERVIEW');
+  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'STEPS' | 'TRACEABILITY' | 'VERSIONS'>('OVERVIEW');
   const [title, setTitle] = useState('');
   const [desc, setDesc] = useState('');
   const [status, setStatus] = useState('DRAFT');
@@ -41,6 +47,10 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [targetObjId, setTargetObjId] = useState<number | null>(null);
   const [relType, setRelType] = useState<string>('VERIFIED_BY');
+
+  // New Test Step State
+  const [newAction, setNewAction] = useState('');
+  const [newExpectedResult, setNewExpectedResult] = useState('');
 
   useEffect(() => {
     if (object) {
@@ -57,9 +67,10 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
 
   if (!object) return null;
 
+  const isTestCase = object.type === 'TEST_CASE';
+  const caseSteps = testSteps.filter(s => s.test_case_id === objectId);
   const selectedFolder = folders.find(f => f.id === folderId);
 
-  // Filter links attached to this object
   const outgoingLinks = relationships.filter(r => r.source_id === objectId);
   const incomingLinks = relationships.filter(r => r.target_id === objectId);
 
@@ -86,9 +97,18 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
     setTargetObjId(null);
   };
 
+  const handleCreateTestStep = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newAction.trim() || !newExpectedResult.trim() || !onAddTestStep) return;
+
+    onAddTestStep(objectId, newAction.trim(), newExpectedResult.trim());
+    setNewAction('');
+    setNewExpectedResult('');
+  };
+
   return (
     <div style={{
-      width: '460px',
+      width: '480px',
       backgroundColor: 'var(--bg-sidebar)',
       borderLeft: '1px solid var(--border-color)',
       display: 'flex',
@@ -129,44 +149,47 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
         <button
           onClick={() => setActiveTab('OVERVIEW')}
           style={{
-            flex: 1,
-            padding: '10px 0',
-            fontSize: '0.8rem',
-            fontWeight: 600,
+            flex: 1, padding: '10px 0', fontSize: '0.8rem', fontWeight: 600,
             color: activeTab === 'OVERVIEW' ? 'var(--accent-cyan)' : 'var(--text-muted)',
-            borderBottom: activeTab === 'OVERVIEW' ? '2px solid var(--accent-cyan)' : 'none',
-            background: 'transparent'
+            borderBottom: activeTab === 'OVERVIEW' ? '2px solid var(--accent-cyan)' : 'none', background: 'transparent'
           }}
         >
           Overview
         </button>
+
+        {isTestCase && (
+          <button
+            onClick={() => setActiveTab('STEPS')}
+            style={{
+              flex: 1, padding: '10px 0', fontSize: '0.8rem', fontWeight: 600,
+              color: activeTab === 'STEPS' ? 'var(--accent-cyan)' : 'var(--text-muted)',
+              borderBottom: activeTab === 'STEPS' ? '2px solid var(--accent-cyan)' : 'none', background: 'transparent'
+            }}
+          >
+            Test Steps ({caseSteps.length})
+          </button>
+        )}
+
         <button
           onClick={() => setActiveTab('TRACEABILITY')}
           style={{
-            flex: 1,
-            padding: '10px 0',
-            fontSize: '0.8rem',
-            fontWeight: 600,
+            flex: 1, padding: '10px 0', fontSize: '0.8rem', fontWeight: 600,
             color: activeTab === 'TRACEABILITY' ? 'var(--accent-cyan)' : 'var(--text-muted)',
-            borderBottom: activeTab === 'TRACEABILITY' ? '2px solid var(--accent-cyan)' : 'none',
-            background: 'transparent'
+            borderBottom: activeTab === 'TRACEABILITY' ? '2px solid var(--accent-cyan)' : 'none', background: 'transparent'
           }}
         >
-          Traceability Links ({outgoingLinks.length + incomingLinks.length})
+          Traceability ({outgoingLinks.length + incomingLinks.length})
         </button>
+
         <button
           onClick={() => setActiveTab('VERSIONS')}
           style={{
-            flex: 1,
-            padding: '10px 0',
-            fontSize: '0.8rem',
-            fontWeight: 600,
+            flex: 1, padding: '10px 0', fontSize: '0.8rem', fontWeight: 600,
             color: activeTab === 'VERSIONS' ? 'var(--accent-cyan)' : 'var(--text-muted)',
-            borderBottom: activeTab === 'VERSIONS' ? '2px solid var(--accent-cyan)' : 'none',
-            background: 'transparent'
+            borderBottom: activeTab === 'VERSIONS' ? '2px solid var(--accent-cyan)' : 'none', background: 'transparent'
           }}
         >
-          Versions (v{object.version})
+          Versions
         </button>
       </div>
 
@@ -294,21 +317,122 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
             <button
               onClick={handleSave}
               style={{
-                width: '100%',
-                padding: '10px',
-                borderRadius: '6px',
-                backgroundColor: 'var(--primary)',
-                color: '#fff',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px'
+                width: '100%', padding: '10px', borderRadius: '6px',
+                backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 600,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
               }}
             >
               <Save size={16} />
               <span>Save & Create Version (v{object.version + 1})</span>
             </button>
+          </div>
+        )}
+
+        {/* Step-by-Step Test Procedure Tab */}
+        {activeTab === 'STEPS' && (
+          <div>
+            <div style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ListOrdered size={18} color="var(--accent-cyan)" />
+              <span>Test Case Procedure Steps ({caseSteps.length})</span>
+            </div>
+
+            {/* List of Test Steps */}
+            <div style={{ marginBottom: '24px' }}>
+              {caseSteps.length > 0 ? (
+                caseSteps.map((step, idx) => (
+                  <div
+                    key={step.id}
+                    style={{
+                      backgroundColor: 'var(--bg-dark)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '8px',
+                      padding: '12px',
+                      marginBottom: '10px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <span className="mono" style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--accent-cyan)' }}>
+                        STEP {idx + 1}
+                      </span>
+                      {onDeleteTestStep && (
+                        <button onClick={() => onDeleteTestStep(step.id)} style={{ color: 'var(--accent-rose)', background: 'transparent' }}>
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+
+                    <div style={{ marginBottom: '8px' }}>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                        Action / Instruction
+                      </div>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--text-main)', marginTop: '2px' }}>
+                        {step.action}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--accent-emerald)', textTransform: 'uppercase' }}>
+                        Expected Result
+                      </div>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--accent-emerald)', marginTop: '2px' }}>
+                        {step.expected_result}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: 'var(--bg-dark)', borderRadius: '8px' }}>
+                  No test steps created yet. Add your first Action & Expected Result below.
+                </div>
+              )}
+            </div>
+
+            {/* Add New Step Form */}
+            <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '16px' }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: '12px', color: 'var(--accent-cyan)' }}>
+                + Add Step #{caseSteps.length + 1}
+              </div>
+
+              <form onSubmit={handleCreateTestStep}>
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
+                    Action *
+                  </label>
+                  <textarea
+                    required
+                    rows={2}
+                    value={newAction}
+                    onChange={(e) => setNewAction(e.target.value)}
+                    style={{ width: '100%', fontSize: '0.85rem' }}
+                    placeholder="e.g. Accelerate robot base to 1.5 m/s and trigger wireless e-stop..."
+                  />
+                </div>
+
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
+                    Expected Result *
+                  </label>
+                  <textarea
+                    required
+                    rows={2}
+                    value={newExpectedResult}
+                    onChange={(e) => setNewExpectedResult(e.target.value)}
+                    style={{ width: '100%', fontSize: '0.85rem' }}
+                    placeholder="e.g. Robot mechanical brakes engage, stopping base within <= 0.35m."
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  style={{
+                    width: '100%', padding: '8px', borderRadius: '6px',
+                    backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 600, fontSize: '0.85rem'
+                  }}
+                >
+                  + Add Test Step to Procedure
+                </button>
+              </form>
+            </div>
           </div>
         )}
 

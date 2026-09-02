@@ -10,7 +10,7 @@ import { RisksMatrixView } from './components/RisksMatrixView';
 import { BaselinesView } from './components/BaselinesView';
 import { ArtifactsView } from './components/ArtifactsView';
 import { AuditView } from './components/AuditView';
-import { Project, Tracker, EngineeringObject, Folder, RequirementType, SafetyLevel, TestSubProcess, Relationship } from './types/elm';
+import { Project, Tracker, EngineeringObject, Folder, RequirementType, SafetyLevel, TestSubProcess, Relationship, TestStep } from './types/elm';
 
 const INITIAL_PROJECTS: Project[] = [
   {
@@ -121,12 +121,47 @@ const INITIAL_OBJECTS: EngineeringObject[] = [
 ];
 
 const INITIAL_RELATIONSHIPS: Relationship[] = [
-  { id: 1, source_id: 6, target_id: 1, relationship_type: 'MITIGATED_BY' }, // RISK-001 -> MITIGATED_BY -> SYS-REQ-001
-  { id: 2, source_id: 1, target_id: 4, relationship_type: 'DERIVED_TO' },   // SYS-REQ-001 -> DERIVED_TO -> SW-REQ-001
-  { id: 3, source_id: 1, target_id: 7, relationship_type: 'VERIFIED_BY' },  // SYS-REQ-001 -> VERIFIED_BY -> SYS-TST-001
-  { id: 4, source_id: 2, target_id: 8, relationship_type: 'VERIFIED_BY' },  // SYS-REQ-002 -> VERIFIED_BY -> SYS-TST-002
-  { id: 5, source_id: 1, target_id: 5, relationship_type: 'ALLOCATED_TO' }, // SYS-REQ-001 -> ALLOCATED_TO -> ARCH-001
-  { id: 6, source_id: 7, target_id: 9, relationship_type: 'INCLUDED_IN' }   // SYS-TST-001 -> INCLUDED_IN -> TST-SET-001
+  { id: 1, source_id: 6, target_id: 1, relationship_type: 'MITIGATED_BY' },
+  { id: 2, source_id: 1, target_id: 4, relationship_type: 'DERIVED_TO' },
+  { id: 3, source_id: 1, target_id: 7, relationship_type: 'VERIFIED_BY' },
+  { id: 4, source_id: 2, target_id: 8, relationship_type: 'VERIFIED_BY' },
+  { id: 5, source_id: 1, target_id: 5, relationship_type: 'ALLOCATED_TO' },
+  { id: 6, source_id: 7, target_id: 9, relationship_type: 'INCLUDED_IN' }
+];
+
+const INITIAL_TEST_STEPS: TestStep[] = [
+  // Test steps for SYS-TST-001 (id: 7)
+  {
+    id: 1, test_case_id: 7, step_number: 1,
+    action: 'Initialize ROS2 Iron Nav2 stack and load 3D LiDAR point cloud costmap in restaurant dining room environment.',
+    expected_result: 'Costmap initializes cleanly with zero collision flags and steady 20Hz update rate.'
+  },
+  {
+    id: 2, test_case_id: 7, step_number: 2,
+    action: 'Trigger dynamic pedestrian obstacle walking across robot path at 1.0 m/s velocity at a 2.5 meter range.',
+    expected_result: 'Local DWB trajectory planner computes collision-free evasion path within < 50 milliseconds.'
+  },
+  {
+    id: 3, test_case_id: 7, step_number: 3,
+    action: 'Monitor robot velocity and trajectory during local bypass maneuver.',
+    expected_result: 'Robot maintains smooth velocity profile (> 0.5 m/s) without erratic oscillation or emergency brake locking.'
+  },
+  // Test steps for SYS-TST-002 (id: 8)
+  {
+    id: 4, test_case_id: 8, step_number: 1,
+    action: 'Accelerate RoboServ-X1 robot base to maximum cruising speed of 1.5 m/s on dry tile flooring.',
+    expected_result: 'Base wheel encoders confirm steady 1.5 m/s cruising velocity.'
+  },
+  {
+    id: 5, test_case_id: 8, step_number: 2,
+    action: 'Trigger emergency stop hardware break signal via wireless e-stop safety button.',
+    expected_result: 'Power relay opens instantly, killing motor drive power and engaging electromechanical brakes.'
+  },
+  {
+    id: 6, test_case_id: 8, step_number: 3,
+    action: 'Measure total physical stopping distance from brake trigger location using optical ground tracking sensor.',
+    expected_result: 'Total measured stopping distance is strictly <= 0.35 meters.'
+  }
 ];
 
 export const App: React.FC = () => {
@@ -137,12 +172,12 @@ export const App: React.FC = () => {
   const [allFolders, setAllFolders] = useState<Folder[]>(INITIAL_FOLDERS);
   const [allObjects, setAllObjects] = useState<EngineeringObject[]>(INITIAL_OBJECTS);
   const [relationships, setRelationships] = useState<Relationship[]>(INITIAL_RELATIONSHIPS);
+  const [testSteps, setTestSteps] = useState<TestStep[]>(INITIAL_TEST_STEPS);
   
   const [activeView, setActiveView] = useState<ViewMode>('DASHBOARD');
   const [searchQuery, setSearchQuery] = useState('');
   const [impactObjectId, setImpactObjectId] = useState<number | null>(null);
 
-  // Filter trackers and compute object counts
   const currentTrackers = allTrackers
     .filter(t => t.project_id === activeProject.id)
     .map(t => ({
@@ -243,7 +278,6 @@ export const App: React.FC = () => {
     }));
   };
 
-  // Traceability Linking Actions
   const handleAddRelationship = (source_id: number, target_id: number, relationship_type: any) => {
     const newRel: Relationship = {
       id: Date.now(),
@@ -256,6 +290,23 @@ export const App: React.FC = () => {
 
   const handleDeleteRelationship = (id: number) => {
     setRelationships(prev => prev.filter(r => r.id !== id));
+  };
+
+  // Test Step Actions
+  const handleAddTestStep = (test_case_id: number, action: string, expected_result: string) => {
+    const existing = testSteps.filter(s => s.test_case_id === test_case_id);
+    const newStep: TestStep = {
+      id: Date.now(),
+      test_case_id,
+      step_number: existing.length + 1,
+      action: action.trim(),
+      expected_result: expected_result.trim()
+    };
+    setTestSteps(prev => [...prev, newStep]);
+  };
+
+  const handleDeleteTestStep = (id: number) => {
+    setTestSteps(prev => prev.filter(s => s.id !== id));
   };
 
   const handleNavigate = (view: ViewMode, tracker?: Tracker) => {
@@ -300,10 +351,13 @@ export const App: React.FC = () => {
               allObjects={allObjects}
               folders={allFolders.filter(f => f.tracker_id === selectedTracker.id)}
               relationships={relationships}
+              testSteps={testSteps}
               onCreateObject={handleCreateObject}
               onUpdateObject={handleUpdateObject}
               onAddRelationship={handleAddRelationship}
               onDeleteRelationship={handleDeleteRelationship}
+              onAddTestStep={handleAddTestStep}
+              onDeleteTestStep={handleDeleteTestStep}
               onSelectObjectForImpact={handleSelectObjectForImpact}
             />
           )}
