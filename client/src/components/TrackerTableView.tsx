@@ -1,58 +1,69 @@
-import React, { useEffect, useState } from 'react';
-import { Plus, Filter, Folder, ChevronRight, FileText, ExternalLink } from 'lucide-react';
-import { api } from '../api/client';
+import React, { useState } from 'react';
+import { Plus, Folder, ChevronRight } from 'lucide-react';
 import { Tracker, Folder as FolderType, EngineeringObject } from '../types/elm';
 import { ObjectDetailPane } from './ObjectDetailPane';
 
 interface TrackerTableViewProps {
   tracker: Tracker;
+  objects: EngineeringObject[];
+  folders: FolderType[];
+  onCreateObject: (data: { tracker_id: number; folder_id?: number | null; title: string; description?: string; priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'; metadata?: any }) => void;
+  onUpdateObject: (id: number, updates: Partial<EngineeringObject>) => void;
   onSelectObjectForImpact?: (objId: number) => void;
 }
 
-export const TrackerTableView: React.FC<TrackerTableViewProps> = ({ tracker, onSelectObjectForImpact }) => {
-  const [folders, setFolders] = useState<FolderType[]>([]);
+export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
+  tracker,
+  objects,
+  folders,
+  onCreateObject,
+  onUpdateObject,
+  onSelectObjectForImpact
+}) => {
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
-  const [objects, setObjects] = useState<EngineeringObject[]>([]);
   const [selectedObjectId, setSelectedObjectId] = useState<number | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
-  const [newPriority, setNewPriority] = useState('MEDIUM');
+  const [newPriority, setNewPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>('MEDIUM');
 
-  useEffect(() => {
-    api.getFolders(tracker.id).then(setFolders).catch(console.error);
-    setSelectedFolderId(null);
-    loadObjects(null, search, statusFilter);
-  }, [tracker]);
+  // Filter objects in memory
+  let filteredObjects = objects;
 
-  const loadObjects = (folderId: number | null, searchQuery: string, status: string) => {
-    api.getObjects(tracker.id, {
-      folderId: folderId || undefined,
-      search: searchQuery || undefined,
-      status: status || undefined
-    }).then(setObjects).catch(console.error);
-  };
+  if (selectedFolderId !== null) {
+    filteredObjects = filteredObjects.filter(o => o.folder_id === selectedFolderId);
+  }
+  if (statusFilter) {
+    filteredObjects = filteredObjects.filter(o => o.status === statusFilter);
+  }
+  if (search.trim()) {
+    const s = search.toLowerCase();
+    filteredObjects = filteredObjects.filter(o =>
+      o.object_key.toLowerCase().includes(s) ||
+      o.title.toLowerCase().includes(s) ||
+      o.description.toLowerCase().includes(s)
+    );
+  }
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
 
-    await api.createObject({
+    onCreateObject({
       tracker_id: tracker.id,
       folder_id: selectedFolderId,
-      title: newTitle,
-      description: newDesc,
+      title: newTitle.trim(),
+      description: newDesc.trim(),
       priority: newPriority,
-      owner_id: 1,
-      metadata: { rationale: 'User created requirement', source: 'Manual entry' }
+      metadata: { rationale: 'Created via workspace UI', source: 'Manual entry' }
     });
 
     setShowCreateModal(false);
     setNewTitle('');
     setNewDesc('');
-    loadObjects(selectedFolderId, search, statusFilter);
+    setNewPriority('MEDIUM');
   };
 
   const getStatusBadge = (status: string) => {
@@ -88,7 +99,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({ tracker, onS
         </div>
 
         <button
-          onClick={() => { setSelectedFolderId(null); loadObjects(null, search, statusFilter); }}
+          onClick={() => setSelectedFolderId(null)}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -104,36 +115,44 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({ tracker, onS
           }}
         >
           <Folder size={16} />
-          <span>All Items</span>
+          <span>All Items ({objects.length})</span>
         </button>
 
-        {folders.map((f) => (
-          <button
-            key={f.id}
-            onClick={() => { setSelectedFolderId(f.id); loadObjects(f.id, search, statusFilter); }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 10px',
-              borderRadius: '6px',
-              backgroundColor: selectedFolderId === f.id ? 'var(--bg-hover)' : 'transparent',
-              color: selectedFolderId === f.id ? 'var(--accent-cyan)' : 'var(--text-main)',
-              width: '100%',
-              textAlign: 'left',
-              fontSize: '0.85rem',
-              marginBottom: '2px'
-            }}
-          >
-            <ChevronRight size={14} />
-            <span>{f.name}</span>
-          </button>
-        ))}
+        {folders.map((f) => {
+          const count = objects.filter(o => o.folder_id === f.id).length;
+          return (
+            <button
+              key={f.id}
+              onClick={() => setSelectedFolderId(f.id)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '8px 10px',
+                borderRadius: '6px',
+                backgroundColor: selectedFolderId === f.id ? 'var(--bg-hover)' : 'transparent',
+                color: selectedFolderId === f.id ? 'var(--accent-cyan)' : 'var(--text-main)',
+                width: '100%',
+                textAlign: 'left',
+                fontSize: '0.85rem',
+                marginBottom: '2px'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <ChevronRight size={14} />
+                <span>{f.name}</span>
+              </div>
+              <span style={{ fontSize: '0.7rem', backgroundColor: 'var(--bg-dark)', padding: '2px 6px', borderRadius: '10px', color: 'var(--text-muted)' }}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Main Table Area */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        {/* Table Filter & Action Bar */}
+        {/* Table Header Bar */}
         <div style={{
           padding: '16px 24px',
           borderBottom: '1px solid var(--border-color)',
@@ -145,14 +164,14 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({ tracker, onS
           <div>
             <h2 style={{ fontSize: '1.2rem', fontWeight: 700 }}>{tracker.name}</h2>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              Showing {objects.length} engineering objects in {tracker.prefix}
+              Showing {filteredObjects.length} engineering objects in {tracker.prefix}
             </span>
           </div>
 
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
             <select
               value={statusFilter}
-              onChange={(e) => { setStatusFilter(e.target.value); loadObjects(selectedFolderId, search, e.target.value); }}
+              onChange={(e) => setStatusFilter(e.target.value)}
               style={{ fontSize: '0.85rem' }}
             >
               <option value="">All Statuses</option>
@@ -182,47 +201,60 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({ tracker, onS
           </div>
         </div>
 
-        {/* Structured Engineering Data Table */}
+        {/* Engineering Data Table */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-            <thead>
-              <tr style={{ backgroundColor: 'var(--bg-sidebar)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-                <th style={{ padding: '12px 16px', fontWeight: 600 }}>KEY</th>
-                <th style={{ padding: '12px 16px', fontWeight: 600 }}>TITLE & SUMMARY</th>
-                <th style={{ padding: '12px 16px', fontWeight: 600 }}>STATUS</th>
-                <th style={{ padding: '12px 16px', fontWeight: 600 }}>PRIORITY</th>
-                <th style={{ padding: '12px 16px', fontWeight: 600 }}>VER</th>
-                <th style={{ padding: '12px 16px', fontWeight: 600 }}>OWNER</th>
-              </tr>
-            </thead>
-            <tbody>
-              {objects.map((obj) => (
-                <tr
-                  key={obj.id}
-                  onClick={() => setSelectedObjectId(obj.id)}
-                  style={{
-                    borderBottom: '1px solid var(--border-color)',
-                    backgroundColor: selectedObjectId === obj.id ? 'var(--bg-hover)' : 'transparent',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <td style={{ padding: '12px 16px', fontWeight: 700, color: 'var(--accent-cyan)' }} className="mono">
-                    {obj.object_key}
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{obj.title}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '450px' }}>
-                      {obj.description}
-                    </div>
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>{getStatusBadge(obj.status)}</td>
-                  <td style={{ padding: '12px 16px' }}>{getPriorityBadge(obj.priority)}</td>
-                  <td style={{ padding: '12px 16px' }} className="mono">v{obj.version}</td>
-                  <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>{obj.owner_name || 'Alex Chen'}</td>
+          {filteredObjects.length > 0 ? (
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+              <thead>
+                <tr style={{ backgroundColor: 'var(--bg-sidebar)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
+                  <th style={{ padding: '12px 16px', fontWeight: 600 }}>KEY</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600 }}>TITLE & SUMMARY</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600 }}>STATUS</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600 }}>PRIORITY</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600 }}>VER</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600 }}>OWNER</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filteredObjects.map((obj) => (
+                  <tr
+                    key={obj.id}
+                    onClick={() => setSelectedObjectId(obj.id)}
+                    style={{
+                      borderBottom: '1px solid var(--border-color)',
+                      backgroundColor: selectedObjectId === obj.id ? 'var(--bg-hover)' : 'transparent',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <td style={{ padding: '12px 16px', fontWeight: 700, color: 'var(--accent-cyan)' }} className="mono">
+                      {obj.object_key}
+                    </td>
+                    <td style={{ padding: '12px 16px' }}>
+                      <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{obj.title}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '450px' }}>
+                        {obj.description}
+                      </div>
+                    </td>
+                    <td style={{ padding: '12px 16px' }}>{getStatusBadge(obj.status)}</td>
+                    <td style={{ padding: '12px 16px' }}>{getPriorityBadge(obj.priority)}</td>
+                    <td style={{ padding: '12px 16px' }} className="mono">v{obj.version}</td>
+                    <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>{obj.owner_name || 'Alex Chen'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+              <div style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '8px' }}>No items found in {tracker.name}</div>
+              <p style={{ fontSize: '0.85rem', marginBottom: '16px' }}>Click below to create the first engineering object for this tracker.</p>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 600, fontSize: '0.85rem' }}
+              >
+                + Create {tracker.name.slice(0, -1)}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -230,18 +262,19 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({ tracker, onS
       {selectedObjectId && (
         <ObjectDetailPane
           objectId={selectedObjectId}
+          object={objects.find(o => o.id === selectedObjectId)}
           onClose={() => setSelectedObjectId(null)}
-          onUpdate={() => loadObjects(selectedFolderId, search, statusFilter)}
+          onUpdateObject={onUpdateObject}
           onSelectForImpact={onSelectObjectForImpact}
         />
       )}
 
-      {/* Modal for Object Creation */}
+      {/* Object Creation Modal */}
       {showCreateModal && (
         <div style={{
           position: 'fixed',
           top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.7)',
+          backgroundColor: 'rgba(0,0,0,0.75)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -255,10 +288,10 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({ tracker, onS
             padding: '24px'
           }}>
             <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '16px' }}>Create New {tracker.name.slice(0, -1)}</h3>
-            
+
             <form onSubmit={handleCreate}>
               <div style={{ marginBottom: '14px' }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>Title</label>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>Title *</label>
                 <input
                   type="text"
                   required
@@ -282,7 +315,11 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({ tracker, onS
 
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>Priority</label>
-                <select value={newPriority} onChange={(e) => setNewPriority(e.target.value)} style={{ width: '100%' }}>
+                <select
+                  value={newPriority}
+                  onChange={(e) => setNewPriority(e.target.value as any)}
+                  style={{ width: '100%' }}
+                >
                   <option value="LOW">LOW</option>
                   <option value="MEDIUM">MEDIUM</option>
                   <option value="HIGH">HIGH</option>
