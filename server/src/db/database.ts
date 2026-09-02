@@ -1,15 +1,23 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 
-const dbDir = path.join(__dirname, '../../data');
-let dbPath = path.join(dbDir, 'elm_platform.db');
-try {
-  if (!fs.existsSync(dbDir)) {
-    fs.mkdirSync(dbDir, { recursive: true });
+let dbPath: string;
+
+if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+  // Use Vercel /tmp directory for writable serverless database
+  dbPath = path.join(os.tmpdir(), 'elm_platform.db');
+} else {
+  const dbDir = path.join(__dirname, '../../data');
+  try {
+    if (!fs.existsSync(dbDir)) {
+      fs.mkdirSync(dbDir, { recursive: true });
+    }
+    dbPath = path.join(dbDir, 'elm_platform.db');
+  } catch (e) {
+    dbPath = path.join(os.tmpdir(), 'elm_platform.db');
   }
-} catch (e) {
-  dbPath = ':memory:';
 }
 
 export const db = new Database(dbPath);

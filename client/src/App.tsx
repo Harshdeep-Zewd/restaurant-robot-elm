@@ -32,10 +32,10 @@ export const App: React.FC = () => {
       setProjects(pList);
       if (pList.length > 0) {
         const targetProj = autoSelectId ? pList.find((p: Project) => p.id === autoSelectId) || pList[0] : pList[0];
-        selectProject(targetProj);
+        await selectProject(targetProj);
       }
     } catch (err) {
-      console.error(err);
+      console.error('Error loading projects:', err);
     }
   };
 
@@ -46,21 +46,22 @@ export const App: React.FC = () => {
       setTrackers(tList);
       if (tList.length > 0) {
         setSelectedTracker(tList[0]);
+      } else {
+        setSelectedTracker(null);
       }
     } catch (err) {
-      console.error(err);
+      console.error('Error loading trackers for project:', err);
     }
   };
 
   const handleCreateProject = async (data: { key: string; name: string; description?: string }) => {
-    try {
-      const res = await api.createProject(data);
-      if (res.id) {
-        await loadProjects(res.id);
-        setActiveView('DASHBOARD');
-      }
-    } catch (err) {
-      console.error(err);
+    const res = await api.createProject(data);
+    if (res.error) {
+      throw new Error(res.error);
+    }
+    if (res.id) {
+      await loadProjects(res.id);
+      setActiveView('DASHBOARD');
     }
   };
 
