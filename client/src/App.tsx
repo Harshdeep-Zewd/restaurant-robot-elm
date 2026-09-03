@@ -471,7 +471,11 @@ export const App: React.FC = () => {
           )}
 
           {activeView === 'ARTIFACTS' && (
-            <ArtifactsView />
+            <ArtifactsView
+              artifacts={artifacts}
+              onAddArtifact={handleAddArtifact}
+              onDeleteArtifact={handleDeleteArtifact}
+            />
           )}
 
           {activeView === 'AUDIT' && (
