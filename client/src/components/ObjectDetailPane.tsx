@@ -183,7 +183,7 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
         </button>
       </div>
 
-      {/* Unconditionally Rendered Tabs for All Objects */}
+      {/* Prominent Tab Navigation Header */}
       <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-dark)' }}>
         <button
           onClick={() => setActiveTab('OVERVIEW')}
@@ -194,6 +194,17 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
           }}
         >
           Overview
+        </button>
+
+        <button
+          onClick={() => setActiveTab('FILES')}
+          style={{
+            flex: 1, padding: '10px 0', fontSize: '0.8rem', fontWeight: 600,
+            color: activeTab === 'FILES' ? 'var(--accent-cyan)' : 'var(--text-muted)',
+            borderBottom: activeTab === 'FILES' ? '2px solid var(--accent-cyan)' : 'none', background: 'transparent'
+          }}
+        >
+          Files ({objectFiles.length})
         </button>
 
         {isTestCase && (
@@ -208,17 +219,6 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
             Steps ({caseSteps.length})
           </button>
         )}
-
-        <button
-          onClick={() => setActiveTab('FILES')}
-          style={{
-            flex: 1, padding: '10px 0', fontSize: '0.8rem', fontWeight: 600,
-            color: activeTab === 'FILES' ? 'var(--accent-cyan)' : 'var(--text-muted)',
-            borderBottom: activeTab === 'FILES' ? '2px solid var(--accent-cyan)' : 'none', background: 'transparent'
-          }}
-        >
-          Files ({objectFiles.length})
-        </button>
 
         <button
           onClick={() => setActiveTab('TRACEABILITY')}
@@ -262,6 +262,44 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
             <div style={{ backgroundColor: 'var(--bg-dark)', padding: '10px 14px', borderRadius: '6px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Created By Author</span>
               <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-cyan)' }}>Zewd</span>
+            </div>
+
+            {/* Attached Files Quick Card directly inside Overview Tab */}
+            <div style={{
+              backgroundColor: 'rgba(2, 132, 199, 0.1)',
+              border: '1px solid rgba(2, 132, 199, 0.3)',
+              borderRadius: '8px',
+              padding: '12px',
+              marginBottom: '16px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Paperclip size={16} />
+                  <span>Attached Engineering Files ({objectFiles.length})</span>
+                </div>
+                <button
+                  onClick={() => setActiveTab('FILES')}
+                  style={{ fontSize: '0.7rem', color: 'var(--accent-cyan)', background: 'transparent', fontWeight: 700, textDecoration: 'underline' }}
+                >
+                  View All Files ➔
+                </button>
+              </div>
+
+              {objectFiles.length > 0 ? (
+                objectFiles.map(art => (
+                  <div key={art.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-card)', padding: '6px 10px', borderRadius: '4px', marginBottom: '4px', fontSize: '0.8rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '270px' }}>
+                      <FileText size={14} color="var(--accent-cyan)" />
+                      <span style={{ fontWeight: 600 }}>{art.filename}</span>
+                    </div>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--accent-amber)', fontWeight: 700 }}>{art.category}</span>
+                  </div>
+                ))
+              ) : (
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  No files attached. Click "Files" tab or use button above to attach .pdf, .xlsx, .docx, or CAD models.
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
@@ -777,8 +815,8 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
               </div>
             </form>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
