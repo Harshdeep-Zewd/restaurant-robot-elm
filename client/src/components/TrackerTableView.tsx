@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Folder, FolderPlus, ChevronRight, ListOrdered } from 'lucide-react';
-import { Tracker, Folder as FolderType, EngineeringObject, RequirementType, SafetyLevel, TestSubProcess, Relationship, TestStep } from '../types/elm';
+import { Plus, Folder, FolderPlus, ChevronRight } from 'lucide-react';
+import { Tracker, Folder as FolderType, EngineeringObject, RequirementType, SafetyLevel, TestSubProcess, Relationship, TestStep, Artifact } from '../types/elm';
 import { ObjectDetailPane } from './ObjectDetailPane';
 
 interface TrackerTableViewProps {
@@ -10,6 +10,7 @@ interface TrackerTableViewProps {
   folders: FolderType[];
   relationships: Relationship[];
   testSteps?: TestStep[];
+  artifacts?: Artifact[];
   onCreateFolder?: (tracker_id: number, name: string) => number | void;
   onCreateObject: (data: {
     tracker_id: number;
@@ -29,6 +30,8 @@ interface TrackerTableViewProps {
   onDeleteRelationship: (id: number) => void;
   onAddTestStep?: (test_case_id: number, action: string, expected_result: string) => void;
   onDeleteTestStep?: (id: number) => void;
+  onAddArtifact?: (data: { object_id: number; filename: string; category: any; file_size?: number }) => void;
+  onDeleteArtifact?: (id: number) => void;
   onSelectObjectForImpact?: (objId: number) => void;
 }
 
@@ -39,6 +42,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
   folders,
   relationships,
   testSteps = [],
+  artifacts = [],
   onCreateFolder,
   onCreateObject,
   onUpdateObject,
@@ -46,6 +50,8 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
   onDeleteRelationship,
   onAddTestStep,
   onDeleteTestStep,
+  onAddArtifact,
+  onDeleteArtifact,
   onSelectObjectForImpact
 }) => {
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
@@ -73,7 +79,6 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
 
   const isTestCaseTracker = tracker.type === 'TEST_CASE' || tracker.key.includes('TST');
 
-  // Automatically update newFolderId when selectedFolderId changes
   useEffect(() => {
     setNewFolderId(selectedFolderId);
   }, [selectedFolderId]);
@@ -179,7 +184,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
 
   return (
     <div style={{ display: 'flex', height: 'calc(100vh - 60px)', overflow: 'hidden' }}>
-      {/* Left Folder Tree Sidebar */}
+      {/* Folder Tree Sidebar */}
       <div style={{
         width: '240px',
         borderRight: '1px solid var(--border-color)',
@@ -191,7 +196,6 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
           Folders / Sub-systems
         </div>
 
-        {/* Prominent Primary "+ Create New Folder" Button */}
         <button
           onClick={() => setShowFolderModal(true)}
           style={{
@@ -353,10 +357,10 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                   <th style={{ padding: '12px 14px', fontWeight: 600 }}>REQ TYPE</th>
                   <th style={{ padding: '12px 14px', fontWeight: 600 }}>SAFETY LEVEL</th>
                   <th style={{ padding: '12px 14px', fontWeight: 600 }}>TEST PROCESS</th>
-                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>STATUS</th>
-                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>PRIORITY</th>
-                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>VER</th>
-                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>CREATED BY</th>
+                  <th style={{ padding: '12px 14px', fontWeight 600 }}>STATUS</th>
+                  <th style={{ padding: '12px 14px', fontWeight 600 }}>PRIORITY</th>
+                  <th style={{ padding: '12px 14px', fontWeight 600 }}>VER</th>
+                  <th style={{ padding: '12px 14px', fontWeight 600 }}>CREATED BY</th>
                 </tr>
               </thead>
               <tbody>
@@ -423,7 +427,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
         </div>
       </div>
 
-      {/* Inspector with Test Steps */}
+      {/* Inspector with Test Steps & File Attachments */}
       {selectedObjectId && (
         <ObjectDetailPane
           objectId={selectedObjectId}
@@ -432,12 +436,15 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
           folders={folders}
           relationships={relationships}
           testSteps={testSteps}
+          artifacts={artifacts}
           onClose={() => setSelectedObjectId(null)}
           onUpdateObject={onUpdateObject}
           onAddRelationship={onAddRelationship}
           onDeleteRelationship={onDeleteRelationship}
           onAddTestStep={onAddTestStep}
           onDeleteTestStep={onDeleteTestStep}
+          onAddArtifact={onAddArtifact}
+          onDeleteArtifact={onDeleteArtifact}
           onSelectForImpact={onSelectObjectForImpact}
         />
       )}
@@ -500,7 +507,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
         </div>
       )}
 
-      {/* Expanded Object Creation Modal with Pre-selected Folder & Inline Add Folder */}
+      {/* Object Creation Modal */}
       {showCreateModal && (
         <div style={{
           position: 'fixed',
@@ -663,7 +670,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                 </div>
               </div>
 
-              {/* Initial Test Step Section (Shown for Test Case trackers) */}
+              {/* Initial Test Step Section */}
               {isTestCaseTracker && (
                 <div style={{ backgroundColor: 'var(--bg-dark)', border: '1px solid var(--accent-cyan)', borderRadius: '8px', padding: '14px', marginBottom: '14px' }}>
                   <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--accent-cyan)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>

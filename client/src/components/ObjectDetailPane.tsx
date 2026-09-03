@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { X, Save, Link as LinkIcon, Trash2, ArrowRight, ArrowLeft, Plus, ListOrdered } from 'lucide-react';
-import { EngineeringObject, RequirementType, SafetyLevel, TestSubProcess, Folder as FolderType, Relationship, TestStep } from '../types/elm';
+import { X, Save, Link as LinkIcon, Trash2, ArrowRight, ArrowLeft, Plus, ListOrdered, FileText, Download, Paperclip } from 'lucide-react';
+import { EngineeringObject, RequirementType, SafetyLevel, TestSubProcess, Folder as FolderType, Relationship, TestStep, Artifact } from '../types/elm';
 
 interface ObjectDetailPaneProps {
   objectId: number;
@@ -9,12 +9,15 @@ interface ObjectDetailPaneProps {
   folders?: FolderType[];
   relationships?: Relationship[];
   testSteps?: TestStep[];
+  artifacts?: Artifact[];
   onClose: () => void;
   onUpdateObject: (id: number, updates: Partial<EngineeringObject>) => void;
   onAddRelationship?: (source_id: number, target_id: number, type: string) => void;
   onDeleteRelationship?: (id: number) => void;
   onAddTestStep?: (test_case_id: number, action: string, expected_result: string) => void;
   onDeleteTestStep?: (id: number) => void;
+  onAddArtifact?: (data: { object_id: number; filename: string; category: any; file_size?: number }) => void;
+  onDeleteArtifact?: (id: number) => void;
   onSelectForImpact?: (objId: number) => void;
 }
 
@@ -25,16 +28,23 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
   folders = [],
   relationships = [],
   testSteps = [],
+  artifacts = [],
   onClose,
   onUpdateObject,
   onAddRelationship,
   onDeleteRelationship,
   onAddTestStep,
   onDeleteTestStep,
+  onAddArtifact,
+  onDeleteArtifact,
   onSelectForImpact
 }) => {
   const isTestCase = object?.type === 'TEST_CASE';
-  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'STEPS' | 'TRACEABILITY' | 'VERSIONS'>(isTestCase ? 'STEPS' : 'OVERVIEW');
+  const isArchitecture = object?.type === 'ARCHITECTURE';
+
+  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'STEPS' | 'TRACEABILITY' | 'FILES' | 'VERSIONS'>(
+    isArchitecture ? 'FILES' : isTestCase ? 'STEPS' : 'OVERVIEW'
+  );
 
   const [title, setTitle] = useState('');
   const [desc, setDesc] = useState('');
@@ -50,9 +60,13 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
   const [targetObjId, setTargetObjId] = useState<number | null>(null);
   const [relType, setRelType] = useState<string>('VERIFIED_BY');
 
-  // New Test Step State
+  // Test Step state
   const [newAction, setNewAction] = useState('');
   const [newExpectedResult, setNewExpectedResult] = useState('');
+
+  // File Attachment State
+  const [newFilename, setNewFilename] = useState('');
+  const [newFileCategory, setNewFileCategory] = useState<'PDF' | 'CAD' | 'CSV' | 'OTHER'>('PDF');
 
   useEffect(() => {
     if (object) {
@@ -64,17 +78,13 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
       setSafetyLevel(object.safety_level || 'ASIL-D');
       setTestProcess(object.test_subprocess || 'System Testing');
       setFolderId(object.folder_id || null);
-      if (object.type === 'TEST_CASE') {
-        setActiveTab('STEPS');
-      } else {
-        setActiveTab('OVERVIEW');
-      }
     }
   }, [object]);
 
   if (!object) return null;
 
   const caseSteps = testSteps.filter(s => s.test_case_id === objectId);
+  const objectFiles = artifacts.filter(a => a.object_id === objectId);
   const selectedFolder = folders.find(f => f.id === folderId);
 
   const outgoingLinks = relationships.filter(r => r.source_id === objectId);
@@ -97,7 +107,6 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
   const handleCreateLink = (e: React.FormEvent) => {
     e.preventDefault();
     if (!targetObjId || !onAddRelationship) return;
-
     onAddRelationship(objectId, targetObjId, relType);
     setShowLinkModal(false);
     setTargetObjId(null);
@@ -106,15 +115,39 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
   const handleCreateTestStep = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAction.trim() || !newExpectedResult.trim() || !onAddTestStep) return;
-
     onAddTestStep(objectId, newAction.trim(), newExpectedResult.trim());
     setNewAction('');
     setNewExpectedResult('');
   };
 
+  const handleAttachFileSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newFilename.trim() || !onAddArtifact) return;
+
+    let cat: any = newFileCategory;
+    const nameLower = newFilename.toLowerCase();
+    if (nameLower.endsWith('.pdf')) cat = 'PDF';
+    else if (nameLower.endsWith('.xlsx') || nameLower.endsWith('.xls') || nameLower.endsWith('.csv')) cat = 'CSV';
+    else if (nameLower.endsWith('.docx') || nameLower.endsWith('.doc')) cat = 'OTHER';
+    else if (nameLower.endsWith('.step') || nameLower.endsWith('.stl') || nameLower.endsWith('.cad')) cat = 'CAD';
+
+    onAddArtifact({
+      object_id: objectId,
+      filename: newFilename.trim(),
+      category: cat
+    });
+
+    setNewFilename('');
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes >= 1000000) return `${(bytes / 1000000).toFixed(1)} MB`;
+    return `${(bytes / 1000).toFixed(0)} KB`;
+  };
+
   return (
     <div style={{
-      width: '480px',
+      width: '490px',
       backgroundColor: 'var(--bg-sidebar)',
       borderLeft: '1px solid var(--border-color)',
       display: 'flex',
@@ -152,6 +185,17 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
 
       {/* Tabs */}
       <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-dark)' }}>
+        <button
+          onClick={() => setActiveTab('OVERVIEW')}
+          style={{
+            flex: 1, padding: '10px 0', fontSize: '0.8rem', fontWeight: 600,
+            color: activeTab === 'OVERVIEW' ? 'var(--accent-cyan)' : 'var(--text-muted)',
+            borderBottom: activeTab === 'OVERVIEW' ? '2px solid var(--accent-cyan)' : 'none', background: 'transparent'
+          }}
+        >
+          Overview
+        </button>
+
         {isTestCase && (
           <button
             onClick={() => setActiveTab('STEPS')}
@@ -166,14 +210,14 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
         )}
 
         <button
-          onClick={() => setActiveTab('OVERVIEW')}
+          onClick={() => setActiveTab('FILES')}
           style={{
             flex: 1, padding: '10px 0', fontSize: '0.8rem', fontWeight: 600,
-            color: activeTab === 'OVERVIEW' ? 'var(--accent-cyan)' : 'var(--text-muted)',
-            borderBottom: activeTab === 'OVERVIEW' ? '2px solid var(--accent-cyan)' : 'none', background: 'transparent'
+            color: activeTab === 'FILES' ? 'var(--accent-cyan)' : 'var(--text-muted)',
+            borderBottom: activeTab === 'FILES' ? '2px solid var(--accent-cyan)' : 'none', background: 'transparent'
           }}
         >
-          Overview
+          Files ({objectFiles.length})
         </button>
 
         <button
@@ -201,114 +245,6 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
 
       {/* Body */}
       <div style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
-        {/* Step-by-Step Test Procedure Tab */}
-        {activeTab === 'STEPS' && (
-          <div>
-            <div style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <ListOrdered size={18} color="var(--accent-cyan)" />
-              <span>Test Case Procedure Steps ({caseSteps.length})</span>
-            </div>
-
-            {/* List of Test Steps */}
-            <div style={{ marginBottom: '24px' }}>
-              {caseSteps.length > 0 ? (
-                caseSteps.map((step, idx) => (
-                  <div
-                    key={step.id}
-                    style={{
-                      backgroundColor: 'var(--bg-dark)',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: '8px',
-                      padding: '12px',
-                      marginBottom: '10px'
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                      <span className="mono" style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--accent-cyan)' }}>
-                        STEP {idx + 1}
-                      </span>
-                      {onDeleteTestStep && (
-                        <button onClick={() => onDeleteTestStep(step.id)} style={{ color: 'var(--accent-rose)', background: 'transparent' }}>
-                          <Trash2 size={14} />
-                        </button>
-                      )}
-                    </div>
-
-                    <div style={{ marginBottom: '8px' }}>
-                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                        Action / Instruction
-                      </div>
-                      <div style={{ fontSize: '0.85rem', color: 'var(--text-main)', marginTop: '2px' }}>
-                        {step.action}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--accent-emerald)', textTransform: 'uppercase' }}>
-                        Expected Result
-                      </div>
-                      <div style={{ fontSize: '0.85rem', color: 'var(--accent-emerald)', marginTop: '2px' }}>
-                        {step.expected_result}
-                      </div>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: 'var(--bg-dark)', borderRadius: '8px' }}>
-                  No test steps created yet. Add your first Action & Expected Result below.
-                </div>
-              )}
-            </div>
-
-            {/* Add New Step Form */}
-            <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '16px' }}>
-              <div style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: '12px', color: 'var(--accent-cyan)' }}>
-                + Add Step #{caseSteps.length + 1}
-              </div>
-
-              <form onSubmit={handleCreateTestStep}>
-                <div style={{ marginBottom: '12px' }}>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
-                    Action *
-                  </label>
-                  <textarea
-                    required
-                    rows={2}
-                    value={newAction}
-                    onChange={(e) => setNewAction(e.target.value)}
-                    style={{ width: '100%', fontSize: '0.85rem' }}
-                    placeholder="e.g. Accelerate robot base to 1.5 m/s and trigger wireless e-stop..."
-                  />
-                </div>
-
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
-                    Expected Result *
-                  </label>
-                  <textarea
-                    required
-                    rows={2}
-                    value={newExpectedResult}
-                    onChange={(e) => setNewExpectedResult(e.target.value)}
-                    style={{ width: '100%', fontSize: '0.85rem' }}
-                    placeholder="e.g. Robot mechanical brakes engage, stopping base within <= 0.35m."
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  style={{
-                    width: '100%', padding: '8px', borderRadius: '6px',
-                    backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 600, fontSize: '0.85rem'
-                  }}
-                >
-                  + Add Test Step to Procedure
-                </button>
-              </form>
-            </div>
-          </div>
-        )}
-
         {activeTab === 'OVERVIEW' && (
           <div>
             <div style={{ marginBottom: '16px' }}>
@@ -439,6 +375,226 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
               <Save size={16} />
               <span>Save & Create Version (v{object.version + 1})</span>
             </button>
+          </div>
+        )}
+
+        {/* Files & Attachments Tab */}
+        {activeTab === 'FILES' && (
+          <div>
+            <div style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Paperclip size={18} color="var(--accent-cyan)" />
+              <span>Attached Documents & Files (.pdf, .xlsx, .docx, CAD)</span>
+            </div>
+
+            {/* Attached Files List */}
+            <div style={{ marginBottom: '24px' }}>
+              {objectFiles.length > 0 ? (
+                objectFiles.map(art => (
+                  <div
+                    key={art.id}
+                    style={{
+                      backgroundColor: 'var(--bg-dark)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '8px',
+                      padding: '12px',
+                      marginBottom: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
+                      <FileText size={24} color="var(--accent-cyan)" />
+                      <div>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '270px' }}>
+                          {art.filename}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          <span style={{ color: 'var(--accent-amber)', fontWeight: 700 }}>{art.category}</span> • {formatFileSize(art.file_size)} • Uploaded by {art.uploader_name || 'Zewd'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <a
+                        href={art.stored_path}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', fontWeight: 700 }}
+                      >
+                        <Download size={14} />
+                      </a>
+                      {onDeleteArtifact && (
+                        <button onClick={() => onDeleteArtifact(art.id)} style={{ color: 'var(--accent-rose)', background: 'transparent' }}>
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: 'var(--bg-dark)', borderRadius: '8px' }}>
+                  No files attached to this record yet. Upload or attach a .pdf, .xlsx, .docx, or CAD model below.
+                </div>
+              )}
+            </div>
+
+            {/* Attach File Form */}
+            <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '16px' }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: '12px', color: 'var(--accent-cyan)' }}>
+                + Attach New Document / File
+              </div>
+
+              <form onSubmit={handleAttachFileSubmit}>
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
+                    Filename (.pdf, .xlsx, .docx, .step CAD...) *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newFilename}
+                    onChange={(e) => setNewFilename(e.target.value)}
+                    style={{ width: '100%', fontSize: '0.85rem' }}
+                    placeholder="e.g. System_Architecture_Schematic_v2.pdf"
+                  />
+                </div>
+
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
+                    Document Category
+                  </label>
+                  <select
+                    value={newFileCategory}
+                    onChange={(e) => setNewFileCategory(e.target.value as any)}
+                    style={{ width: '100%' }}
+                  >
+                    <option value="PDF">PDF Document (.pdf)</option>
+                    <option value="CSV">Excel Spreadsheet (.xlsx / .csv)</option>
+                    <option value="OTHER">Word Document (.docx)</option>
+                    <option value="CAD">CAD 3D Assembly (.step / .stl)</option>
+                  </select>
+                </div>
+
+                <button
+                  type="submit"
+                  style={{
+                    width: '100%', padding: '8px', borderRadius: '6px',
+                    backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 600, fontSize: '0.85rem'
+                  }}
+                >
+                  + Attach File (Uploader: Zewd)
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Step-by-Step Test Procedure Tab */}
+        {activeTab === 'STEPS' && (
+          <div>
+            <div style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ListOrdered size={18} color="var(--accent-cyan)" />
+              <span>Test Case Procedure Steps ({caseSteps.length})</span>
+            </div>
+
+            {/* List of Test Steps */}
+            <div style={{ marginBottom: '24px' }}>
+              {caseSteps.length > 0 ? (
+                caseSteps.map((step, idx) => (
+                  <div
+                    key={step.id}
+                    style={{
+                      backgroundColor: 'var(--bg-dark)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '8px',
+                      padding: '12px',
+                      marginBottom: '10px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <span className="mono" style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--accent-cyan)' }}>
+                        STEP {idx + 1}
+                      </span>
+                      {onDeleteTestStep && (
+                        <button onClick={() => onDeleteTestStep(step.id)} style={{ color: 'var(--accent-rose)', background: 'transparent' }}>
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+
+                    <div style={{ marginBottom: '8px' }}>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                        Action / Instruction
+                      </div>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--text-main)', marginTop: '2px' }}>
+                        {step.action}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--accent-emerald)', textTransform: 'uppercase' }}>
+                        Expected Result
+                      </div>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--accent-emerald)', marginTop: '2px' }}>
+                        {step.expected_result}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: 'var(--bg-dark)', borderRadius: '8px' }}>
+                  No test steps created yet. Add your first Action & Expected Result below.
+                </div>
+              )}
+            </div>
+
+            {/* Add New Step Form */}
+            <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '16px' }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: '12px', color: 'var(--accent-cyan)' }}>
+                + Add Step #{caseSteps.length + 1}
+              </div>
+
+              <form onSubmit={handleCreateTestStep}>
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
+                    Action *
+                  </label>
+                  <textarea
+                    required
+                    rows={2}
+                    value={newAction}
+                    onChange={(e) => setNewAction(e.target.value)}
+                    style={{ width: '100%', fontSize: '0.85rem' }}
+                    placeholder="e.g. Accelerate robot base to 1.5 m/s and trigger wireless e-stop..."
+                  />
+                </div>
+
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
+                    Expected Result *
+                  </label>
+                  <textarea
+                    required
+                    rows={2}
+                    value={newExpectedResult}
+                    onChange={(e) => setNewExpectedResult(e.target.value)}
+                    style={{ width: '100%', fontSize: '0.85rem' }}
+                    placeholder="e.g. Robot mechanical brakes engage, stopping base within <= 0.35m."
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  style={{
+                    width: '100%', padding: '8px', borderRadius: '6px',
+                    backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 600, fontSize: '0.85rem'
+                  }}
+                >
+                  + Add Test Step to Procedure
+                </button>
+              </form>
+            </div>
           </div>
         )}
 

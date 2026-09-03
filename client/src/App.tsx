@@ -10,7 +10,7 @@ import { RisksMatrixView } from './components/RisksMatrixView';
 import { BaselinesView } from './components/BaselinesView';
 import { ArtifactsView } from './components/ArtifactsView';
 import { AuditView } from './components/AuditView';
-import { Project, Tracker, EngineeringObject, Folder, RequirementType, SafetyLevel, TestSubProcess, Relationship, TestStep } from './types/elm';
+import { Project, Tracker, EngineeringObject, Folder, RequirementType, SafetyLevel, TestSubProcess, Relationship, TestStep, Artifact } from './types/elm';
 
 const INITIAL_PROJECTS: Project[] = [
   {
@@ -31,21 +31,15 @@ const INITIAL_TRACKERS: Tracker[] = [
 ];
 
 const INITIAL_FOLDERS: Folder[] = [
-  // Tracker 1: SYS-REQ
   { id: 1, tracker_id: 1, parent_id: null, name: 'Navigation & Perception', position: 1 },
   { id: 2, tracker_id: 1, parent_id: null, name: 'Safety & Emergency Stop', position: 2 },
   { id: 3, tracker_id: 1, parent_id: null, name: 'Payload & Thermal Containment', position: 3 },
-  // Tracker 2: SW-REQ
   { id: 4, tracker_id: 2, parent_id: null, name: 'ROS2 Navigation Stack', position: 1 },
   { id: 5, tracker_id: 2, parent_id: null, name: 'Sensor Processing Pipeline', position: 2 },
-  // Tracker 3: ARCH
   { id: 6, tracker_id: 3, parent_id: null, name: 'Cyber-Physical Base Architecture', position: 1 },
-  // Tracker 4: RISK
   { id: 7, tracker_id: 4, parent_id: null, name: 'Kinetic & Motion Hazards', position: 1 },
-  // Tracker 5: SYS-TST
   { id: 8, tracker_id: 5, parent_id: null, name: 'Obstacle Avoidance Test Suite', position: 1 },
   { id: 9, tracker_id: 5, parent_id: null, name: 'Braking & E-Stop Field Tests', position: 2 },
-  // Tracker 6: TST-SET
   { id: 10, tracker_id: 6, parent_id: null, name: 'ISO 13482 Release 2.4 Qualification', position: 1 }
 ];
 
@@ -175,6 +169,29 @@ const INITIAL_TEST_STEPS: TestStep[] = [
   }
 ];
 
+const INITIAL_ARTIFACTS: Artifact[] = [
+  {
+    id: 1, object_id: 5, object_key: 'ARCH-001', object_title: 'RoboServ-X1 Main Cyber-Physical System',
+    filename: 'RoboServ_X1_CyberPhysical_Architecture_v2.pdf', stored_path: '/artifacts/RoboServ_X1_CyberPhysical_Architecture_v2.pdf',
+    file_size: 4200100, mime_type: 'application/pdf', category: 'PDF', uploader_name: 'Zewd', created_at: new Date().toISOString()
+  },
+  {
+    id: 2, object_id: 5, object_key: 'ARCH-001', object_title: 'RoboServ-X1 Main Cyber-Physical System',
+    filename: 'Mobility_Base_CAD_Assembly_v1.step', stored_path: '/artifacts/Mobility_Base_CAD_Assembly_v1.step',
+    file_size: 14500100, mime_type: 'application/octet-stream', category: 'CAD', uploader_name: 'Zewd', created_at: new Date().toISOString()
+  },
+  {
+    id: 3, object_id: 5, object_key: 'ARCH-001', object_title: 'RoboServ-X1 Main Cyber-Physical System',
+    filename: 'Power_Budget_and_Thermal_Calculations.xlsx', stored_path: '/artifacts/Power_Budget_and_Thermal_Calculations.xlsx',
+    file_size: 850200, mime_type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', category: 'CSV', uploader_name: 'Zewd', created_at: new Date().toISOString()
+  },
+  {
+    id: 4, object_id: 5, object_key: 'ARCH-001', object_title: 'RoboServ-X1 Main Cyber-Physical System',
+    filename: 'ISO_13482_Safety_Architecture_Spec.docx', stored_path: '/artifacts/ISO_13482_Safety_Architecture_Spec.docx',
+    file_size: 1250100, mime_type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', category: 'OTHER', uploader_name: 'Zewd', created_at: new Date().toISOString()
+  }
+];
+
 export const App: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>(INITIAL_PROJECTS);
   const [activeProject, setActiveProject] = useState<Project>(INITIAL_PROJECTS[0]);
@@ -184,6 +201,7 @@ export const App: React.FC = () => {
   const [allObjects, setAllObjects] = useState<EngineeringObject[]>(INITIAL_OBJECTS);
   const [relationships, setRelationships] = useState<Relationship[]>(INITIAL_RELATIONSHIPS);
   const [testSteps, setTestSteps] = useState<TestStep[]>(INITIAL_TEST_STEPS);
+  const [artifacts, setArtifacts] = useState<Artifact[]>(INITIAL_ARTIFACTS);
   
   const [activeView, setActiveView] = useState<ViewMode>('DASHBOARD');
   const [searchQuery, setSearchQuery] = useState('');
@@ -230,7 +248,6 @@ export const App: React.FC = () => {
     setActiveView('DASHBOARD');
   };
 
-  // Create Folder Handler for any Tracker
   const handleCreateFolder = (tracker_id: number, name: string) => {
     const existing = allFolders.filter(f => f.tracker_id === tracker_id);
     const newFolder: Folder = {
@@ -347,6 +364,29 @@ export const App: React.FC = () => {
     setTestSteps(prev => prev.filter(s => s.id !== id));
   };
 
+  // Artifact & File Attachment Handlers
+  const handleAddArtifact = (data: { object_id: number; filename: string; category: any; file_size?: number }) => {
+    const obj = allObjects.find(o => o.id === data.object_id);
+    const newArt: Artifact = {
+      id: Date.now(),
+      object_id: data.object_id,
+      object_key: obj?.object_key || 'FILE',
+      object_title: obj?.title || 'System Attachment',
+      filename: data.filename.trim(),
+      stored_path: `/artifacts/${data.filename.trim()}`,
+      file_size: data.file_size || Math.floor(Math.random() * 5000000) + 500000,
+      mime_type: 'application/octet-stream',
+      category: data.category || 'PDF',
+      uploader_name: 'Zewd',
+      created_at: new Date().toISOString()
+    };
+    setArtifacts(prev => [newArt, ...prev]);
+  };
+
+  const handleDeleteArtifact = (id: number) => {
+    setArtifacts(prev => prev.filter(a => a.id !== id));
+  };
+
   const handleNavigate = (view: ViewMode, tracker?: Tracker) => {
     setActiveView(view);
     if (tracker) setSelectedTracker(tracker);
@@ -390,6 +430,7 @@ export const App: React.FC = () => {
               folders={allFolders.filter(f => f.tracker_id === selectedTracker.id)}
               relationships={relationships}
               testSteps={testSteps}
+              artifacts={artifacts}
               onCreateFolder={handleCreateFolder}
               onCreateObject={handleCreateObject}
               onUpdateObject={handleUpdateObject}
@@ -397,6 +438,8 @@ export const App: React.FC = () => {
               onDeleteRelationship={handleDeleteRelationship}
               onAddTestStep={handleAddTestStep}
               onDeleteTestStep={handleDeleteTestStep}
+              onAddArtifact={handleAddArtifact}
+              onDeleteArtifact={handleDeleteArtifact}
               onSelectObjectForImpact={handleSelectObjectForImpact}
             />
           )}
