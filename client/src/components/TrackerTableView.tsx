@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Folder, FolderPlus, ChevronRight } from 'lucide-react';
+import { Plus, Folder, FolderPlus, ChevronRight, ListOrdered, Paperclip } from 'lucide-react';
 import { Tracker, Folder as FolderType, EngineeringObject, RequirementType, SafetyLevel, TestSubProcess, Relationship, TestStep, Artifact } from '../types/elm';
 import { ObjectDetailPane } from './ObjectDetailPane';
 
@@ -345,7 +345,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
           </div>
         </div>
 
-        {/* Table */}
+        {/* Table with Explicit Attachments Column and Click Instruction */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {filteredObjects.length > 0 ? (
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
@@ -353,58 +353,78 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                 <tr style={{ backgroundColor: 'var(--bg-sidebar)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
                   <th style={{ padding: '12px 14px', fontWeight: 600 }}>KEY</th>
                   <th style={{ padding: '12px 14px', fontWeight: 600 }}>TITLE & SUMMARY</th>
+                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>ATTACHMENTS</th>
                   <th style={{ padding: '12px 14px', fontWeight: 600 }}>FOLDER</th>
                   <th style={{ padding: '12px 14px', fontWeight: 600 }}>REQ TYPE</th>
                   <th style={{ padding: '12px 14px', fontWeight: 600 }}>SAFETY LEVEL</th>
-                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>TEST PROCESS</th>
-                  <th style={{ padding: '12px 14px', fontWeight 600 }}>STATUS</th>
-                  <th style={{ padding: '12px 14px', fontWeight 600 }}>PRIORITY</th>
-                  <th style={{ padding: '12px 14px', fontWeight 600 }}>VER</th>
+                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>STATUS</th>
+                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>PRIORITY</th>
                   <th style={{ padding: '12px 14px', fontWeight 600 }}>CREATED BY</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredObjects.map((obj) => (
-                  <tr
-                    key={obj.id}
-                    onClick={() => setSelectedObjectId(obj.id)}
-                    style={{
-                      borderBottom: '1px solid var(--border-color)',
-                      backgroundColor: selectedObjectId === obj.id ? 'var(--bg-hover)' : 'transparent',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <td style={{ padding: '12px 14px', fontWeight: 700, color: 'var(--accent-cyan)' }} className="mono">
-                      {obj.object_key}
-                    </td>
-                    <td style={{ padding: '12px 14px' }}>
-                      <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{obj.title}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '280px' }}>
-                        {obj.description}
-                      </div>
-                    </td>
-                    <td style={{ padding: '12px 14px', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                      {obj.folder_name || 'Root'}
-                    </td>
-                    <td style={{ padding: '12px 14px' }}>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', backgroundColor: 'rgba(56, 189, 248, 0.1)', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
-                        {obj.requirement_type || 'Functional Requirement'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px 14px' }}>{getSafetyBadge(obj.safety_level)}</td>
-                    <td style={{ padding: '12px 14px' }}>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--accent-emerald)' }}>
-                        {obj.test_subprocess || 'System Testing'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px 14px' }}>{getStatusBadge(obj.status)}</td>
-                    <td style={{ padding: '12px 14px' }}>{getPriorityBadge(obj.priority)}</td>
-                    <td style={{ padding: '12px 14px' }} className="mono">v{obj.version}</td>
-                    <td style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--accent-cyan)' }}>
-                      {obj.created_by_name || obj.owner_name || 'Zewd'}
-                    </td>
-                  </tr>
-                ))}
+                {filteredObjects.map((obj) => {
+                  const objectFiles = artifacts.filter(a => a.object_id === obj.id);
+                  return (
+                    <tr
+                      key={obj.id}
+                      onClick={() => setSelectedObjectId(obj.id)}
+                      style={{
+                        borderBottom: '1px solid var(--border-color)',
+                        backgroundColor: selectedObjectId === obj.id ? 'var(--bg-hover)' : 'transparent',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <td style={{ padding: '12px 14px', fontWeight: 700, color: 'var(--accent-cyan)' }} className="mono">
+                        {obj.object_key}
+                      </td>
+                      <td style={{ padding: '12px 14px' }}>
+                        <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{obj.title}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '240px' }}>
+                          {obj.description}
+                        </div>
+                      </td>
+                      <td style={{ padding: '12px 14px' }}>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedObjectId(obj.id);
+                          }}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            backgroundColor: objectFiles.length > 0 ? 'rgba(56, 189, 248, 0.15)' : 'var(--bg-dark)',
+                            color: objectFiles.length > 0 ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                            border: '1px solid var(--border-color)',
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <Paperclip size={12} />
+                          <span>{objectFiles.length > 0 ? `${objectFiles.length} Files` : '+ Add File'}</span>
+                        </button>
+                      </td>
+                      <td style={{ padding: '12px 14px', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                        {obj.folder_name || 'Root'}
+                      </td>
+                      <td style={{ padding: '12px 14px' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', backgroundColor: 'rgba(56, 189, 248, 0.1)', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
+                          {obj.requirement_type || 'Functional Requirement'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px 14px' }}>{getSafetyBadge(obj.safety_level)}</td>
+                      <td style={{ padding: '12px 14px' }}>{getStatusBadge(obj.status)}</td>
+                      <td style={{ padding: '12px 14px' }}>{getPriorityBadge(obj.priority)}</td>
+                      <td style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--accent-cyan)' }}>
+                        {obj.created_by_name || obj.owner_name || 'Zewd'}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           ) : (
