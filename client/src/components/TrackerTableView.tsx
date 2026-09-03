@@ -10,7 +10,7 @@ interface TrackerTableViewProps {
   folders: FolderType[];
   relationships: Relationship[];
   testSteps?: TestStep[];
-  onCreateFolder?: (tracker_id: number, name: string) => void;
+  onCreateFolder?: (tracker_id: number, name: string) => number | void;
   onCreateObject: (data: {
     tracker_id: number;
     folder_id?: number | null;
@@ -68,6 +68,8 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
   // Folder Modal state
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+  const [inlineFolderInput, setInlineFolderInput] = useState(false);
+  const [inlineFolderName, setInlineFolderName] = useState('');
 
   const isTestCaseTracker = tracker.type === 'TEST_CASE' || tracker.key.includes('TST');
 
@@ -99,9 +101,23 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
     e.preventDefault();
     if (!newFolderName.trim() || !onCreateFolder) return;
 
-    onCreateFolder(tracker.id, newFolderName.trim());
+    const createdId = onCreateFolder(tracker.id, newFolderName.trim());
+    if (typeof createdId === 'number') {
+      setSelectedFolderId(createdId);
+      setNewFolderId(createdId);
+    }
     setNewFolderName('');
     setShowFolderModal(false);
+  };
+
+  const handleInlineCreateFolder = () => {
+    if (!inlineFolderName.trim() || !onCreateFolder) return;
+    const createdId = onCreateFolder(tracker.id, inlineFolderName.trim());
+    if (typeof createdId === 'number') {
+      setNewFolderId(createdId);
+    }
+    setInlineFolderName('');
+    setInlineFolderInput(false);
   };
 
   const handleCreate = (e: React.FormEvent) => {
@@ -163,39 +179,41 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
 
   return (
     <div style={{ display: 'flex', height: 'calc(100vh - 60px)', overflow: 'hidden' }}>
-      {/* Folder Tree Sidebar */}
+      {/* Left Folder Tree Sidebar */}
       <div style={{
-        width: '230px',
+        width: '240px',
         borderRight: '1px solid var(--border-color)',
         backgroundColor: 'var(--bg-sidebar)',
         padding: '16px 12px',
         overflowY: 'auto'
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-            Folders / Sub-systems
-          </span>
-          <button
-            onClick={() => setShowFolderModal(true)}
-            title="Create New Folder in this Tracker"
-            style={{
-              padding: '3px 6px',
-              borderRadius: '4px',
-              backgroundColor: 'rgba(2, 132, 199, 0.15)',
-              color: 'var(--accent-cyan)',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              fontSize: '0.75rem',
-              fontWeight: 700
-            }}
-          >
-            <FolderPlus size={14} />
-            <span>+ Folder</span>
-          </button>
+        <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '10px' }}>
+          Folders / Sub-systems
         </div>
+
+        {/* Prominent Primary "+ Create New Folder" Button */}
+        <button
+          onClick={() => setShowFolderModal(true)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            width: '100%',
+            padding: '8px 12px',
+            borderRadius: '6px',
+            backgroundColor: 'rgba(2, 132, 199, 0.2)',
+            color: 'var(--accent-cyan)',
+            border: '1px dashed var(--accent-cyan)',
+            fontWeight: 700,
+            fontSize: '0.8rem',
+            marginBottom: '12px',
+            cursor: 'pointer'
+          }}
+        >
+          <FolderPlus size={16} />
+          <span>+ Create New Folder</span>
+        </button>
 
         <button
           onClick={() => setSelectedFolderId(null)}
@@ -268,7 +286,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
             </span>
           </div>
 
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -280,6 +298,25 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
               <option value="APPROVED">APPROVED</option>
               <option value="VERIFIED">VERIFIED</option>
             </select>
+
+            <button
+              onClick={() => setShowFolderModal(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                backgroundColor: 'var(--bg-dark)',
+                border: '1px solid var(--border-color)',
+                color: 'var(--accent-cyan)',
+                padding: '8px 12px',
+                borderRadius: '6px',
+                fontWeight: 600,
+                fontSize: '0.85rem'
+              }}
+            >
+              <FolderPlus size={16} />
+              <span>+ New Folder</span>
+            </button>
 
             <button
               onClick={() => {
@@ -313,13 +350,13 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                   <th style={{ padding: '12px 14px', fontWeight: 600 }}>KEY</th>
                   <th style={{ padding: '12px 14px', fontWeight: 600 }}>TITLE & SUMMARY</th>
                   <th style={{ padding: '12px 14px', fontWeight: 600 }}>FOLDER</th>
-                  <th style={{ padding: '12px 14px', fontWeight 600 }}>REQ TYPE</th>
-                  <th style={{ padding: '12px 14px', fontWeight 600 }}>SAFETY LEVEL</th>
-                  <th style={{ padding: '12px 14px', fontWeight 600 }}>TEST PROCESS</th>
-                  <th style={{ padding: '12px 14px', fontWeight 600 }}>STATUS</th>
-                  <th style={{ padding: '12px 14px', fontWeight 600 }}>PRIORITY</th>
-                  <th style={{ padding: '12px 14px', fontWeight 600 }}>VER</th>
-                  <th style={{ padding: '12px 14px', fontWeight 600 }}>CREATED BY</th>
+                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>REQ TYPE</th>
+                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>SAFETY LEVEL</th>
+                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>TEST PROCESS</th>
+                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>STATUS</th>
+                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>PRIORITY</th>
+                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>VER</th>
+                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>CREATED BY</th>
                 </tr>
               </thead>
               <tbody>
@@ -338,7 +375,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                     </td>
                     <td style={{ padding: '12px 14px' }}>
                       <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{obj.title}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '300px' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '280px' }}>
                         {obj.description}
                       </div>
                     </td>
@@ -420,7 +457,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
             backgroundColor: 'var(--bg-card)',
             border: '1px solid var(--border-color)',
             borderRadius: '12px',
-            width: '420px',
+            width: '440px',
             padding: '24px'
           }}>
             <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '14px' }}>
@@ -435,6 +472,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                 <input
                   type="text"
                   required
+                  autoFocus
                   value={newFolderName}
                   onChange={(e) => setNewFolderName(e.target.value)}
                   style={{ width: '100%' }}
@@ -454,7 +492,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                   type="submit"
                   style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 600 }}
                 >
-                  Create Folder
+                  Create Folder Now
                 </button>
               </div>
             </form>
@@ -462,7 +500,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
         </div>
       )}
 
-      {/* Expanded Object Creation Modal with Pre-selected Folder */}
+      {/* Expanded Object Creation Modal with Pre-selected Folder & Inline Add Folder */}
       {showCreateModal && (
         <div style={{
           position: 'fixed',
@@ -517,17 +555,46 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>Target Folder</label>
-                  <select
-                    value={newFolderId || ''}
-                    onChange={(e) => setNewFolderId(e.target.value ? Number(e.target.value) : null)}
-                    style={{ width: '100%', fontWeight: 600, color: 'var(--accent-cyan)' }}
-                  >
-                    <option value="">No Parent Folder (Root)</option>
-                    {folders.map(f => (
-                      <option key={f.id} value={f.id}>{f.name}</option>
-                    ))}
-                  </select>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>Target Folder</label>
+                    <button
+                      type="button"
+                      onClick={() => setInlineFolderInput(!inlineFolderInput)}
+                      style={{ fontSize: '0.7rem', color: 'var(--accent-cyan)', background: 'transparent', fontWeight: 700, padding: 0 }}
+                    >
+                      + Add New Folder
+                    </button>
+                  </div>
+
+                  {inlineFolderInput ? (
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <input
+                        type="text"
+                        placeholder="Folder Name..."
+                        value={inlineFolderName}
+                        onChange={(e) => setInlineFolderName(e.target.value)}
+                        style={{ flex: 1, fontSize: '0.8rem' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleInlineCreateFolder}
+                        style={{ padding: '4px 8px', borderRadius: '4px', backgroundColor: 'var(--primary)', color: '#fff', fontSize: '0.75rem', fontWeight: 600 }}
+                      >
+                        Save
+                      </button>
+                    </div>
+                  ) : (
+                    <select
+                      value={newFolderId || ''}
+                      onChange={(e) => setNewFolderId(e.target.value ? Number(e.target.value) : null)}
+                      style={{ width: '100%', fontWeight: 600, color: 'var(--accent-cyan)' }}
+                    >
+                      <option value="">No Parent Folder (Root)</option>
+                      {folders.map(f => (
+                        <option key={f.id} value={f.id}>{f.name}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               </div>
 
