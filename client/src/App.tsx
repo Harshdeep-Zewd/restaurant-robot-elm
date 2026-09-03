@@ -31,9 +31,22 @@ const INITIAL_TRACKERS: Tracker[] = [
 ];
 
 const INITIAL_FOLDERS: Folder[] = [
+  // Tracker 1: SYS-REQ
   { id: 1, tracker_id: 1, parent_id: null, name: 'Navigation & Perception', position: 1 },
   { id: 2, tracker_id: 1, parent_id: null, name: 'Safety & Emergency Stop', position: 2 },
-  { id: 3, tracker_id: 1, parent_id: null, name: 'Payload & Thermal Containment', position: 3 }
+  { id: 3, tracker_id: 1, parent_id: null, name: 'Payload & Thermal Containment', position: 3 },
+  // Tracker 2: SW-REQ
+  { id: 4, tracker_id: 2, parent_id: null, name: 'ROS2 Navigation Stack', position: 1 },
+  { id: 5, tracker_id: 2, parent_id: null, name: 'Sensor Processing Pipeline', position: 2 },
+  // Tracker 3: ARCH
+  { id: 6, tracker_id: 3, parent_id: null, name: 'Cyber-Physical Base Architecture', position: 1 },
+  // Tracker 4: RISK
+  { id: 7, tracker_id: 4, parent_id: null, name: 'Kinetic & Motion Hazards', position: 1 },
+  // Tracker 5: SYS-TST
+  { id: 8, tracker_id: 5, parent_id: null, name: 'Obstacle Avoidance Test Suite', position: 1 },
+  { id: 9, tracker_id: 5, parent_id: null, name: 'Braking & E-Stop Field Tests', position: 2 },
+  // Tracker 6: TST-SET
+  { id: 10, tracker_id: 6, parent_id: null, name: 'ISO 13482 Release 2.4 Qualification', position: 1 }
 ];
 
 const INITIAL_OBJECTS: EngineeringObject[] = [
@@ -65,7 +78,7 @@ const INITIAL_OBJECTS: EngineeringObject[] = [
     created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   },
   {
-    id: 4, tracker_id: 2, tracker_name: 'Software Requirements', folder_id: null, folder_name: null, object_key: 'SW-REQ-001',
+    id: 4, tracker_id: 2, tracker_name: 'Software Requirements', folder_id: 4, folder_name: 'ROS2 Navigation Stack', object_key: 'SW-REQ-001',
     title: 'ROS2 Nav2 DWB Dynamic Local Planner Configuration',
     description: 'The software stack shall integrate ROS2 Iron Nav2 DWB local planner tuned with 20Hz local costmap updates using Ouster 3D LiDAR point cloud scans.',
     type: 'REQUIREMENT', requirement_type: 'Parameter', safety_level: 'ASIL-C', test_subprocess: 'SW Testing',
@@ -74,7 +87,7 @@ const INITIAL_OBJECTS: EngineeringObject[] = [
     created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   },
   {
-    id: 5, tracker_id: 3, tracker_name: 'System Architecture', folder_id: null, folder_name: null, object_key: 'ARCH-001',
+    id: 5, tracker_id: 3, tracker_name: 'System Architecture', folder_id: 6, folder_name: 'Cyber-Physical Base Architecture', object_key: 'ARCH-001',
     title: 'RoboServ-X1 Main Cyber-Physical System',
     description: 'Top-level system architecture encapsulating Mobility Base, Sensor Suite, Thermal Bay, Compute, and Power.',
     type: 'ARCHITECTURE', requirement_type: 'Folder', safety_level: 'ASIL-D', test_subprocess: 'Integration Testing',
@@ -83,7 +96,7 @@ const INITIAL_OBJECTS: EngineeringObject[] = [
     created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   },
   {
-    id: 6, tracker_id: 4, tracker_name: 'Risks & Hazards', folder_id: null, folder_name: null, object_key: 'RISK-001',
+    id: 6, tracker_id: 4, tracker_name: 'Risks & Hazards', folder_id: 7, folder_name: 'Kinetic & Motion Hazards', object_key: 'RISK-001',
     title: 'Robot Collision with Fast-Moving Dining Room Patron',
     description: 'Hazard: Uncontrolled physical contact with customer in crowded dining area resulting in minor injury or food spill.',
     type: 'RISK', requirement_type: 'Non-Functional Requirement', safety_level: 'ASIL-D', test_subprocess: 'Field Testing',
@@ -92,7 +105,7 @@ const INITIAL_OBJECTS: EngineeringObject[] = [
     created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   },
   {
-    id: 7, tracker_id: 5, tracker_name: 'System Test Cases', folder_id: null, folder_name: null, object_key: 'SYS-TST-001',
+    id: 7, tracker_id: 5, tracker_name: 'System Test Cases', folder_id: 8, folder_name: 'Obstacle Avoidance Test Suite', object_key: 'SYS-TST-001',
     title: 'Dynamic Pedestrian Avoidance & Latency Test',
     description: 'Verify that the robot detects a dynamic human target walking across its path at 1.0 m/s and computes a non-colliding path.',
     type: 'TEST_CASE', requirement_type: 'Functional Requirement', safety_level: 'ASIL-D', test_subprocess: 'System Testing',
@@ -101,7 +114,7 @@ const INITIAL_OBJECTS: EngineeringObject[] = [
     created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   },
   {
-    id: 8, tracker_id: 5, tracker_name: 'System Test Cases', folder_id: null, folder_name: null, object_key: 'SYS-TST-002',
+    id: 8, tracker_id: 5, tracker_name: 'System Test Cases', folder_id: 9, folder_name: 'Braking & E-Stop Field Tests', object_key: 'SYS-TST-002',
     title: 'Emergency Stop Braking Distance Field Test',
     description: 'Perform hard emergency stop triggers at maximum operational velocity (1.5 m/s) and record stopping distance.',
     type: 'TEST_CASE', requirement_type: 'Functional Requirement', safety_level: 'ASIL-D', test_subprocess: 'HIL Testing',
@@ -110,7 +123,7 @@ const INITIAL_OBJECTS: EngineeringObject[] = [
     created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   },
   {
-    id: 9, tracker_id: 6, tracker_name: 'Test Sets', folder_id: null, folder_name: null, object_key: 'TST-SET-001',
+    id: 9, tracker_id: 6, tracker_name: 'Test Sets', folder_id: 10, folder_name: 'ISO 13482 Release 2.4 Qualification', object_key: 'TST-SET-001',
     title: 'Safety & ISO 13482 Validation Test Set',
     description: 'Comprehensive safety suite combining dynamic obstacle avoidance and e-stop braking tests.',
     type: 'TEST_SET', requirement_type: 'Functional Requirement', safety_level: 'ASIL-D', test_subprocess: 'System Testing',
@@ -217,6 +230,20 @@ export const App: React.FC = () => {
     setActiveView('DASHBOARD');
   };
 
+  // Create Folder Handler for any Tracker
+  const handleCreateFolder = (tracker_id: number, name: string) => {
+    const existing = allFolders.filter(f => f.tracker_id === tracker_id);
+    const newFolder: Folder = {
+      id: Date.now(),
+      tracker_id,
+      parent_id: null,
+      name: name.trim(),
+      position: existing.length + 1
+    };
+    setAllFolders(prev => [...prev, newFolder]);
+    return newFolder.id;
+  };
+
   const handleCreateObject = (data: {
     tracker_id: number;
     folder_id?: number | null;
@@ -264,7 +291,6 @@ export const App: React.FC = () => {
 
     setAllObjects(prev => [newObj, ...prev]);
 
-    // Automatically attach Initial Test Step 1 if provided for a Test Case
     if (data.test_step_action && data.test_step_expected) {
       const initialStep: TestStep = {
         id: Date.now() + 1,
@@ -364,6 +390,7 @@ export const App: React.FC = () => {
               folders={allFolders.filter(f => f.tracker_id === selectedTracker.id)}
               relationships={relationships}
               testSteps={testSteps}
+              onCreateFolder={handleCreateFolder}
               onCreateObject={handleCreateObject}
               onUpdateObject={handleUpdateObject}
               onAddRelationship={handleAddRelationship}

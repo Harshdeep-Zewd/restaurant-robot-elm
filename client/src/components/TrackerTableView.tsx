@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Plus, Folder, ChevronRight, ListOrdered } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Folder, FolderPlus, ChevronRight, ListOrdered } from 'lucide-react';
 import { Tracker, Folder as FolderType, EngineeringObject, RequirementType, SafetyLevel, TestSubProcess, Relationship, TestStep } from '../types/elm';
 import { ObjectDetailPane } from './ObjectDetailPane';
 
@@ -10,6 +10,7 @@ interface TrackerTableViewProps {
   folders: FolderType[];
   relationships: Relationship[];
   testSteps?: TestStep[];
+  onCreateFolder?: (tracker_id: number, name: string) => void;
   onCreateObject: (data: {
     tracker_id: number;
     folder_id?: number | null;
@@ -38,6 +39,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
   folders,
   relationships,
   testSteps = [],
+  onCreateFolder,
   onCreateObject,
   onUpdateObject,
   onAddRelationship,
@@ -50,9 +52,9 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
   const [selectedObjectId, setSelectedObjectId] = useState<number | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  
+  // Object Modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
-
-  // New Record Form Fields
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
   const [newFolderId, setNewFolderId] = useState<number | null>(null);
@@ -60,12 +62,19 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
   const [newSafetyLevel, setNewSafetyLevel] = useState<SafetyLevel>('ASIL-D');
   const [newTestProcess, setNewTestProcess] = useState<TestSubProcess>('System Testing');
   const [newPriority, setNewPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>('MEDIUM');
-
-  // Test Case Specific Step 1 Fields
   const [newStepAction, setNewStepAction] = useState('');
   const [newStepExpected, setNewStepExpected] = useState('');
 
+  // Folder Modal state
+  const [showFolderModal, setShowFolderModal] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+
   const isTestCaseTracker = tracker.type === 'TEST_CASE' || tracker.key.includes('TST');
+
+  // Automatically update newFolderId when selectedFolderId changes
+  useEffect(() => {
+    setNewFolderId(selectedFolderId);
+  }, [selectedFolderId]);
 
   let filteredObjects = objects;
 
@@ -85,6 +94,15 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
       (o.safety_level && o.safety_level.toLowerCase().includes(s))
     );
   }
+
+  const handleCreateFolderSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newFolderName.trim() || !onCreateFolder) return;
+
+    onCreateFolder(tracker.id, newFolderName.trim());
+    setNewFolderName('');
+    setShowFolderModal(false);
+  };
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,6 +129,8 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
     setNewStepExpected('');
     setNewPriority('MEDIUM');
   };
+
+  const selectedFolderObj = folders.find(f => f.id === selectedFolderId);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -145,14 +165,36 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
     <div style={{ display: 'flex', height: 'calc(100vh - 60px)', overflow: 'hidden' }}>
       {/* Folder Tree Sidebar */}
       <div style={{
-        width: '220px',
+        width: '230px',
         borderRight: '1px solid var(--border-color)',
         backgroundColor: 'var(--bg-sidebar)',
         padding: '16px 12px',
         overflowY: 'auto'
       }}>
-        <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '12px' }}>
-          Folders / Sub-systems
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+            Folders / Sub-systems
+          </span>
+          <button
+            onClick={() => setShowFolderModal(true)}
+            title="Create New Folder in this Tracker"
+            style={{
+              padding: '3px 6px',
+              borderRadius: '4px',
+              backgroundColor: 'rgba(2, 132, 199, 0.15)',
+              color: 'var(--accent-cyan)',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              fontSize: '0.75rem',
+              fontWeight: 700
+            }}
+          >
+            <FolderPlus size={14} />
+            <span>+ Folder</span>
+          </button>
         </div>
 
         <button
@@ -195,7 +237,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                 marginBottom: '2px'
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 <ChevronRight size={14} />
                 <span>{f.name}</span>
               </div>
@@ -218,9 +260,11 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
           backgroundColor: 'var(--bg-card)'
         }}>
           <div>
-            <h2 style={{ fontSize: '1.2rem', fontWeight: 700 }}>{tracker.name}</h2>
+            <h2 style={{ fontSize: '1.2rem', fontWeight: 700 }}>
+              {tracker.name} {selectedFolderObj ? `➔ ${selectedFolderObj.name}` : ''}
+            </h2>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              Showing {filteredObjects.length} engineering objects in {tracker.prefix}
+              Showing {filteredObjects.length} engineering objects in {tracker.prefix} {selectedFolderObj ? `(Folder: ${selectedFolderObj.name})` : ''}
             </span>
           </div>
 
@@ -238,7 +282,10 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
             </select>
 
             <button
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => {
+                setNewFolderId(selectedFolderId);
+                setShowCreateModal(true);
+              }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -265,13 +312,14 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                 <tr style={{ backgroundColor: 'var(--bg-sidebar)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
                   <th style={{ padding: '12px 14px', fontWeight: 600 }}>KEY</th>
                   <th style={{ padding: '12px 14px', fontWeight: 600 }}>TITLE & SUMMARY</th>
-                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>REQ TYPE</th>
-                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>SAFETY LEVEL</th>
-                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>TEST PROCESS</th>
-                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>STATUS</th>
-                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>PRIORITY</th>
-                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>VER</th>
-                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>CREATED BY</th>
+                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>FOLDER</th>
+                  <th style={{ padding: '12px 14px', fontWeight 600 }}>REQ TYPE</th>
+                  <th style={{ padding: '12px 14px', fontWeight 600 }}>SAFETY LEVEL</th>
+                  <th style={{ padding: '12px 14px', fontWeight 600 }}>TEST PROCESS</th>
+                  <th style={{ padding: '12px 14px', fontWeight 600 }}>STATUS</th>
+                  <th style={{ padding: '12px 14px', fontWeight 600 }}>PRIORITY</th>
+                  <th style={{ padding: '12px 14px', fontWeight 600 }}>VER</th>
+                  <th style={{ padding: '12px 14px', fontWeight 600 }}>CREATED BY</th>
                 </tr>
               </thead>
               <tbody>
@@ -290,9 +338,12 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                     </td>
                     <td style={{ padding: '12px 14px' }}>
                       <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{obj.title}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '320px' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '300px' }}>
                         {obj.description}
                       </div>
+                    </td>
+                    <td style={{ padding: '12px 14px', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                      {obj.folder_name || 'Root'}
                     </td>
                     <td style={{ padding: '12px 14px' }}>
                       <span style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', backgroundColor: 'rgba(56, 189, 248, 0.1)', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
@@ -317,13 +368,18 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
             </table>
           ) : (
             <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
-              <div style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '8px' }}>No items found in {tracker.name}</div>
-              <p style={{ fontSize: '0.85rem', marginBottom: '16px' }}>Click below to create the first engineering record for this tracker.</p>
+              <div style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '8px' }}>
+                No items found in {selectedFolderObj ? `folder "${selectedFolderObj.name}"` : tracker.name}
+              </div>
+              <p style={{ fontSize: '0.85rem', marginBottom: '16px' }}>Click below to create a record in this folder.</p>
               <button
-                onClick={() => setShowCreateModal(true)}
+                onClick={() => {
+                  setNewFolderId(selectedFolderId);
+                  setShowCreateModal(true);
+                }}
                 style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 600, fontSize: '0.85rem' }}
               >
-                + Create {tracker.name.slice(0, -1)}
+                + Create {tracker.name.slice(0, -1)} {selectedFolderObj ? `in ${selectedFolderObj.name}` : ''}
               </button>
             </div>
           )}
@@ -349,7 +405,64 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
         />
       )}
 
-      {/* Expanded Modal with Test Steps section for Test Cases */}
+      {/* Create New Folder Modal */}
+      {showFolderModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.75)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'var(--bg-card)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '12px',
+            width: '420px',
+            padding: '24px'
+          }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '14px' }}>
+              Create New Folder in {tracker.name}
+            </h3>
+
+            <form onSubmit={handleCreateFolderSubmit}>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                  Folder / Sub-system Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  style={{ width: '100%' }}
+                  placeholder="e.g. Sensor Fusion & Vision"
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowFolderModal(false)}
+                  style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--bg-dark)', color: 'var(--text-main)' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 600 }}
+                >
+                  Create Folder
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Expanded Object Creation Modal with Pre-selected Folder */}
       {showCreateModal && (
         <div style={{
           position: 'fixed',
@@ -369,7 +482,10 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
             maxHeight: '90vh',
             overflowY: 'auto'
           }}>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '16px' }}>Create New {tracker.name.slice(0, -1)}</h3>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '16px' }}>
+              Create New {tracker.name.slice(0, -1)}
+              {selectedFolderObj ? ` in "${selectedFolderObj.name}"` : ''}
+            </h3>
 
             <form onSubmit={handleCreate}>
               <div style={{ marginBottom: '14px' }}>
@@ -401,11 +517,11 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>Parent Folder</label>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>Target Folder</label>
                   <select
                     value={newFolderId || ''}
                     onChange={(e) => setNewFolderId(e.target.value ? Number(e.target.value) : null)}
-                    style={{ width: '100%' }}
+                    style={{ width: '100%', fontWeight: 600, color: 'var(--accent-cyan)' }}
                   >
                     <option value="">No Parent Folder (Root)</option>
                     {folders.map(f => (
