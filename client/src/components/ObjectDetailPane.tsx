@@ -183,7 +183,7 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
         </button>
       </div>
 
-      {/* Tabs */}
+      {/* Unconditionally Rendered Tabs for All Objects */}
       <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-dark)' }}>
         <button
           onClick={() => setActiveTab('OVERVIEW')}
@@ -205,7 +205,7 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
               borderBottom: activeTab === 'STEPS' ? '2px solid var(--accent-cyan)' : 'none', background: 'transparent'
             }}
           >
-            Test Steps ({caseSteps.length})
+            Steps ({caseSteps.length})
           </button>
         )}
 
