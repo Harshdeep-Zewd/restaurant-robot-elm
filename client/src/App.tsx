@@ -282,12 +282,12 @@ export const App: React.FC = () => {
     };
 
     const newTrackers: Tracker[] = [
-      { id: newProjectId * 10 + 1, project_id: newProjectId, key: 'SYS-REQ', name: 'System Requirements', type: 'REQUIREMENT', prefix: `${upperKey}-SYS-`, object_count: 0 },
-      { id: newProjectId * 10 + 2, project_id: newProjectId, key: 'SW-REQ', name: 'Software Requirements', type: 'REQUIREMENT', prefix: `${upperKey}-SW-`, object_count: 0 },
-      { id: newProjectId * 10 + 3, project_id: newProjectId, key: 'ARCH', name: 'System Architecture', type: 'ARCHITECTURE', prefix: `${upperKey}-ARCH-`, object_count: 0 },
-      { id: newProjectId * 10 + 4, project_id: newProjectId, key: 'RISK', name: 'Risks & Hazards', type: 'RISK', prefix: `${upperKey}-RISK-`, object_count: 0 },
-      { id: newProjectId * 10 + 5, project_id: newProjectId, key: 'SYS-TST', name: 'System Test Cases', type: 'TEST_CASE', prefix: `${upperKey}-TST-`, object_count: 0 },
-      { id: newProjectId * 10 + 6, project_id: newProjectId, key: 'TST-SET', name: 'Test Sets', type: 'TEST_SET', prefix: `${upperKey}-SET-`, object_count: 0 }
+      { id: newProjectId * 10 + 1, project_id: newProjectId, key: 'SYS-REQ', name: 'System Requirements', type: 'REQUIREMENT', prefix: `${upperKey}-SYS-`, object_count: 0, enable_test_steps: false, enable_folders: true },
+      { id: newProjectId * 10 + 2, project_id: newProjectId, key: 'SW-REQ', name: 'Software Requirements', type: 'REQUIREMENT', prefix: `${upperKey}-SW-`, object_count: 0, enable_test_steps: false, enable_folders: true },
+      { id: newProjectId * 10 + 3, project_id: newProjectId, key: 'ARCH', name: 'System Architecture', type: 'ARCHITECTURE', prefix: `${upperKey}-ARCH-`, object_count: 0, enable_test_steps: false, enable_folders: true },
+      { id: newProjectId * 10 + 4, project_id: newProjectId, key: 'RISK', name: 'Risks & Hazards', type: 'RISK', prefix: `${upperKey}-RISK-`, object_count: 0, enable_test_steps: false, enable_folders: true },
+      { id: newProjectId * 10 + 5, project_id: newProjectId, key: 'SYS-TST', name: 'System Test Cases', type: 'TEST_CASE', prefix: `${upperKey}-TST-`, object_count: 0, enable_test_steps: true, enable_folders: true },
+      { id: newProjectId * 10 + 6, project_id: newProjectId, key: 'TST-SET', name: 'Test Sets', type: 'TEST_SET', prefix: `${upperKey}-SET-`, object_count: 0, enable_test_steps: false, enable_folders: true }
     ];
 
     setProjects(prev => [newProject, ...prev]);

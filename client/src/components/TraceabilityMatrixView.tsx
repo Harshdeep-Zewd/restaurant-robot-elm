@@ -18,10 +18,13 @@ export const TraceabilityMatrixView: React.FC<TraceabilityMatrixViewProps> = ({
   onDeleteRelationship
 }) => {
   const [sourceTrackerId, setSourceTrackerId] = useState<number>(trackers[0]?.id || 1);
-  const [targetTrackerId, setTargetTrackerId] = useState<number>(trackers[4]?.id || 5);
+  const [targetTrackerId, setTargetTrackerId] = useState<number>(trackers[4]?.id || trackers[0]?.id || 5);
 
-  const sources = allObjects.filter(o => o.tracker_id === sourceTrackerId);
-  const targets = allObjects.filter(o => o.tracker_id === targetTrackerId);
+  const activeSourceId = trackers.some(t => t.id === sourceTrackerId) ? sourceTrackerId : (trackers[0]?.id || 0);
+  const activeTargetId = trackers.some(t => t.id === targetTrackerId) ? targetTrackerId : (trackers[4]?.id || trackers[0]?.id || 0);
+
+  const sources = allObjects.filter(o => o.tracker_id === activeSourceId);
+  const targets = allObjects.filter(o => o.tracker_id === activeTargetId);
 
   const hasLink = (sourceId: number, targetId: number) => {
     return relationships.some(r => r.source_id === sourceId && r.target_id === targetId);
@@ -68,13 +71,13 @@ export const TraceabilityMatrixView: React.FC<TraceabilityMatrixViewProps> = ({
 
         {/* Tracker Selectors */}
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', backgroundColor: 'var(--bg-card)', padding: '8px 16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-          <select value={sourceTrackerId} onChange={(e) => setSourceTrackerId(Number(e.target.value))}>
+          <select value={activeSourceId} onChange={(e) => setSourceTrackerId(Number(e.target.value))}>
             {trackers.map(t => <option key={t.id} value={t.id}>Source: {t.name}</option>)}
           </select>
 
           <ArrowRight size={16} color="var(--text-muted)" />
 
-          <select value={targetTrackerId} onChange={(e) => setTargetTrackerId(Number(e.target.value))}>
+          <select value={activeTargetId} onChange={(e) => setTargetTrackerId(Number(e.target.value))}>
             {trackers.map(t => <option key={t.id} value={t.id}>Target: {t.name}</option>)}
           </select>
         </div>

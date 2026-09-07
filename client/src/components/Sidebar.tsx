@@ -199,7 +199,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <span style={{ fontSize: '0.7rem', backgroundColor: 'var(--bg-dark)', padding: '2px 6px', borderRadius: '10px', color: 'var(--text-muted)' }}>
               {t.object_count || 0}
             </span>
-            {onDeleteTracker && t.id > 6 && (
+            {onDeleteTracker && !['SYS-REQ', 'SW-REQ', 'ARCH', 'RISK', 'SYS-TST', 'TST-SET'].includes(t.key) && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
