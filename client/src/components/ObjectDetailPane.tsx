@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X, Save, Link as LinkIcon, Trash2, ArrowRight, ArrowLeft, Plus, ListOrdered, FileText, Download, Paperclip } from 'lucide-react';
+import { X, Save, Link as LinkIcon, Trash2, ArrowRight, ArrowLeft, Plus, ListOrdered, FileText, Download, Paperclip, Layers, CheckSquare } from 'lucide-react';
 import { EngineeringObject, RequirementType, SafetyLevel, TestSubProcess, Folder as FolderType, Relationship, TestStep, Artifact } from '../types/elm';
 
 interface ObjectDetailPaneProps {
@@ -39,11 +39,12 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
   onDeleteArtifact,
   onSelectForImpact
 }) => {
-  const isTestCase = object?.type === 'TEST_CASE';
+  const isTestCase = object?.type === 'TEST_CASE' || object?.object_key.startsWith('SYS-TST');
+  const isTestSet = object?.type === 'TEST_SET' || object?.object_key.startsWith('TST-SET');
   const isArchitecture = object?.type === 'ARCHITECTURE';
 
-  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'STEPS' | 'TRACEABILITY' | 'FILES' | 'VERSIONS'>(
-    isArchitecture ? 'FILES' : isTestCase ? 'STEPS' : 'OVERVIEW'
+  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'STEPS' | 'TEST_CASES' | 'TRACEABILITY' | 'FILES' | 'VERSIONS'>(
+    isTestSet ? 'TEST_CASES' : isArchitecture ? 'FILES' : isTestCase ? 'STEPS' : 'OVERVIEW'
   );
 
   const [title, setTitle] = useState('');
@@ -55,6 +56,15 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
   const [testProcess, setTestProcess] = useState<TestSubProcess>('System Testing');
   const [folderId, setFolderId] = useState<number | null>(null);
 
+  // Active object being inspected inside detail pane
+  const [currentInspectId, setCurrentInspectId] = useState<number>(objectId);
+
+  useEffect(() => {
+    setCurrentInspectId(objectId);
+  }, [objectId]);
+
+  const activeObject = allObjects.find(o => o.id === currentInspectId) || object;
+
   // Link Modal state
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [targetObjId, setTargetObjId] = useState<number | null>(null);
@@ -64,34 +74,50 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
   const [newAction, setNewAction] = useState('');
   const [newExpectedResult, setNewExpectedResult] = useState('');
 
+  // Add Test Case to Test Set state
+  const [addTestCaseId, setAddTestCaseId] = useState<number | null>(null);
+
   // File Attachment State
   const [newFilename, setNewFilename] = useState('');
   const [newFileCategory, setNewFileCategory] = useState<'PDF' | 'CAD' | 'CSV' | 'OTHER'>('PDF');
 
   useEffect(() => {
-    if (object) {
-      setTitle(object.title);
-      setDesc(object.description || '');
-      setStatus(object.status);
-      setPriority(object.priority);
-      setReqType(object.requirement_type || 'Functional Requirement');
-      setSafetyLevel(object.safety_level || 'ASIL-D');
-      setTestProcess(object.test_subprocess || 'System Testing');
-      setFolderId(object.folder_id || null);
+    if (activeObject) {
+      setTitle(activeObject.title);
+      setDesc(activeObject.description || '');
+      setStatus(activeObject.status);
+      setPriority(activeObject.priority);
+      setReqType(activeObject.requirement_type || 'Functional Requirement');
+      setSafetyLevel(activeObject.safety_level || 'ASIL-D');
+      setTestProcess(activeObject.test_subprocess || 'System Testing');
+      setFolderId(activeObject.folder_id || null);
     }
-  }, [object]);
+  }, [activeObject]);
 
-  if (!object) return null;
+  if (!activeObject) return null;
 
-  const caseSteps = testSteps.filter(s => s.test_case_id === objectId);
-  const objectFiles = artifacts.filter(a => a.object_id === objectId);
+  const caseSteps = testSteps.filter(s => s.test_case_id === activeObject.id);
+  const objectFiles = artifacts.filter(a => a.object_id === activeObject.id);
   const selectedFolder = folders.find(f => f.id === folderId);
 
-  const outgoingLinks = relationships.filter(r => r.source_id === objectId);
-  const incomingLinks = relationships.filter(r => r.target_id === objectId);
+  const outgoingLinks = relationships.filter(r => r.source_id === activeObject.id);
+  const incomingLinks = relationships.filter(r => r.target_id === activeObject.id);
+
+  // Included Test Cases inside Test Set (via INCLUDED_IN relationship where target is this Test Set)
+  const includedTestCaseRels = relationships.filter(r => r.target_id === activeObject.id && r.relationship_type === 'INCLUDED_IN');
+  const includedTestCases = includedTestCaseRels.map(r => {
+    const tcObj = allObjects.find(o => o.id === r.source_id);
+    return { relId: r.id, tcObj };
+  }).filter(item => item.tcObj !== undefined);
+
+  // Available Test Cases not yet included in this Test Set
+  const availableTestCases = allObjects.filter(o =>
+    (o.type === 'TEST_CASE' || o.object_key.startsWith('SYS-TST')) &&
+    !includedTestCaseRels.some(r => r.source_id === o.id)
+  );
 
   const handleSave = () => {
-    onUpdateObject(objectId, {
+    onUpdateObject(activeObject.id, {
       title: title.trim(),
       description: desc.trim(),
       status,
@@ -107,15 +133,22 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
   const handleCreateLink = (e: React.FormEvent) => {
     e.preventDefault();
     if (!targetObjId || !onAddRelationship) return;
-    onAddRelationship(objectId, targetObjId, relType);
+    onAddRelationship(activeObject.id, targetObjId, relType);
     setShowLinkModal(false);
     setTargetObjId(null);
+  };
+
+  const handleAddTestCaseToSetSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addTestCaseId || !onAddRelationship) return;
+    onAddRelationship(addTestCaseId, activeObject.id, 'INCLUDED_IN');
+    setAddTestCaseId(null);
   };
 
   const handleCreateTestStep = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAction.trim() || !newExpectedResult.trim() || !onAddTestStep) return;
-    onAddTestStep(objectId, newAction.trim(), newExpectedResult.trim());
+    onAddTestStep(activeObject.id, newAction.trim(), newExpectedResult.trim());
     setNewAction('');
     setNewExpectedResult('');
   };
@@ -132,7 +165,7 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
     else if (nameLower.endsWith('.step') || nameLower.endsWith('.stl') || nameLower.endsWith('.cad')) cat = 'CAD';
 
     onAddArtifact({
-      object_id: objectId,
+      object_id: activeObject.id,
       filename: newFilename.trim(),
       category: cat
     });
@@ -167,14 +200,22 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span className="mono" style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--accent-cyan)' }}>
-              {object.object_key}
+              {activeObject.object_key}
             </span>
             <span className="mono" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              v{object.version}
+              v{activeObject.version}
             </span>
+            {currentInspectId !== objectId && (
+              <button
+                onClick={() => setCurrentInspectId(objectId)}
+                style={{ fontSize: '0.7rem', color: 'var(--accent-cyan)', background: 'transparent', fontWeight: 700 }}
+              >
+                ⬅ Back to Test Set
+              </button>
+            )}
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-            Tracker: <strong style={{ color: 'var(--text-main)' }}>{object.tracker_name || object.type}</strong>
+            Tracker: <strong style={{ color: 'var(--text-main)' }}>{activeObject.tracker_name || activeObject.type}</strong>
           </div>
         </div>
 
@@ -196,16 +237,18 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
           Overview
         </button>
 
-        <button
-          onClick={() => setActiveTab('FILES')}
-          style={{
-            flex: 1, padding: '10px 0', fontSize: '0.8rem', fontWeight: 600,
-            color: activeTab === 'FILES' ? 'var(--accent-cyan)' : 'var(--text-muted)',
-            borderBottom: activeTab === 'FILES' ? '2px solid var(--accent-cyan)' : 'none', background: 'transparent'
-          }}
-        >
-          Files ({objectFiles.length})
-        </button>
+        {isTestSet && (
+          <button
+            onClick={() => setActiveTab('TEST_CASES')}
+            style={{
+              flex: 1, padding: '10px 0', fontSize: '0.8rem', fontWeight: 600,
+              color: activeTab === 'TEST_CASES' ? 'var(--accent-cyan)' : 'var(--text-muted)',
+              borderBottom: activeTab === 'TEST_CASES' ? '2px solid var(--accent-cyan)' : 'none', background: 'transparent'
+            }}
+          >
+            Test Cases ({includedTestCases.length})
+          </button>
+        )}
 
         {isTestCase && (
           <button
@@ -219,6 +262,17 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
             Steps ({caseSteps.length})
           </button>
         )}
+
+        <button
+          onClick={() => setActiveTab('FILES')}
+          style={{
+            flex: 1, padding: '10px 0', fontSize: '0.8rem', fontWeight: 600,
+            color: activeTab === 'FILES' ? 'var(--accent-cyan)' : 'var(--text-muted)',
+            borderBottom: activeTab === 'FILES' ? '2px solid var(--accent-cyan)' : 'none', background: 'transparent'
+          }}
+        >
+          Files ({objectFiles.length})
+        </button>
 
         <button
           onClick={() => setActiveTab('TRACEABILITY')}
@@ -262,44 +316,6 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
             <div style={{ backgroundColor: 'var(--bg-dark)', padding: '10px 14px', borderRadius: '6px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Created By Author</span>
               <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-cyan)' }}>Zewd</span>
-            </div>
-
-            {/* Attached Files Quick Card directly inside Overview Tab */}
-            <div style={{
-              backgroundColor: 'rgba(2, 132, 199, 0.1)',
-              border: '1px solid rgba(2, 132, 199, 0.3)',
-              borderRadius: '8px',
-              padding: '12px',
-              marginBottom: '16px'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Paperclip size={16} />
-                  <span>Attached Engineering Files ({objectFiles.length})</span>
-                </div>
-                <button
-                  onClick={() => setActiveTab('FILES')}
-                  style={{ fontSize: '0.7rem', color: 'var(--accent-cyan)', background: 'transparent', fontWeight: 700, textDecoration: 'underline' }}
-                >
-                  View All Files ➔
-                </button>
-              </div>
-
-              {objectFiles.length > 0 ? (
-                objectFiles.map(art => (
-                  <div key={art.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-card)', padding: '6px 10px', borderRadius: '4px', marginBottom: '4px', fontSize: '0.8rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '270px' }}>
-                      <FileText size={14} color="var(--accent-cyan)" />
-                      <span style={{ fontWeight: 600 }}>{art.filename}</span>
-                    </div>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--accent-amber)', fontWeight: 700 }}>{art.category}</span>
-                  </div>
-                ))
-              ) : (
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  No files attached. Click "Files" tab or use button above to attach .pdf, .xlsx, .docx, or CAD models.
-                </div>
-              )}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
@@ -411,8 +427,123 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
               }}
             >
               <Save size={16} />
-              <span>Save & Create Version (v{object.version + 1})</span>
+              <span>Save & Create Version (v{activeObject.version + 1})</span>
             </button>
+          </div>
+        )}
+
+        {/* Included Test Cases Tab (ONLY for Test Sets) */}
+        {activeTab === 'TEST_CASES' && (
+          <div>
+            <div style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Layers size={18} color="var(--accent-cyan)" />
+              <span>Included Test Cases in Suite ({includedTestCases.length})</span>
+            </div>
+
+            {/* List of Included Test Cases */}
+            <div style={{ marginBottom: '24px' }}>
+              {includedTestCases.length > 0 ? (
+                includedTestCases.map(({ relId, tcObj }) => {
+                  if (!tcObj) return null;
+                  const tcSteps = testSteps.filter(s => s.test_case_id === tcObj.id);
+
+                  return (
+                    <div
+                      key={tcObj.id}
+                      onClick={() => setCurrentInspectId(tcObj.id)}
+                      style={{
+                        backgroundColor: 'var(--bg-dark)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '8px',
+                        padding: '12px',
+                        marginBottom: '10px',
+                        cursor: 'pointer',
+                        transition: 'border-color 0.2s'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                        <span className="mono" style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-cyan)' }}>
+                          {tcObj.object_key}
+                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--accent-emerald)', backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: '2px 6px', borderRadius: '4px' }}>
+                            {tcSteps.length} Steps
+                          </span>
+                          {onDeleteRelationship && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteRelationship(relId);
+                              }}
+                              style={{ color: 'var(--accent-rose)', background: 'transparent' }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '4px' }}>
+                        {tcObj.title}
+                      </div>
+
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        {tcObj.description}
+                      </div>
+
+                      <div style={{ fontSize: '0.7rem', color: 'var(--accent-cyan)', marginTop: '8px', fontWeight: 700 }}>
+                        ➔ Click to View & Run Specific Test Case Details
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: 'var(--bg-dark)', borderRadius: '8px' }}>
+                  No test cases included in this test set suite yet. Select a test case below to add it.
+                </div>
+              )}
+            </div>
+
+            {/* Add Test Case to Suite Selector */}
+            <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '16px' }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: '10px', color: 'var(--accent-cyan)' }}>
+                + Add System Test Case to Suite
+              </div>
+
+              {availableTestCases.length > 0 ? (
+                <form onSubmit={handleAddTestCaseToSetSubmit}>
+                  <div style={{ marginBottom: '12px' }}>
+                    <select
+                      value={addTestCaseId || ''}
+                      onChange={(e) => setAddTestCaseId(Number(e.target.value))}
+                      style={{ width: '100%', fontSize: '0.85rem' }}
+                    >
+                      <option value="">Select Test Case to Include...</option>
+                      {availableTestCases.map(tc => (
+                        <option key={tc.id} value={tc.id}>
+                          {tc.object_key} - {tc.title} ({tc.priority})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={!addTestCaseId}
+                    style={{
+                      width: '100%', padding: '8px', borderRadius: '6px',
+                      backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 600, fontSize: '0.85rem'
+                    }}
+                  >
+                    + Attach Test Case to Test Set
+                  </button>
+                </form>
+              ) : (
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  All available System Test Cases are already included in this Test Set.
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -604,7 +735,7 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
                     value={newAction}
                     onChange={(e) => setNewAction(e.target.value)}
                     style={{ width: '100%', fontSize: '0.85rem' }}
-                    placeholder="e.g. Accelerate robot base to 1.5 m/s and trigger wireless e-stop..."
+                    placeholder="e.g. Accelerate base to 1.5 m/s and trigger wireless e-stop..."
                   />
                 </div>
 
@@ -723,12 +854,12 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
             </div>
             <div style={{ backgroundColor: 'var(--bg-dark)', padding: '12px', borderRadius: '8px', marginBottom: '10px', borderLeft: '3px solid var(--accent-cyan)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', fontWeight: 700 }}>
-                <span className="mono">Version {object.version} (Current)</span>
+                <span className="mono">Version {activeObject.version} (Current)</span>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Author: Zewd</span>
               </div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-main)', marginTop: '4px' }}>{object.title}</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-main)', marginTop: '4px' }}>{activeObject.title}</div>
               <div style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', marginTop: '4px' }}>
-                Type: {object.requirement_type || 'Functional Requirement'} | Safety: {object.safety_level || 'ASIL-D'}
+                Type: {activeObject.requirement_type || 'Functional Requirement'} | Safety: {activeObject.safety_level || 'ASIL-D'}
               </div>
             </div>
           </div>
@@ -754,7 +885,7 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
             padding: '24px'
           }}>
             <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '14px' }}>
-              Link <span className="mono" style={{ color: 'var(--accent-cyan)' }}>{object.object_key}</span> to Target Object ID
+              Link <span className="mono" style={{ color: 'var(--accent-cyan)' }}>{activeObject.object_key}</span> to Target Object ID
             </h3>
 
             <form onSubmit={handleCreateLink}>
@@ -788,7 +919,7 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
                 >
                   <option value="">Select Target Object ID...</option>
                   {allObjects
-                    .filter(o => o.id !== objectId)
+                    .filter(o => o.id !== activeObject.id)
                     .map(o => (
                       <option key={o.id} value={o.id}>
                         {o.object_key} - {o.title} ({o.type})

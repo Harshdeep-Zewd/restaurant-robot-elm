@@ -133,7 +133,8 @@ const INITIAL_RELATIONSHIPS: Relationship[] = [
   { id: 3, source_id: 1, target_id: 7, relationship_type: 'VERIFIED_BY' },
   { id: 4, source_id: 2, target_id: 8, relationship_type: 'VERIFIED_BY' },
   { id: 5, source_id: 1, target_id: 5, relationship_type: 'ALLOCATED_TO' },
-  { id: 6, source_id: 7, target_id: 9, relationship_type: 'INCLUDED_IN' }
+  { id: 6, source_id: 7, target_id: 9, relationship_type: 'INCLUDED_IN' },
+  { id: 7, source_id: 8, target_id: 9, relationship_type: 'INCLUDED_IN' }
 ];
 
 const INITIAL_TEST_STEPS: TestStep[] = [
@@ -272,6 +273,7 @@ export const App: React.FC = () => {
     priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
     test_step_action?: string;
     test_step_expected?: string;
+    included_test_case_ids?: number[];
     metadata?: any;
   }) => {
     const tracker = allTrackers.find(t => t.id === data.tracker_id);
@@ -308,6 +310,7 @@ export const App: React.FC = () => {
 
     setAllObjects(prev => [newObj, ...prev]);
 
+    // Add Initial Test Step for Test Cases
     if (data.test_step_action && data.test_step_expected) {
       const initialStep: TestStep = {
         id: Date.now() + 1,
@@ -317,6 +320,17 @@ export const App: React.FC = () => {
         expected_result: data.test_step_expected.trim()
       };
       setTestSteps(prev => [...prev, initialStep]);
+    }
+
+    // Auto-link selected test cases to Test Set
+    if (data.included_test_case_ids && data.included_test_case_ids.length > 0) {
+      const newRels: Relationship[] = data.included_test_case_ids.map((tcId, idx) => ({
+        id: Date.now() + 10 + idx,
+        source_id: tcId, // Test Case
+        target_id: newObjId, // Test Set
+        relationship_type: 'INCLUDED_IN'
+      }));
+      setRelationships(prev => [...prev, ...newRels]);
     }
   };
 

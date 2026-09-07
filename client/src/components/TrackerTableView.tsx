@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Folder, FolderPlus, ChevronRight, ListOrdered, Paperclip, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Folder, FolderPlus, ChevronRight, ListOrdered, Paperclip, ChevronDown, ChevronUp, CheckSquare, Square } from 'lucide-react';
 import { Tracker, Folder as FolderType, EngineeringObject, RequirementType, SafetyLevel, TestSubProcess, Relationship, TestStep, Artifact } from '../types/elm';
 import { ObjectDetailPane } from './ObjectDetailPane';
 
@@ -23,6 +23,7 @@ interface TrackerTableViewProps {
     priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
     test_step_action?: string;
     test_step_expected?: string;
+    included_test_case_ids?: number[];
     metadata?: any;
   }) => void;
   onUpdateObject: (id: number, updates: Partial<EngineeringObject>) => void;
@@ -72,13 +73,19 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
   const [newStepAction, setNewStepAction] = useState('');
   const [newStepExpected, setNewStepExpected] = useState('');
 
+  // Test Set specific creation state
+  const [selectedTestCaseIds, setSelectedTestCaseIds] = useState<number[]>([]);
+
   // Folder Modal state
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [inlineFolderInput, setInlineFolderInput] = useState(false);
   const [inlineFolderName, setInlineFolderName] = useState('');
 
-  const isTestCaseTracker = tracker.type === 'TEST_CASE' || tracker.key.includes('TST');
+  const isTestCaseTracker = tracker.type === 'TEST_CASE' && (tracker.key === 'SYS-TST' || tracker.prefix.includes('TST-'));
+  const isTestSetTracker = tracker.type === 'TEST_SET' || tracker.key === 'TST-SET' || tracker.prefix.includes('SET-');
+
+  const availableTestCases = allObjects.filter(o => o.type === 'TEST_CASE' || o.object_key.startsWith('SYS-TST') || o.object_key.includes('TST'));
 
   useEffect(() => {
     setNewFolderId(selectedFolderId);
@@ -107,6 +114,12 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
     e.stopPropagation();
     setExpandedObjIds(prev =>
       prev.includes(objId) ? prev.filter(id => id !== objId) : [...prev, objId]
+    );
+  };
+
+  const toggleTestCaseSelection = (tcId: number) => {
+    setSelectedTestCaseIds(prev =>
+      prev.includes(tcId) ? prev.filter(id => id !== tcId) : [...prev, tcId]
     );
   };
 
@@ -146,8 +159,9 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
       safety_level: newSafetyLevel,
       test_subprocess: newTestProcess,
       priority: newPriority,
-      test_step_action: newStepAction.trim() || undefined,
-      test_step_expected: newStepExpected.trim() || undefined,
+      test_step_action: isTestCaseTracker ? (newStepAction.trim() || undefined) : undefined,
+      test_step_expected: isTestCaseTracker ? (newStepExpected.trim() || undefined) : undefined,
+      included_test_case_ids: isTestSetTracker ? selectedTestCaseIds : undefined,
       metadata: { rationale: 'Created via workspace UI', author: 'Zewd' }
     });
 
@@ -156,6 +170,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
     setNewDesc('');
     setNewStepAction('');
     setNewStepExpected('');
+    setSelectedTestCaseIds([]);
     setNewPriority('MEDIUM');
   };
 
@@ -353,7 +368,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
           </div>
         </div>
 
-        {/* Table with Expandable Description Toggle */}
+        {/* Table */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {filteredObjects.length > 0 ? (
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
@@ -607,7 +622,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
                   style={{ width: '100%' }}
-                  placeholder="e.g. LiDAR Occlusion Field of View Limit"
+                  placeholder={isTestSetTracker ? "e.g. ISO 13482 Release 2.4 Qualification Set" : "e.g. LiDAR Occlusion Field of View Limit"}
                 />
               </div>
 
@@ -736,7 +751,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                 </div>
               </div>
 
-              {/* Initial Test Step Section */}
+              {/* Initial Test Step Section (ONLY for Test Case trackers) */}
               {isTestCaseTracker && (
                 <div style={{ backgroundColor: 'var(--bg-dark)', border: '1px solid var(--accent-cyan)', borderRadius: '8px', padding: '14px', marginBottom: '14px' }}>
                   <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--accent-cyan)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -768,6 +783,50 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                       style={{ width: '100%', fontSize: '0.85rem' }}
                       placeholder="e.g. Mechanical brakes engage and stop robot within <= 0.35m."
                     />
+                  </div>
+                </div>
+              )}
+
+              {/* Select Included Test Cases (ONLY for Test Set trackers) */}
+              {isTestSetTracker && (
+                <div style={{ backgroundColor: 'var(--bg-dark)', border: '1px solid var(--accent-cyan)', borderRadius: '8px', padding: '14px', marginBottom: '14px' }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-cyan)', marginBottom: '6px' }}>
+                    Select Test Cases to Include in this Test Set
+                  </div>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '10px' }}>
+                    Check all System Test Cases (`SYS-TST-`) that belong to this suite.
+                  </p>
+
+                  <div style={{ maxHeight: '160px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {availableTestCases.map(tc => {
+                      const isSelected = selectedTestCaseIds.includes(tc.id);
+                      return (
+                        <div
+                          key={tc.id}
+                          onClick={() => toggleTestCaseSelection(tc.id)}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            padding: '8px 12px',
+                            borderRadius: '6px',
+                            backgroundColor: isSelected ? 'rgba(56, 189, 248, 0.15)' : 'var(--bg-card)',
+                            border: `1px solid ${isSelected ? 'var(--accent-cyan)' : 'var(--border-color)'}`,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {isSelected ? <CheckSquare size={16} color="var(--accent-cyan)" /> : <Square size={16} color="var(--text-muted)" />}
+                          <div>
+                            <span className="mono" style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--accent-cyan)', marginRight: '8px' }}>
+                              {tc.object_key}
+                            </span>
+                            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                              {tc.title}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
