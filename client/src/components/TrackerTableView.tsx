@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Folder, FolderPlus, ChevronRight, ListOrdered, Paperclip } from 'lucide-react';
+import { Plus, Folder, FolderPlus, ChevronRight, ListOrdered, Paperclip, ChevronDown, ChevronUp } from 'lucide-react';
 import { Tracker, Folder as FolderType, EngineeringObject, RequirementType, SafetyLevel, TestSubProcess, Relationship, TestStep, Artifact } from '../types/elm';
 import { ObjectDetailPane } from './ObjectDetailPane';
 
@@ -56,6 +56,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
 }) => {
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
   const [selectedObjectId, setSelectedObjectId] = useState<number | null>(null);
+  const [expandedObjIds, setExpandedObjIds] = useState<number[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   
@@ -101,6 +102,13 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
       (o.safety_level && o.safety_level.toLowerCase().includes(s))
     );
   }
+
+  const toggleExpand = (e: React.MouseEvent, objId: number) => {
+    e.stopPropagation();
+    setExpandedObjIds(prev =>
+      prev.includes(objId) ? prev.filter(id => id !== objId) : [...prev, objId]
+    );
+  };
 
   const handleCreateFolderSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -345,26 +353,28 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
           </div>
         </div>
 
-        {/* Table with Explicit Attachments Column and Click Instruction */}
+        {/* Table with Expandable Description Toggle */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {filteredObjects.length > 0 ? (
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
               <thead>
                 <tr style={{ backgroundColor: 'var(--bg-sidebar)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
                   <th style={{ padding: '12px 14px', fontWeight: 600 }}>KEY</th>
-                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>TITLE & SUMMARY</th>
-                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>ATTACHMENTS</th>
+                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>TITLE & DESCRIPTION</th>
+                  <th style={{ padding: '12px 14px', fontWeight 600 }}>ATTACHMENTS</th>
                   <th style={{ padding: '12px 14px', fontWeight: 600 }}>FOLDER</th>
                   <th style={{ padding: '12px 14px', fontWeight: 600 }}>REQ TYPE</th>
                   <th style={{ padding: '12px 14px', fontWeight: 600 }}>SAFETY LEVEL</th>
                   <th style={{ padding: '12px 14px', fontWeight: 600 }}>STATUS</th>
                   <th style={{ padding: '12px 14px', fontWeight: 600 }}>PRIORITY</th>
-                  <th style={{ padding: '12px 14px', fontWeight 600 }}>CREATED BY</th>
+                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>CREATED BY</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredObjects.map((obj) => {
                   const objectFiles = artifacts.filter(a => a.object_id === obj.id);
+                  const isExpanded = expandedObjIds.includes(obj.id);
+
                   return (
                     <tr
                       key={obj.id}
@@ -378,11 +388,47 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                       <td style={{ padding: '12px 14px', fontWeight: 700, color: 'var(--accent-cyan)' }} className="mono">
                         {obj.object_key}
                       </td>
-                      <td style={{ padding: '12px 14px' }}>
-                        <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{obj.title}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '240px' }}>
-                          {obj.description}
-                        </div>
+                      <td style={{ padding: '12px 14px', maxWidth: '420px' }}>
+                        <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '0.9rem' }}>{obj.title}</div>
+                        
+                        {isExpanded ? (
+                          <div style={{
+                            marginTop: '8px',
+                            padding: '10px 12px',
+                            backgroundColor: 'var(--bg-dark)',
+                            borderLeft: '3px solid var(--accent-cyan)',
+                            borderRadius: '4px',
+                            fontSize: '0.85rem',
+                            color: 'var(--text-main)',
+                            lineHeight: '1.4',
+                            whiteSpace: 'pre-wrap'
+                          }}>
+                            {obj.description}
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '380px', marginTop: '2px' }}>
+                            {obj.description}
+                          </div>
+                        )}
+
+                        <button
+                          onClick={(e) => toggleExpand(e, obj.id)}
+                          style={{
+                            fontSize: '0.7rem',
+                            color: 'var(--accent-cyan)',
+                            background: 'transparent',
+                            fontWeight: 700,
+                            marginTop: '4px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            cursor: 'pointer',
+                            padding: '2px 0'
+                          }}
+                        >
+                          {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                          <span>{isExpanded ? 'Hide Full Description' : 'Show Full Description'}</span>
+                        </button>
                       </td>
                       <td style={{ padding: '12px 14px' }}>
                         <button
