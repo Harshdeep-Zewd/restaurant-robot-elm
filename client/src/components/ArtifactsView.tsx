@@ -254,25 +254,54 @@ Author: Zewd (Lead Systems Engineer)
                 <td style={{ padding: '12px 16px' }} className="mono">{formatFileSize(art.file_size)}</td>
                 <td style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--accent-cyan)' }}>{art.uploader_name || 'Zewd'}</td>
                 <td style={{ padding: '12px 16px' }}>
-                  <button
-                    onClick={() => handleDownload(art)}
-                    style={{
-                      color: 'var(--accent-cyan)',
-                      backgroundColor: 'rgba(56, 189, 248, 0.12)',
-                      border: '1px solid rgba(56, 189, 248, 0.3)',
-                      padding: '5px 12px',
-                      borderRadius: '6px',
-                      fontWeight: 600,
-                      fontSize: '0.8rem',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <Download size={14} />
-                    <span>Download</span>
-                  </button>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <button
+                      onClick={() => handleDownload(art)}
+                      style={{
+                        color: 'var(--accent-cyan)',
+                        backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                        border: '1px solid rgba(56, 189, 248, 0.3)',
+                        padding: '5px 12px',
+                        borderRadius: '6px',
+                        fontWeight: 600,
+                        fontSize: '0.8rem',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <Download size={14} />
+                      <span>Download</span>
+                    </button>
+
+                    {onDeleteArtifact && (
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`Are you sure you want to delete file "${art.filename}"?`)) {
+                            onDeleteArtifact(art.id);
+                          }
+                        }}
+                        title="Delete File"
+                        style={{
+                          color: 'var(--accent-rose)',
+                          backgroundColor: 'rgba(244, 63, 94, 0.12)',
+                          border: '1px solid rgba(244, 63, 94, 0.3)',
+                          padding: '5px 10px',
+                          borderRadius: '6px',
+                          fontWeight: 600,
+                          fontSize: '0.8rem',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <Trash2 size={14} />
+                        <span>Delete</span>
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

@@ -668,8 +668,29 @@ Author: Zewd (Lead Systems Engineer)
                         <span>Download</span>
                       </button>
                       {onDeleteArtifact && (
-                        <button onClick={() => onDeleteArtifact(art.id)} style={{ color: 'var(--accent-rose)', background: 'transparent' }}>
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Are you sure you want to remove attached file "${art.filename}"?`)) {
+                              onDeleteArtifact(art.id);
+                            }
+                          }}
+                          title="Delete File Attachment"
+                          style={{
+                            color: 'var(--accent-rose)',
+                            backgroundColor: 'rgba(244, 63, 94, 0.12)',
+                            border: '1px solid rgba(244, 63, 94, 0.3)',
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                          }}
+                        >
                           <Trash2 size={14} />
+                          <span>Delete</span>
                         </button>
                       )}
                     </div>
