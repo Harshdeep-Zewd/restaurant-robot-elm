@@ -19,8 +19,7 @@
       "dest": "api/index.ts"
     },
     {
-      "src": "/assets/(.*)",
-      "dest": "client/assets/$1"
+      "handle": "filesystem"
     },
     {
       "src": "/(.*)",
