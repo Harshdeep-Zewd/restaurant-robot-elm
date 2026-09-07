@@ -2,14 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { ShieldAlert, CheckCircle2, AlertTriangle, Layers, Activity, FolderArchive, ArrowUpRight } from 'lucide-react';
 import { api } from '../api/client';
 import { ViewMode } from './Sidebar';
-import { Tracker } from '../types/elm';
+import { Project, Tracker } from '../types/elm';
 
 interface DashboardViewProps {
+  project: Project;
   onNavigate: (view: ViewMode, tracker?: Tracker) => void;
   trackers: Tracker[];
 }
 
-export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, trackers }) => {
+export const DashboardView: React.FC<DashboardViewProps> = ({ project, onNavigate, trackers }) => {
   const [coverage, setCoverage] = useState<any>(null);
   const [runs, setRuns] = useState<any[]>([]);
   const [baselines, setBaselines] = useState<any[]>([]);
@@ -25,10 +26,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, tracke
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-main)' }}>
-            Autonomous Restaurant Delivery Robot (RoboServ-X1)
+            {project.name}
           </h1>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Systems Engineering Lifecycle Management & ISO 13482 Safety Compliance Workspace
+            {project.description || 'Systems Engineering Lifecycle Management & ISO 13482 Safety Compliance Workspace'}
           </p>
         </div>
 

@@ -205,9 +205,27 @@ const getInitialData = <T,>(key: string, defaultValue: T): T => {
 
 export const App: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>(() => getInitialData('projects', INITIAL_PROJECTS));
-  const [activeProject, setActiveProject] = useState<Project>(projects[0] || INITIAL_PROJECTS[0]);
+  
+  const [activeProjectId, setActiveProjectId] = useState<number>(() => {
+    const savedId = getInitialData<number | null>('active_project_id', null);
+    const loadedProjects = getInitialData<Project[]>('projects', INITIAL_PROJECTS);
+    if (savedId && loadedProjects.some(p => p.id === savedId)) {
+      return savedId;
+    }
+    return loadedProjects[0]?.id || INITIAL_PROJECTS[0].id;
+  });
+
   const [allTrackers, setAllTrackers] = useState<Tracker[]>(() => getInitialData('trackers', INITIAL_TRACKERS));
-  const [selectedTracker, setSelectedTracker] = useState<Tracker | null>(allTrackers[0] || INITIAL_TRACKERS[0]);
+  
+  const [selectedTrackerId, setSelectedTrackerId] = useState<number | null>(() => {
+    const savedId = getInitialData<number | null>('selected_tracker_id', null);
+    const loadedTrackers = getInitialData<Tracker[]>('trackers', INITIAL_TRACKERS);
+    if (savedId && loadedTrackers.some(t => t.id === savedId)) {
+      return savedId;
+    }
+    return loadedTrackers[0]?.id || INITIAL_TRACKERS[0].id;
+  });
+
   const [allFolders, setAllFolders] = useState<Folder[]>(() => getInitialData('folders', INITIAL_FOLDERS));
   const [allObjects, setAllObjects] = useState<EngineeringObject[]>(() => getInitialData('objects', INITIAL_OBJECTS));
   const [relationships, setRelationships] = useState<Relationship[]>(() => getInitialData('relationships', INITIAL_RELATIONSHIPS));
@@ -218,14 +236,8 @@ export const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [impactObjectId, setImpactObjectId] = useState<number | null>(null);
 
-  // Auto-persist state to localStorage on any modification
-  useEffect(() => { localStorage.setItem('roboserv_elm_projects', JSON.stringify(projects)); }, [projects]);
-  useEffect(() => { localStorage.setItem('roboserv_elm_trackers', JSON.stringify(allTrackers)); }, [allTrackers]);
-  useEffect(() => { localStorage.setItem('roboserv_elm_folders', JSON.stringify(allFolders)); }, [allFolders]);
-  useEffect(() => { localStorage.setItem('roboserv_elm_objects', JSON.stringify(allObjects)); }, [allObjects]);
-  useEffect(() => { localStorage.setItem('roboserv_elm_relationships', JSON.stringify(relationships)); }, [relationships]);
-  useEffect(() => { localStorage.setItem('roboserv_elm_test_steps', JSON.stringify(testSteps)); }, [testSteps]);
-  useEffect(() => { localStorage.setItem('roboserv_elm_artifacts', JSON.stringify(artifacts)); }, [artifacts]);
+  // Derived state: Active Project & Active Trackers
+  const activeProject = projects.find(p => p.id === activeProjectId) || projects[0] || INITIAL_PROJECTS[0];
 
   const currentTrackers = allTrackers
     .filter(t => t.project_id === activeProject.id)
@@ -234,10 +246,27 @@ export const App: React.FC = () => {
       object_count: allObjects.filter(o => o.tracker_id === t.id).length
     }));
 
+  const selectedTracker = currentTrackers.find(t => t.id === selectedTrackerId) || currentTrackers[0] || null;
+
+  // Auto-persist state to localStorage on any modification
+  useEffect(() => { localStorage.setItem('roboserv_elm_projects', JSON.stringify(projects)); }, [projects]);
+  useEffect(() => { localStorage.setItem('roboserv_elm_active_project_id', JSON.stringify(activeProjectId)); }, [activeProjectId]);
+  useEffect(() => { localStorage.setItem('roboserv_elm_trackers', JSON.stringify(allTrackers)); }, [allTrackers]);
+  useEffect(() => { localStorage.setItem('roboserv_elm_selected_tracker_id', JSON.stringify(selectedTracker?.id || null)); }, [selectedTracker]);
+  useEffect(() => { localStorage.setItem('roboserv_elm_folders', JSON.stringify(allFolders)); }, [allFolders]);
+  useEffect(() => { localStorage.setItem('roboserv_elm_objects', JSON.stringify(allObjects)); }, [allObjects]);
+  useEffect(() => { localStorage.setItem('roboserv_elm_relationships', JSON.stringify(relationships)); }, [relationships]);
+  useEffect(() => { localStorage.setItem('roboserv_elm_test_steps', JSON.stringify(testSteps)); }, [testSteps]);
+  useEffect(() => { localStorage.setItem('roboserv_elm_artifacts', JSON.stringify(artifacts)); }, [artifacts]);
+
   const handleSelectProject = (p: Project) => {
-    setActiveProject(p);
-    const pTrackers = currentTrackers.filter(t => t.project_id === p.id);
-    setSelectedTracker(pTrackers.length > 0 ? pTrackers[0] : null);
+    setActiveProjectId(p.id);
+    const pTrackers = allTrackers.filter(t => t.project_id === p.id);
+    if (pTrackers.length > 0) {
+      setSelectedTrackerId(pTrackers[0].id);
+    } else {
+      setSelectedTrackerId(null);
+    }
     setActiveView('DASHBOARD');
   };
 
@@ -263,8 +292,8 @@ export const App: React.FC = () => {
 
     setProjects(prev => [newProject, ...prev]);
     setAllTrackers(prev => [...prev, ...newTrackers]);
-    setActiveProject(newProject);
-    setSelectedTracker(newTrackers[0]);
+    setActiveProjectId(newProjectId);
+    setSelectedTrackerId(newTrackers[0].id);
     setActiveView('DASHBOARD');
   };
 
@@ -422,7 +451,7 @@ export const App: React.FC = () => {
 
   const handleNavigate = (view: ViewMode, tracker?: Tracker) => {
     setActiveView(view);
-    if (tracker) setSelectedTracker(tracker);
+    if (tracker) setSelectedTrackerId(tracker.id);
   };
 
   const handleSelectObjectForImpact = (objId: number) => {
@@ -447,12 +476,12 @@ export const App: React.FC = () => {
           activeView={activeView}
           setActiveView={setActiveView}
           selectedTracker={selectedTracker}
-          setSelectedTracker={setSelectedTracker}
+          setSelectedTracker={(t) => setSelectedTrackerId(t?.id || null)}
         />
 
         <main style={{ flex: 1, overflow: 'hidden' }}>
           {activeView === 'DASHBOARD' && (
-            <DashboardView onNavigate={handleNavigate} trackers={currentTrackers} />
+            <DashboardView project={activeProject} onNavigate={handleNavigate} trackers={currentTrackers} />
           )}
 
           {activeView === 'TRACKER' && selectedTracker && (
