@@ -23,6 +23,9 @@ export interface Tracker {
   type: string;
   prefix: string;
   object_count?: number;
+  enable_test_steps?: boolean;
+  enable_folders?: boolean;
+  description?: string;
 }
 
 export interface Folder {

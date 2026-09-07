@@ -22,12 +22,12 @@ const INITIAL_PROJECTS: Project[] = [
 ];
 
 const INITIAL_TRACKERS: Tracker[] = [
-  { id: 1, project_id: 1, key: 'SYS-REQ', name: 'System Requirements', type: 'REQUIREMENT', prefix: 'SYS-REQ-', object_count: 3 },
-  { id: 2, project_id: 1, key: 'SW-REQ', name: 'Software Requirements', type: 'REQUIREMENT', prefix: 'SW-REQ-', object_count: 1 },
-  { id: 3, project_id: 1, key: 'ARCH', name: 'System Architecture', type: 'ARCHITECTURE', prefix: 'ARCH-', object_count: 2 },
-  { id: 4, project_id: 1, key: 'RISK', name: 'Risks & Hazards', type: 'RISK', prefix: 'RISK-', object_count: 2 },
-  { id: 5, project_id: 1, key: 'SYS-TST', name: 'System Test Cases', type: 'TEST_CASE', prefix: 'SYS-TST-', object_count: 2 },
-  { id: 6, project_id: 1, key: 'TST-SET', name: 'Test Sets', type: 'TEST_SET', prefix: 'TST-SET-', object_count: 1 }
+  { id: 1, project_id: 1, key: 'SYS-REQ', name: 'System Requirements', type: 'REQUIREMENT', prefix: 'SYS-REQ-', object_count: 3, enable_test_steps: false, enable_folders: true },
+  { id: 2, project_id: 1, key: 'SW-REQ', name: 'Software Requirements', type: 'REQUIREMENT', prefix: 'SW-REQ-', object_count: 1, enable_test_steps: false, enable_folders: true },
+  { id: 3, project_id: 1, key: 'ARCH', name: 'System Architecture', type: 'ARCHITECTURE', prefix: 'ARCH-', object_count: 2, enable_test_steps: false, enable_folders: true },
+  { id: 4, project_id: 1, key: 'RISK', name: 'Risks & Hazards', type: 'RISK', prefix: 'RISK-', object_count: 2, enable_test_steps: false, enable_folders: true },
+  { id: 5, project_id: 1, key: 'SYS-TST', name: 'System Test Cases', type: 'TEST_CASE', prefix: 'SYS-TST-', object_count: 2, enable_test_steps: true, enable_folders: true },
+  { id: 6, project_id: 1, key: 'TST-SET', name: 'Test Sets', type: 'TEST_SET', prefix: 'TST-SET-', object_count: 1, enable_test_steps: false, enable_folders: true }
 ];
 
 const INITIAL_FOLDERS: Folder[] = [
@@ -297,6 +297,52 @@ export const App: React.FC = () => {
     setActiveView('DASHBOARD');
   };
 
+  const handleCreateTracker = (data: {
+    name: string;
+    key: string;
+    type: string;
+    enable_test_steps: boolean;
+    enable_folders: boolean;
+    description?: string;
+  }) => {
+    const newTrackerId = Date.now();
+    let prefix = data.key.toUpperCase().trim();
+    if (!prefix.endsWith('-')) prefix += '-';
+    const cleanKey = prefix.replace(/-/g, '');
+
+    const newTracker: Tracker = {
+      id: newTrackerId,
+      project_id: activeProjectId,
+      key: cleanKey,
+      name: data.name.trim(),
+      type: data.type || 'REQUIREMENT',
+      prefix,
+      object_count: 0,
+      enable_test_steps: data.enable_test_steps,
+      enable_folders: data.enable_folders,
+      description: data.description || ''
+    };
+
+    setAllTrackers(prev => [...prev, newTracker]);
+    setSelectedTrackerId(newTrackerId);
+    setActiveView('TRACKER');
+  };
+
+  const handleDeleteTracker = (trackerId: number) => {
+    setAllTrackers(prev => prev.filter(t => t.id !== trackerId));
+    const trackerObjIds = allObjects.filter(o => o.tracker_id === trackerId).map(o => o.id);
+    setAllObjects(prev => prev.filter(o => o.tracker_id !== trackerId));
+    setRelationships(prev => prev.filter(r => !trackerObjIds.includes(r.source_id) && !trackerObjIds.includes(r.target_id)));
+    setTestSteps(prev => prev.filter(s => !trackerObjIds.includes(s.test_case_id)));
+    setArtifacts(prev => prev.filter(a => !trackerObjIds.includes(a.object_id || -1)));
+    setAllFolders(prev => prev.filter(f => f.tracker_id !== trackerId));
+    
+    if (selectedTrackerId === trackerId) {
+      const remaining = allTrackers.filter(t => t.id !== trackerId && t.project_id === activeProjectId);
+      setSelectedTrackerId(remaining[0]?.id || null);
+    }
+  };
+
   const handleCreateFolder = (tracker_id: number, name: string) => {
     const existing = allFolders.filter(f => f.tracker_id === tracker_id);
     const newFolder: Folder = {
@@ -484,6 +530,8 @@ export const App: React.FC = () => {
           setActiveView={setActiveView}
           selectedTracker={selectedTracker}
           setSelectedTracker={(t) => setSelectedTrackerId(t?.id || null)}
+          onCreateTracker={handleCreateTracker}
+          onDeleteTracker={handleDeleteTracker}
         />
 
         <main style={{ flex: 1, overflow: 'hidden' }}>

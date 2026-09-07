@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { X, Save, Link as LinkIcon, Trash2, ArrowRight, ArrowLeft, Plus, ListOrdered, FileText, Download, Paperclip, Layers, CheckSquare, UploadCloud } from 'lucide-react';
-import { EngineeringObject, RequirementType, SafetyLevel, TestSubProcess, Folder as FolderType, Relationship, TestStep, Artifact } from '../types/elm';
+import { EngineeringObject, RequirementType, SafetyLevel, TestSubProcess, Folder as FolderType, Relationship, TestStep, Artifact, Tracker } from '../types/elm';
 
 interface ObjectDetailPaneProps {
   objectId: number;
   object?: EngineeringObject;
+  tracker?: Tracker;
   allObjects?: EngineeringObject[];
   folders?: FolderType[];
   relationships?: Relationship[];
@@ -25,6 +26,7 @@ interface ObjectDetailPaneProps {
 export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
   objectId,
   object,
+  tracker,
   allObjects = [],
   folders = [],
   relationships = [],
@@ -41,7 +43,7 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
   onDeleteArtifact,
   onSelectForImpact
 }) => {
-  const isTestCase = object?.type === 'TEST_CASE' || object?.object_key.startsWith('SYS-TST');
+  const isTestCase = tracker?.enable_test_steps ?? (object?.type === 'TEST_CASE' || object?.object_key.startsWith('SYS-TST'));
   const isTestSet = object?.type === 'TEST_SET' || object?.object_key.startsWith('TST-SET');
   const isArchitecture = object?.type === 'ARCHITECTURE';
 

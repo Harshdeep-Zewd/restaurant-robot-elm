@@ -84,8 +84,9 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
   const [inlineFolderInput, setInlineFolderInput] = useState(false);
   const [inlineFolderName, setInlineFolderName] = useState('');
 
-  const isTestCaseTracker = tracker.type === 'TEST_CASE' && (tracker.key === 'SYS-TST' || tracker.prefix.includes('TST-'));
+  const isTestCaseTracker = tracker.enable_test_steps ?? (tracker.type === 'TEST_CASE' && (tracker.key === 'SYS-TST' || tracker.prefix.includes('TST-')));
   const isTestSetTracker = tracker.type === 'TEST_SET' || tracker.key === 'TST-SET' || tracker.prefix.includes('SET-');
+  const hasFolders = tracker.enable_folders ?? true;
 
   const availableTestCases = allObjects.filter(o => o.type === 'TEST_CASE' || o.object_key.startsWith('SYS-TST') || o.object_key.includes('TST'));
 
@@ -330,24 +331,26 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
               <option value="OUTDATED">OUTDATED</option>
             </select>
 
-            <button
-              onClick={() => setShowFolderModal(true)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                backgroundColor: 'var(--bg-dark)',
-                border: '1px solid var(--border-color)',
-                color: 'var(--accent-cyan)',
-                padding: '8px 12px',
-                borderRadius: '6px',
-                fontWeight: 600,
-                fontSize: '0.85rem'
-              }}
-            >
-              <FolderPlus size={16} />
-              <span>+ New Folder</span>
-            </button>
+            {hasFolders && (
+              <button
+                onClick={() => setShowFolderModal(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  backgroundColor: 'var(--bg-dark)',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--accent-cyan)',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  fontWeight: 600,
+                  fontSize: '0.85rem'
+                }}
+              >
+                <FolderPlus size={16} />
+                <span>+ New Folder</span>
+              </button>
+            )}
 
             <button
               onClick={() => {
@@ -546,6 +549,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
         <ObjectDetailPane
           objectId={selectedObjectId}
           object={allObjects.find(o => o.id === selectedObjectId)}
+          tracker={tracker}
           allObjects={allObjects}
           folders={folders}
           relationships={relationships}
