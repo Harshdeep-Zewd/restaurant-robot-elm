@@ -949,6 +949,5 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
         </div>
       )}
     </div>
-  </div>
-);
+  );
 };
