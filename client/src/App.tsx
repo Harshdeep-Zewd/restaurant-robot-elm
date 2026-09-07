@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { Sidebar, ViewMode } from './components/Sidebar';
 import { DashboardView } from './components/DashboardView';
@@ -193,20 +193,39 @@ const INITIAL_ARTIFACTS: Artifact[] = [
   }
 ];
 
+const getInitialData = <T,>(key: string, defaultValue: T): T => {
+  try {
+    const saved = localStorage.getItem(`roboserv_elm_${key}`);
+    if (saved) return JSON.parse(saved);
+  } catch (e) {
+    console.error('Failed to load storage for key:', key, e);
+  }
+  return defaultValue;
+};
+
 export const App: React.FC = () => {
-  const [projects, setProjects] = useState<Project[]>(INITIAL_PROJECTS);
-  const [activeProject, setActiveProject] = useState<Project>(INITIAL_PROJECTS[0]);
-  const [allTrackers, setAllTrackers] = useState<Tracker[]>(INITIAL_TRACKERS);
-  const [selectedTracker, setSelectedTracker] = useState<Tracker | null>(INITIAL_TRACKERS[0]);
-  const [allFolders, setAllFolders] = useState<Folder[]>(INITIAL_FOLDERS);
-  const [allObjects, setAllObjects] = useState<EngineeringObject[]>(INITIAL_OBJECTS);
-  const [relationships, setRelationships] = useState<Relationship[]>(INITIAL_RELATIONSHIPS);
-  const [testSteps, setTestSteps] = useState<TestStep[]>(INITIAL_TEST_STEPS);
-  const [artifacts, setArtifacts] = useState<Artifact[]>(INITIAL_ARTIFACTS);
+  const [projects, setProjects] = useState<Project[]>(() => getInitialData('projects', INITIAL_PROJECTS));
+  const [activeProject, setActiveProject] = useState<Project>(projects[0] || INITIAL_PROJECTS[0]);
+  const [allTrackers, setAllTrackers] = useState<Tracker[]>(() => getInitialData('trackers', INITIAL_TRACKERS));
+  const [selectedTracker, setSelectedTracker] = useState<Tracker | null>(allTrackers[0] || INITIAL_TRACKERS[0]);
+  const [allFolders, setAllFolders] = useState<Folder[]>(() => getInitialData('folders', INITIAL_FOLDERS));
+  const [allObjects, setAllObjects] = useState<EngineeringObject[]>(() => getInitialData('objects', INITIAL_OBJECTS));
+  const [relationships, setRelationships] = useState<Relationship[]>(() => getInitialData('relationships', INITIAL_RELATIONSHIPS));
+  const [testSteps, setTestSteps] = useState<TestStep[]>(() => getInitialData('test_steps', INITIAL_TEST_STEPS));
+  const [artifacts, setArtifacts] = useState<Artifact[]>(() => getInitialData('artifacts', INITIAL_ARTIFACTS));
   
   const [activeView, setActiveView] = useState<ViewMode>('DASHBOARD');
   const [searchQuery, setSearchQuery] = useState('');
   const [impactObjectId, setImpactObjectId] = useState<number | null>(null);
+
+  // Auto-persist state to localStorage on any modification
+  useEffect(() => { localStorage.setItem('roboserv_elm_projects', JSON.stringify(projects)); }, [projects]);
+  useEffect(() => { localStorage.setItem('roboserv_elm_trackers', JSON.stringify(allTrackers)); }, [allTrackers]);
+  useEffect(() => { localStorage.setItem('roboserv_elm_folders', JSON.stringify(allFolders)); }, [allFolders]);
+  useEffect(() => { localStorage.setItem('roboserv_elm_objects', JSON.stringify(allObjects)); }, [allObjects]);
+  useEffect(() => { localStorage.setItem('roboserv_elm_relationships', JSON.stringify(relationships)); }, [relationships]);
+  useEffect(() => { localStorage.setItem('roboserv_elm_test_steps', JSON.stringify(testSteps)); }, [testSteps]);
+  useEffect(() => { localStorage.setItem('roboserv_elm_artifacts', JSON.stringify(artifacts)); }, [artifacts]);
 
   const currentTrackers = allTrackers
     .filter(t => t.project_id === activeProject.id)
@@ -326,8 +345,8 @@ export const App: React.FC = () => {
     if (data.included_test_case_ids && data.included_test_case_ids.length > 0) {
       const newRels: Relationship[] = data.included_test_case_ids.map((tcId, idx) => ({
         id: Date.now() + 10 + idx,
-        source_id: tcId, // Test Case
-        target_id: newObjId, // Test Set
+        source_id: tcId,
+        target_id: newObjId,
         relationship_type: 'INCLUDED_IN'
       }));
       setRelationships(prev => [...prev, ...newRels]);
