@@ -98,6 +98,40 @@ export const ArtifactsView: React.FC<ArtifactsViewProps> = ({
     setShowModal(false);
   };
 
+  const handleDownload = (art: Artifact) => {
+    if (art.stored_path && (art.stored_path.startsWith('data:') || art.stored_path.startsWith('blob:'))) {
+      const link = document.createElement('a');
+      link.href = art.stored_path;
+      link.download = art.filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      const content = `=======================================================
+ROBOSERV ELM SYSTEM ARTIFACT DOCUMENT
+Filename: ${art.filename}
+Record Key: ${art.object_key || 'DOC'}
+Record Title: ${art.object_title || 'Global Artifact'}
+Category: ${art.category}
+Uploaded By: ${art.uploader_name || 'Zewd'}
+Created At: ${art.created_at}
+=======================================================
+
+Systems Engineering & ISO 13482 Safety Compliance Spec for Autonomous Restaurant Delivery Robot (RoboServ-X1).
+Author: Zewd (Lead Systems Engineer)
+`;
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = art.filename.includes('.') ? art.filename : `${art.filename}.txt`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+  };
+
   const formatFileSize = (bytes: number) => {
     if (bytes >= 1000000) return `${(bytes / 1000000).toFixed(1)} MB`;
     return `${(bytes / 1000).toFixed(0)} KB`;
@@ -220,15 +254,25 @@ export const ArtifactsView: React.FC<ArtifactsViewProps> = ({
                 <td style={{ padding: '12px 16px' }} className="mono">{formatFileSize(art.file_size)}</td>
                 <td style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--accent-cyan)' }}>{art.uploader_name || 'Zewd'}</td>
                 <td style={{ padding: '12px 16px' }}>
-                  <a
-                    href={art.stored_path}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{ color: 'var(--accent-cyan)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none' }}
+                  <button
+                    onClick={() => handleDownload(art)}
+                    style={{
+                      color: 'var(--accent-cyan)',
+                      backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                      border: '1px solid rgba(56, 189, 248, 0.3)',
+                      padding: '5px 12px',
+                      borderRadius: '6px',
+                      fontWeight: 600,
+                      fontSize: '0.8rem',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      cursor: 'pointer'
+                    }}
                   >
                     <Download size={14} />
                     <span>Download</span>
-                  </a>
+                  </button>
                 </td>
               </tr>
             ))}

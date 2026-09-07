@@ -202,6 +202,40 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
     setInspectorFileSize(0);
   };
 
+  const handleDownload = (art: Artifact) => {
+    if (art.stored_path && (art.stored_path.startsWith('data:') || art.stored_path.startsWith('blob:'))) {
+      const link = document.createElement('a');
+      link.href = art.stored_path;
+      link.download = art.filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      const content = `=======================================================
+ROBOSERV ELM SYSTEM ARTIFACT DOCUMENT
+Filename: ${art.filename}
+Record Key: ${art.object_key || 'DOC'}
+Record Title: ${art.object_title || 'Attached Record File'}
+Category: ${art.category}
+Uploaded By: ${art.uploader_name || 'Zewd'}
+Created At: ${art.created_at}
+=======================================================
+
+Systems Engineering & ISO 13482 Safety Compliance Spec for Autonomous Restaurant Delivery Robot (RoboServ-X1).
+Author: Zewd (Lead Systems Engineer)
+`;
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = art.filename.includes('.') ? art.filename : `${art.filename}.txt`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+  };
+
   const formatFileSize = (bytes: number) => {
     if (bytes >= 1000000) return `${(bytes / 1000000).toFixed(1)} MB`;
     return `${(bytes / 1000).toFixed(0)} KB`;
@@ -614,14 +648,25 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
                     </div>
 
                     <div style={{ display: 'flex', gap: '8px' }}>
-                      <a
-                        href={art.stored_path}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{ color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', fontWeight: 700 }}
+                      <button
+                        onClick={() => handleDownload(art)}
+                        style={{
+                          color: 'var(--accent-cyan)',
+                          backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                          border: '1px solid rgba(56, 189, 248, 0.3)',
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          cursor: 'pointer'
+                        }}
                       >
                         <Download size={14} />
-                      </a>
+                        <span>Download</span>
+                      </button>
                       {onDeleteArtifact && (
                         <button onClick={() => onDeleteArtifact(art.id)} style={{ color: 'var(--accent-rose)', background: 'transparent' }}>
                           <Trash2 size={14} />
