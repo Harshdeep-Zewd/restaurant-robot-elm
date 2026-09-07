@@ -10,7 +10,7 @@
     "seed": "tsx src/db/seed.ts"
   },
   "engines": {
-    "node": "20.x"
+    "node": "22.x"
   },
   "dependencies": {
     "better-sqlite3": "^9.4.3",
