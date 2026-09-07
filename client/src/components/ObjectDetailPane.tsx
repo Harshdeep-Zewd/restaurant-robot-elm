@@ -12,6 +12,7 @@ interface ObjectDetailPaneProps {
   artifacts?: Artifact[];
   onClose: () => void;
   onUpdateObject: (id: number, updates: Partial<EngineeringObject>) => void;
+  onDeleteObject?: (id: number) => void;
   onAddRelationship?: (source_id: number, target_id: number, type: string) => void;
   onDeleteRelationship?: (id: number) => void;
   onAddTestStep?: (test_case_id: number, action: string, expected_result: string) => void;
@@ -31,6 +32,7 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
   artifacts = [],
   onClose,
   onUpdateObject,
+  onDeleteObject,
   onAddRelationship,
   onDeleteRelationship,
   onAddTestStep,
@@ -453,6 +455,7 @@ Author: Zewd (Lead Systems Engineer)
                   <option value="REVIEW">REVIEW</option>
                   <option value="APPROVED">APPROVED</option>
                   <option value="VERIFIED">VERIFIED</option>
+                  <option value="OUTDATED">OUTDATED</option>
                 </select>
               </div>
 
@@ -486,12 +489,44 @@ Author: Zewd (Lead Systems Engineer)
               style={{
                 width: '100%', padding: '10px', borderRadius: '6px',
                 backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 600,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                marginBottom: '16px'
               }}
             >
               <Save size={16} />
               <span>Save & Create Version (v{activeObject.version + 1})</span>
             </button>
+
+            {onDeleteObject && (
+              <div style={{ paddingTop: '16px', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => {
+                    if (window.confirm(`Are you sure you want to delete ${activeObject.object_key} "${activeObject.title}"? This will also remove associated test steps, traceability links, and attached files.`)) {
+                      onDeleteObject(activeObject.id);
+                      onClose();
+                    }
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '9px',
+                    borderRadius: '6px',
+                    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                    color: 'var(--accent-rose)',
+                    border: '1px solid rgba(239, 68, 68, 0.35)',
+                    fontWeight: 700,
+                    fontSize: '0.85rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Trash2 size={16} />
+                  <span>Delete Record ({activeObject.object_key})</span>
+                </button>
+              </div>
+            )}
           </div>
         )}
 

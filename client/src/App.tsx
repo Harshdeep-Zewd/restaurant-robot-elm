@@ -396,6 +396,13 @@ export const App: React.FC = () => {
     }));
   };
 
+  const handleDeleteObject = (id: number) => {
+    setAllObjects(prev => prev.filter(o => o.id !== id));
+    setRelationships(prev => prev.filter(r => r.source_id !== id && r.target_id !== id));
+    setTestSteps(prev => prev.filter(s => s.test_case_id !== id));
+    setArtifacts(prev => prev.filter(a => a.object_id !== id));
+  };
+
   const handleAddRelationship = (source_id: number, target_id: number, relationship_type: any) => {
     const newRel: Relationship = {
       id: Date.now(),
@@ -496,6 +503,7 @@ export const App: React.FC = () => {
               onCreateFolder={handleCreateFolder}
               onCreateObject={handleCreateObject}
               onUpdateObject={handleUpdateObject}
+              onDeleteObject={handleDeleteObject}
               onAddRelationship={handleAddRelationship}
               onDeleteRelationship={handleDeleteRelationship}
               onAddTestStep={handleAddTestStep}

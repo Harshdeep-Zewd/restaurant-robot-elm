@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Folder, FolderPlus, ChevronRight, ListOrdered, Paperclip, ChevronDown, ChevronUp, CheckSquare, Square } from 'lucide-react';
+import { Plus, Folder, FolderPlus, ChevronRight, ListOrdered, Paperclip, ChevronDown, ChevronUp, CheckSquare, Square, Trash2 } from 'lucide-react';
 import { Tracker, Folder as FolderType, EngineeringObject, RequirementType, SafetyLevel, TestSubProcess, Relationship, TestStep, Artifact } from '../types/elm';
 import { ObjectDetailPane } from './ObjectDetailPane';
 
@@ -27,6 +27,7 @@ interface TrackerTableViewProps {
     metadata?: any;
   }) => void;
   onUpdateObject: (id: number, updates: Partial<EngineeringObject>) => void;
+  onDeleteObject?: (id: number) => void;
   onAddRelationship: (source_id: number, target_id: number, type: string) => void;
   onDeleteRelationship: (id: number) => void;
   onAddTestStep?: (test_case_id: number, action: string, expected_result: string) => void;
@@ -47,6 +48,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
   onCreateFolder,
   onCreateObject,
   onUpdateObject,
+  onDeleteObject,
   onAddRelationship,
   onDeleteRelationship,
   onAddTestStep,
@@ -181,6 +183,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
       case 'APPROVED': return <span className="badge badge-approved">{status}</span>;
       case 'VERIFIED': return <span className="badge badge-verified">{status}</span>;
       case 'REVIEW': return <span className="badge badge-review">{status}</span>;
+      case 'OUTDATED': return <span className="badge badge-outdated">{status}</span>;
       default: return <span className="badge badge-draft">{status}</span>;
     }
   };
@@ -324,6 +327,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
               <option value="REVIEW">REVIEW</option>
               <option value="APPROVED">APPROVED</option>
               <option value="VERIFIED">VERIFIED</option>
+              <option value="OUTDATED">OUTDATED</option>
             </select>
 
             <button
@@ -383,6 +387,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                   <th style={{ padding: '12px 14px', fontWeight: 600 }}>STATUS</th>
                   <th style={{ padding: '12px 14px', fontWeight: 600 }}>PRIORITY</th>
                   <th style={{ padding: '12px 14px', fontWeight: 600 }}>CREATED BY</th>
+                  <th style={{ padding: '12px 14px', fontWeight: 600, textAlign: 'right' }}>ACTIONS</th>
                 </tr>
               </thead>
               <tbody>
@@ -483,6 +488,34 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                       <td style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--accent-cyan)' }}>
                         {obj.created_by_name || obj.owner_name || 'Zewd'}
                       </td>
+                      <td style={{ padding: '12px 14px', textAlign: 'right' }}>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (window.confirm(`Are you sure you want to delete ${obj.object_key} "${obj.title}"? This will also remove associated test steps, traceability links, and attached files.`)) {
+                              if (onDeleteObject) onDeleteObject(obj.id);
+                              if (selectedObjectId === obj.id) setSelectedObjectId(null);
+                            }
+                          }}
+                          title={`Delete ${obj.object_key}`}
+                          style={{
+                            backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                            color: 'var(--accent-rose)',
+                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          <Trash2 size={12} />
+                          <span>Delete</span>
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -520,6 +553,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
           artifacts={artifacts}
           onClose={() => setSelectedObjectId(null)}
           onUpdateObject={onUpdateObject}
+          onDeleteObject={onDeleteObject}
           onAddRelationship={onAddRelationship}
           onDeleteRelationship={onDeleteRelationship}
           onAddTestStep={onAddTestStep}
