@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
-import { FileText, Download, Plus, Filter, HardDrive, Trash2 } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { FileText, Download, Plus, Filter, HardDrive, Trash2, UploadCloud, FolderPlus } from 'lucide-react';
 import { Artifact } from '../types/elm';
 
 interface ArtifactsViewProps {
   artifacts?: Artifact[];
-  onAddArtifact?: (data: { object_id: number; filename: string; category: any; file_size?: number }) => void;
+  onAddArtifact?: (data: { object_id?: number; filename: string; category: any; file_size?: number; stored_path?: string }) => void;
   onDeleteArtifact?: (id: number) => void;
 }
 
@@ -40,6 +40,11 @@ export const ArtifactsView: React.FC<ArtifactsViewProps> = ({
   const [showModal, setShowModal] = useState(false);
   const [filename, setFilename] = useState('');
   const [category, setCategory] = useState<'PDF' | 'CAD' | 'CSV' | 'OTHER'>('PDF');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [storedPath, setStoredPath] = useState<string>('');
+  const [fileSize, setFileSize] = useState<number>(0);
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const fileList = artifacts.length > 0 ? artifacts : DEFAULT_ARTIFACTS;
 
@@ -48,17 +53,48 @@ export const ArtifactsView: React.FC<ArtifactsViewProps> = ({
     filtered = filtered.filter(a => a.category === categoryFilter);
   }
 
+  const handleFileSelect = (file: File) => {
+    setSelectedFile(file);
+    setFilename(file.name);
+    setFileSize(file.size);
+
+    const nameLower = file.name.toLowerCase();
+    if (nameLower.endsWith('.pdf')) setCategory('PDF');
+    else if (nameLower.endsWith('.step') || nameLower.endsWith('.stl') || nameLower.endsWith('.dwg') || nameLower.endsWith('.dxf') || nameLower.endsWith('.cad')) setCategory('CAD');
+    else if (nameLower.endsWith('.xlsx') || nameLower.endsWith('.xls') || nameLower.endsWith('.csv')) setCategory('CSV');
+    else setCategory('OTHER');
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (e.target?.result) {
+        setStoredPath(e.target.result as string);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      handleFileSelect(e.target.files[0]);
+    }
+  };
+
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!filename.trim() || !onAddArtifact) return;
 
     onAddArtifact({
-      object_id: 5, // ARCH-001
+      object_id: 5, // Default to ARCH-001 or standalone document
       filename: filename.trim(),
-      category
+      category,
+      file_size: fileSize || undefined,
+      stored_path: storedPath || undefined
     });
 
     setFilename('');
+    setSelectedFile(null);
+    setStoredPath('');
+    setFileSize(0);
     setShowModal(false);
   };
 
@@ -223,9 +259,45 @@ export const ArtifactsView: React.FC<ArtifactsViewProps> = ({
             </h3>
 
             <form onSubmit={handleCreate}>
+              {/* Native File Dropzone & Browser Button */}
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                    handleFileSelect(e.dataTransfer.files[0]);
+                  }
+                }}
+                style={{
+                  border: '2px dashed var(--accent-cyan)',
+                  borderRadius: '8px',
+                  padding: '20px',
+                  textAlign: 'center',
+                  backgroundColor: selectedFile ? 'rgba(56, 189, 248, 0.12)' : 'rgba(2, 132, 199, 0.08)',
+                  cursor: 'pointer',
+                  marginBottom: '16px',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  style={{ display: 'none' }}
+                  onChange={handleInputChange}
+                />
+                <UploadCloud size={34} color="var(--accent-cyan)" style={{ marginBottom: '8px' }} />
+                <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--accent-cyan)' }}>
+                  {selectedFile ? `Selected File: ${selectedFile.name}` : 'Click or Drag & Drop File from PC'}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  {selectedFile ? `Size: ${formatFileSize(selectedFile.size)}` : 'Browse your computer for .pdf, .xlsx, .docx, .step CAD, images...'}
+                </div>
+              </div>
+
               <div style={{ marginBottom: '14px' }}>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
-                  Filename (.pdf, .xlsx, .docx, .step CAD...) *
+                  Document Display Name *
                 </label>
                 <input
                   type="text"

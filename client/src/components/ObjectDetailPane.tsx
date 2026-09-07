@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { X, Save, Link as LinkIcon, Trash2, ArrowRight, ArrowLeft, Plus, ListOrdered, FileText, Download, Paperclip, Layers, CheckSquare } from 'lucide-react';
+import React, { useEffect, useState, useRef } from 'react';
+import { X, Save, Link as LinkIcon, Trash2, ArrowRight, ArrowLeft, Plus, ListOrdered, FileText, Download, Paperclip, Layers, CheckSquare, UploadCloud } from 'lucide-react';
 import { EngineeringObject, RequirementType, SafetyLevel, TestSubProcess, Folder as FolderType, Relationship, TestStep, Artifact } from '../types/elm';
 
 interface ObjectDetailPaneProps {
@@ -16,7 +16,7 @@ interface ObjectDetailPaneProps {
   onDeleteRelationship?: (id: number) => void;
   onAddTestStep?: (test_case_id: number, action: string, expected_result: string) => void;
   onDeleteTestStep?: (id: number) => void;
-  onAddArtifact?: (data: { object_id: number; filename: string; category: any; file_size?: number }) => void;
+  onAddArtifact?: (data: { object_id?: number; filename: string; category: any; file_size?: number; stored_path?: string }) => void;
   onDeleteArtifact?: (id: number) => void;
   onSelectForImpact?: (objId: number) => void;
 }
@@ -80,6 +80,11 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
   // File Attachment State
   const [newFilename, setNewFilename] = useState('');
   const [newFileCategory, setNewFileCategory] = useState<'PDF' | 'CAD' | 'CSV' | 'OTHER'>('PDF');
+  const [inspectorSelectedFile, setInspectorSelectedFile] = useState<File | null>(null);
+  const [inspectorStoredPath, setInspectorStoredPath] = useState<string>('');
+  const [inspectorFileSize, setInspectorFileSize] = useState<number>(0);
+
+  const inspectorFileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (activeObject) {
@@ -153,24 +158,48 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
     setNewExpectedResult('');
   };
 
+  const handleInspectorFileSelect = (file: File) => {
+    setInspectorSelectedFile(file);
+    setNewFilename(file.name);
+    setInspectorFileSize(file.size);
+
+    const nameLower = file.name.toLowerCase();
+    if (nameLower.endsWith('.pdf')) setNewFileCategory('PDF');
+    else if (nameLower.endsWith('.step') || nameLower.endsWith('.stl') || nameLower.endsWith('.dwg') || nameLower.endsWith('.dxf') || nameLower.endsWith('.cad')) setNewFileCategory('CAD');
+    else if (nameLower.endsWith('.xlsx') || nameLower.endsWith('.xls') || nameLower.endsWith('.csv')) setNewFileCategory('CSV');
+    else setNewFileCategory('OTHER');
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (e.target?.result) {
+        setInspectorStoredPath(e.target.result as string);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleInspectorInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      handleInspectorFileSelect(e.target.files[0]);
+    }
+  };
+
   const handleAttachFileSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newFilename.trim() || !onAddArtifact) return;
 
-    let cat: any = newFileCategory;
-    const nameLower = newFilename.toLowerCase();
-    if (nameLower.endsWith('.pdf')) cat = 'PDF';
-    else if (nameLower.endsWith('.xlsx') || nameLower.endsWith('.xls') || nameLower.endsWith('.csv')) cat = 'CSV';
-    else if (nameLower.endsWith('.docx') || nameLower.endsWith('.doc')) cat = 'OTHER';
-    else if (nameLower.endsWith('.step') || nameLower.endsWith('.stl') || nameLower.endsWith('.cad')) cat = 'CAD';
-
     onAddArtifact({
       object_id: activeObject.id,
       filename: newFilename.trim(),
-      category: cat
+      category: newFileCategory,
+      file_size: inspectorFileSize || undefined,
+      stored_path: inspectorStoredPath || undefined
     });
 
     setNewFilename('');
+    setInspectorSelectedFile(null);
+    setInspectorStoredPath('');
+    setInspectorFileSize(0);
   };
 
   const formatFileSize = (bytes: number) => {
@@ -611,13 +640,49 @@ export const ObjectDetailPane: React.FC<ObjectDetailPaneProps> = ({
             {/* Attach File Form */}
             <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '16px' }}>
               <div style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: '12px', color: 'var(--accent-cyan)' }}>
-                + Attach New Document / File
+                + Attach New Document / File from PC
               </div>
 
               <form onSubmit={handleAttachFileSubmit}>
+                {/* Native File Dropzone & PC Browser Button */}
+                <div
+                  onClick={() => inspectorFileInputRef.current?.click()}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                      handleInspectorFileSelect(e.dataTransfer.files[0]);
+                    }
+                  }}
+                  style={{
+                    border: '2px dashed var(--accent-cyan)',
+                    borderRadius: '8px',
+                    padding: '16px',
+                    textAlign: 'center',
+                    backgroundColor: inspectorSelectedFile ? 'rgba(56, 189, 248, 0.12)' : 'rgba(2, 132, 199, 0.08)',
+                    cursor: 'pointer',
+                    marginBottom: '12px',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <input
+                    ref={inspectorFileInputRef}
+                    type="file"
+                    style={{ display: 'none' }}
+                    onChange={handleInspectorInputChange}
+                  />
+                  <UploadCloud size={28} color="var(--accent-cyan)" style={{ marginBottom: '6px' }} />
+                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-cyan)' }}>
+                    {inspectorSelectedFile ? `Selected: ${inspectorSelectedFile.name}` : 'Browse File from PC'}
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    {inspectorSelectedFile ? `Size: ${formatFileSize(inspectorSelectedFile.size)}` : 'Click or drop .pdf, .xlsx, .step, .docx file'}
+                  </div>
+                </div>
+
                 <div style={{ marginBottom: '12px' }}>
                   <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
-                    Filename (.pdf, .xlsx, .docx, .step CAD...) *
+                    Document Display Name *
                   </label>
                   <input
                     type="text"

@@ -427,15 +427,15 @@ export const App: React.FC = () => {
   };
 
   // Artifact & File Attachment Handlers
-  const handleAddArtifact = (data: { object_id: number; filename: string; category: any; file_size?: number }) => {
-    const obj = allObjects.find(o => o.id === data.object_id);
+  const handleAddArtifact = (data: { object_id?: number; filename: string; category: any; file_size?: number; stored_path?: string }) => {
+    const obj = data.object_id ? allObjects.find(o => o.id === data.object_id) : undefined;
     const newArt: Artifact = {
       id: Date.now(),
       object_id: data.object_id,
-      object_key: obj?.object_key || 'FILE',
-      object_title: obj?.title || 'System Attachment',
+      object_key: obj?.object_key || 'DOC',
+      object_title: obj?.title || 'Global Artifact Repository',
       filename: data.filename.trim(),
-      stored_path: `/artifacts/${data.filename.trim()}`,
+      stored_path: data.stored_path || `/artifacts/${data.filename.trim()}`,
       file_size: data.file_size || Math.floor(Math.random() * 5000000) + 500000,
       mime_type: 'application/octet-stream',
       category: data.category || 'PDF',
