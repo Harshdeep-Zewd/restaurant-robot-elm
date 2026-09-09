@@ -1,11 +1,45 @@
+export type UserRole = 'DEMO' | 'USER' | 'ADMIN_OWNER';
 export type Role = 'ADMIN' | 'SYSTEMS_ENGINEER' | 'SOFTWARE_ENGINEER' | 'HARDWARE_ENGINEER' | 'TESTER' | 'REVIEWER' | 'VIEWER';
 
 export interface User {
   id: number;
+  username: string;
   email: string;
   name: string;
-  role: Role;
+  role: UserRole;
+  engineering_role?: Role;
   avatar_url?: string;
+  status: 'ACTIVE' | 'SUSPENDED';
+  assigned_project_ids: number[];
+  created_at?: string;
+}
+
+export interface TrackerRequest {
+  id: number;
+  user_id: number;
+  user_name: string;
+  project_id: number;
+  project_name: string;
+  requested_name: string;
+  requested_key: string;
+  type: string;
+  enable_test_steps: boolean;
+  enable_folders: boolean;
+  reason?: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  created_at: string;
+}
+
+export interface ProjectRequest {
+  id: number;
+  user_id: number;
+  user_name: string;
+  requested_name: string;
+  key: string;
+  description?: string;
+  reason?: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  created_at: string;
 }
 
 export interface Project {

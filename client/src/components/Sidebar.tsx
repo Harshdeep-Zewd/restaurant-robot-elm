@@ -15,7 +15,8 @@ import {
   FolderPlus,
   ListOrdered
 } from 'lucide-react';
-import { Tracker } from '../types/elm';
+import { Tracker, User } from '../types/elm';
+import { authService } from '../api/auth';
 
 export type ViewMode =
   | 'DASHBOARD'
@@ -35,6 +36,9 @@ interface SidebarProps {
   setActiveView: (view: ViewMode) => void;
   selectedTracker: Tracker | null;
   setSelectedTracker: (tracker: Tracker | null) => void;
+  currentUser?: User | null;
+  activeProjectId?: number;
+  activeProjectName?: string;
   onCreateTracker?: (data: {
     name: string;
     key: string;
@@ -52,16 +56,38 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setActiveView,
   selectedTracker,
   setSelectedTracker,
+  currentUser,
+  activeProjectId = 1,
+  activeProjectName = 'RoboServ-X1 Autonomous Delivery Robot',
   onCreateTracker,
   onDeleteTracker
 }) => {
   const [showTrackerModal, setShowTrackerModal] = useState(false);
+  const [showTrackerRequestModal, setShowTrackerRequestModal] = useState(false);
+  const [showProjectRequestModal, setShowProjectRequestModal] = useState(false);
+  const [requestSuccessMsg, setRequestSuccessMsg] = useState('');
+
+  // Admin Direct Creation State
   const [trackerName, setTrackerName] = useState('');
   const [trackerKey, setTrackerKey] = useState('');
   const [trackerType, setTrackerType] = useState('REQUIREMENT');
   const [enableTestSteps, setEnableTestSteps] = useState(false);
   const [enableFolders, setEnableFolders] = useState(true);
   const [trackerDesc, setTrackerDesc] = useState('');
+
+  // User Request State (Tracker)
+  const [reqTrackerName, setReqTrackerName] = useState('');
+  const [reqTrackerKey, setReqTrackerKey] = useState('');
+  const [reqTrackerType, setReqTrackerType] = useState('REQUIREMENT');
+  const [reqEnableTestSteps, setReqEnableTestSteps] = useState(false);
+  const [reqEnableFolders, setReqEnableFolders] = useState(true);
+  const [reqTrackerReason, setReqTrackerReason] = useState('');
+
+  // User Request State (Project)
+  const [reqProjName, setReqProjName] = useState('');
+  const [reqProjKey, setReqProjKey] = useState('');
+  const [reqProjDesc, setReqProjDesc] = useState('');
+  const [reqProjReason, setReqProjReason] = useState('');
 
   const getTrackerIcon = (type: string) => {
     switch (type) {
@@ -96,6 +122,49 @@ export const Sidebar: React.FC<SidebarProps> = ({
     setTrackerDesc('');
   };
 
+  const handleTrackerRequestSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reqTrackerName.trim() || !reqTrackerKey.trim()) return;
+
+    authService.submitTrackerRequest({
+      project_id: activeProjectId,
+      project_name: activeProjectName,
+      requested_name: reqTrackerName.trim(),
+      requested_key: reqTrackerKey.trim(),
+      type: reqTrackerType,
+      enable_test_steps: reqEnableTestSteps,
+      enable_folders: reqEnableFolders,
+      reason: reqTrackerReason.trim()
+    });
+
+    setShowTrackerRequestModal(false);
+    setReqTrackerName('');
+    setReqTrackerKey('');
+    setReqTrackerReason('');
+    setRequestSuccessMsg('Custom Tracker request submitted to Admin Owner!');
+    setTimeout(() => setRequestSuccessMsg(''), 4000);
+  };
+
+  const handleProjectRequestSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reqProjName.trim() || !reqProjKey.trim()) return;
+
+    authService.submitProjectRequest({
+      requested_name: reqProjName.trim(),
+      key: reqProjKey.trim().toUpperCase(),
+      description: reqProjDesc.trim(),
+      reason: reqProjReason.trim()
+    });
+
+    setShowProjectRequestModal(false);
+    setReqProjName('');
+    setReqProjKey('');
+    setReqProjDesc('');
+    setReqProjReason('');
+    setRequestSuccessMsg('New Project request submitted to Admin Owner!');
+    setTimeout(() => setRequestSuccessMsg(''), 4000);
+  };
+
   return (
     <aside style={{
       width: '240px',
@@ -107,6 +176,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
       overflowY: 'auto',
       padding: '16px 12px'
     }}>
+      {requestSuccessMsg && (
+        <div style={{
+          backgroundColor: 'rgba(16, 185, 129, 0.15)',
+          border: '1px solid rgba(16, 185, 129, 0.4)',
+          color: 'var(--accent-emerald)',
+          padding: '8px 10px',
+          borderRadius: '6px',
+          fontSize: '0.75rem',
+          fontWeight: 700,
+          marginBottom: '12px',
+          textAlign: 'center'
+        }}>
+          {requestSuccessMsg}
+        </div>
+      )}
+
       <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '8px', paddingLeft: '8px' }}>
         MAIN NAVIGATION
       </div>
@@ -132,12 +217,37 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <span>Project Dashboard</span>
       </button>
 
+      {/* Project Request Button for Standard Users */}
+      {currentUser?.role !== 'ADMIN_OWNER' && (
+        <button
+          onClick={() => setShowProjectRequestModal(true)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 12px',
+            borderRadius: '6px',
+            backgroundColor: 'rgba(56, 189, 248, 0.08)',
+            border: '1px solid rgba(56, 189, 248, 0.2)',
+            color: 'var(--accent-cyan)',
+            fontSize: '0.8rem',
+            fontWeight: 700,
+            marginBottom: '8px',
+            cursor: 'pointer',
+            width: '100%'
+          }}
+        >
+          <FolderPlus size={14} />
+          <span>+ Request New Project</span>
+        </button>
+      )}
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', marginBottom: '8px', paddingLeft: '8px', paddingRight: '4px' }}>
         <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>
           ENGINEERING TRACKERS
         </span>
 
-        {onCreateTracker && (
+        {currentUser?.role === 'ADMIN_OWNER' ? (
           <button
             onClick={() => setShowTrackerModal(true)}
             title="Create Custom Engineering Tracker"
@@ -157,6 +267,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             <Plus size={12} />
             <span>+ New</span>
+          </button>
+        ) : (
+          <button
+            onClick={() => setShowTrackerRequestModal(true)}
+            title="Request Custom Tracker from Admin Owner"
+            style={{
+              backgroundColor: 'rgba(245, 158, 11, 0.15)',
+              color: 'var(--accent-amber)',
+              border: '1px solid rgba(245, 158, 11, 0.3)',
+              borderRadius: '4px',
+              padding: '2px 6px',
+              fontSize: '0.7rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '2px'
+            }}
+          >
+            <Plus size={12} />
+            <span>+ Request</span>
           </button>
         )}
       </div>
@@ -537,6 +668,253 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   style={{ padding: '8px 18px', borderRadius: '6px', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 600 }}
                 >
                   Create Custom Tracker
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* User Request Custom Tracker Modal */}
+      {showTrackerRequestModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.75)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'var(--bg-card)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '12px',
+            width: '500px',
+            padding: '24px',
+            maxHeight: '90vh',
+            overflowY: 'auto'
+          }}>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '8px', color: 'var(--accent-amber)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Plus size={20} />
+              <span>Request Custom Tracker from Admin Owner</span>
+            </h3>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
+              Standard engineers require Admin Owner approval to create new trackers. Submit your request below:
+            </p>
+
+            <form onSubmit={handleTrackerRequestSubmit}>
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                  Requested Tracker Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  value={reqTrackerName}
+                  onChange={(e) => {
+                    setReqTrackerName(e.target.value);
+                    if (!reqTrackerKey) {
+                      const autoKey = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+                      if (autoKey) setReqTrackerKey(`${autoKey}-`);
+                    }
+                  }}
+                  style={{ width: '100%' }}
+                  placeholder="e.g. CANbus Interface Specs"
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                    Key Prefix *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={reqTrackerKey}
+                    onChange={(e) => setReqTrackerKey(e.target.value)}
+                    style={{ width: '100%', fontFamily: 'var(--font-mono)' }}
+                    placeholder="e.g. CAN-SPEC-"
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                    Base Object Type
+                  </label>
+                  <select
+                    value={reqTrackerType}
+                    onChange={(e) => setReqTrackerType(e.target.value)}
+                    style={{ width: '100%' }}
+                  >
+                    <option value="REQUIREMENT">Requirements Tracker</option>
+                    <option value="TEST_CASE">Test Case Specification</option>
+                    <option value="TEST_SET">Test Suite / Test Set</option>
+                    <option value="ARCHITECTURE">Architecture System</option>
+                    <option value="RISK">Risk & Hazard Tracker</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ backgroundColor: 'var(--bg-dark)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '14px', marginBottom: '16px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={reqEnableFolders}
+                    onChange={(e) => setReqEnableFolders(e.target.checked)}
+                  />
+                  <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Enable Subparts / Folders</span>
+                </label>
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={reqEnableTestSteps}
+                    onChange={(e) => setReqEnableTestSteps(e.target.checked)}
+                  />
+                  <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Enable Test Procedure Steps</span>
+                </label>
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                  Reason for Request *
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  value={reqTrackerReason}
+                  onChange={(e) => setReqTrackerReason(e.target.value)}
+                  style={{ width: '100%', fontSize: '0.85rem' }}
+                  placeholder="Explain why this tracker is needed for your project workflow..."
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowTrackerRequestModal(false)}
+                  style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--bg-dark)', color: 'var(--text-main)' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{ padding: '8px 18px', borderRadius: '6px', backgroundColor: 'var(--accent-amber)', color: '#000', fontWeight: 800 }}
+                >
+                  Submit Tracker Request
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* User Request New Project Modal */}
+      {showProjectRequestModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.75)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'var(--bg-card)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '12px',
+            width: '500px',
+            padding: '24px',
+            maxHeight: '90vh',
+            overflowY: 'auto'
+          }}>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '8px', color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <FolderPlus size={20} />
+              <span>Request New Engineering Project</span>
+            </h3>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
+              Submitting a request sends it directly to the Admin Owner Command Center for provisioning.
+            </p>
+
+            <form onSubmit={handleProjectRequestSubmit}>
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                  Requested Project Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  value={reqProjName}
+                  onChange={(e) => {
+                    setReqProjName(e.target.value);
+                    if (!reqProjKey) {
+                      setReqProjKey(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5));
+                    }
+                  }}
+                  style={{ width: '100%' }}
+                  placeholder="e.g. RoboServ-M2 Micro Delivery Bot"
+                />
+              </div>
+
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                  Project Key (Prefix) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={reqProjKey}
+                  onChange={(e) => setReqProjKey(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                  style={{ width: '100%', fontFamily: 'var(--font-mono)' }}
+                  placeholder="e.g. MICRO"
+                />
+              </div>
+
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                  Description / Scope
+                </label>
+                <textarea
+                  rows={2}
+                  value={reqProjDesc}
+                  onChange={(e) => setReqProjDesc(e.target.value)}
+                  style={{ width: '100%', fontSize: '0.85rem' }}
+                  placeholder="Engineering scope and sub-system focus..."
+                />
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                  Reason for Request *
+                </label>
+                <textarea
+                  rows={2}
+                  required
+                  value={reqProjReason}
+                  onChange={(e) => setReqProjReason(e.target.value)}
+                  style={{ width: '100%', fontSize: '0.85rem' }}
+                  placeholder="Why is a dedicated project workspace needed?"
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowProjectRequestModal(false)}
+                  style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--bg-dark)', color: 'var(--text-main)' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{ padding: '8px 18px', borderRadius: '6px', backgroundColor: 'var(--accent-cyan)', color: '#000', fontWeight: 800 }}
+                >
+                  Submit Project Request
                 </button>
               </div>
             </form>

@@ -1,23 +1,29 @@
 import React, { useState } from 'react';
-import { Bot, Search, Plus, FolderPlus, ChevronDown, Check, User } from 'lucide-react';
-import { Project } from '../types/elm';
+import { Bot, Search, Plus, FolderPlus, ChevronDown, Check, User, ShieldCheck, LogOut, Sparkles } from 'lucide-react';
+import { Project, User as UserType } from '../types/elm';
 
 interface HeaderProps {
   project: Project | null;
   projects: Project[];
+  currentUser: UserType | null;
   onSelectProject: (p: Project) => void;
   onCreateProject: (data: { key: string; name: string; description?: string }) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+  onLogout: () => void;
+  onOpenAdminConsole?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   project,
   projects,
+  currentUser,
   onSelectProject,
   onCreateProject,
   searchQuery,
-  setSearchQuery
+  setSearchQuery,
+  onLogout,
+  onOpenAdminConsole
 }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -68,6 +74,29 @@ export const Header: React.FC<HeaderProps> = ({
           <Bot size={22} />
           <span>RoboServ ELM</span>
         </div>
+
+        {/* Admin Command Center Return Button */}
+        {currentUser?.role === 'ADMIN_OWNER' && onOpenAdminConsole && (
+          <button
+            onClick={onOpenAdminConsole}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: 'rgba(245, 158, 11, 0.15)',
+              color: 'var(--accent-amber)',
+              border: '1px solid rgba(245, 158, 11, 0.4)',
+              padding: '6px 12px',
+              borderRadius: '6px',
+              fontSize: '0.8rem',
+              fontWeight: 800,
+              cursor: 'pointer'
+            }}
+          >
+            <ShieldCheck size={16} />
+            <span>👑 Admin Command Center</span>
+          </button>
+        )}
 
         {/* Project Selector Dropdown */}
         <div style={{ position: 'relative' }}>
@@ -136,30 +165,6 @@ export const Header: React.FC<HeaderProps> = ({
                   {project?.id === p.id && <Check size={16} color="var(--accent-cyan)" />}
                 </button>
               ))}
-
-              <div style={{ borderTop: '1px solid var(--border-color)', marginTop: '6px', paddingTop: '6px' }}>
-                <button
-                  onClick={() => {
-                    setShowDropdown(false);
-                    setShowModal(true);
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    width: '100%',
-                    padding: '8px 10px',
-                    borderRadius: '6px',
-                    backgroundColor: 'rgba(2, 132, 199, 0.15)',
-                    color: 'var(--accent-cyan)',
-                    fontWeight: 700,
-                    fontSize: '0.85rem'
-                  }}
-                >
-                  <Plus size={16} />
-                  <span>+ Create New Project</span>
-                </button>
-              </div>
             </div>
           )}
         </div>
@@ -167,37 +172,18 @@ export const Header: React.FC<HeaderProps> = ({
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
         {/* Search Input */}
-        <div style={{ position: 'relative', width: '260px' }}>
+        <div style={{ position: 'relative', width: '240px' }}>
           <Search size={16} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--text-muted)' }} />
           <input
             type="text"
-            placeholder="Search engineering objects..."
+            placeholder="Search objects..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{ width: '100%', paddingLeft: '34px', fontSize: '0.85rem' }}
           />
         </div>
 
-        {/* Primary "+ New Project" Button */}
-        <button
-          onClick={() => setShowModal(true)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            backgroundColor: 'var(--primary)',
-            color: '#fff',
-            padding: '6px 14px',
-            borderRadius: '6px',
-            fontWeight: 600,
-            fontSize: '0.85rem'
-          }}
-        >
-          <FolderPlus size={16} />
-          <span>New Project</span>
-        </button>
-
-        {/* Author / Creator Profile Avatar */}
+        {/* User Profile / Role Indicator */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -209,20 +195,48 @@ export const Header: React.FC<HeaderProps> = ({
             width: '32px',
             height: '32px',
             borderRadius: '50%',
-            backgroundColor: '#0284c7',
+            backgroundColor: currentUser?.role === 'ADMIN_OWNER' ? 'var(--accent-amber)' : currentUser?.role === 'DEMO' ? 'var(--accent-emerald)' : '#0284c7',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontWeight: 700,
-            color: '#fff',
+            fontWeight: 800,
+            color: '#000',
             fontSize: '0.85rem'
           }}>
-            Z
+            {currentUser?.name.charAt(0) || 'U'}
           </div>
           <div>
-            <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>Zewd</div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Lead Systems Engineer</div>
+            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>
+              {currentUser?.name || 'Zewd'}
+            </div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              {currentUser?.role === 'ADMIN_OWNER' && <span style={{ color: 'var(--accent-amber)', fontWeight: 800 }}>👑 Admin Owner</span>}
+              {currentUser?.role === 'DEMO' && <span style={{ color: 'var(--accent-emerald)', fontWeight: 800 }}>🎭 Demo Sandbox</span>}
+              {currentUser?.role === 'USER' && <span>👤 Standard User</span>}
+            </div>
           </div>
+
+          <button
+            onClick={onLogout}
+            title="Logout of session"
+            style={{
+              backgroundColor: 'rgba(239, 68, 68, 0.12)',
+              color: 'var(--accent-rose)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              padding: '6px 10px',
+              borderRadius: '6px',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              cursor: 'pointer',
+              marginLeft: '8px'
+            }}
+          >
+            <LogOut size={14} />
+            <span>Logout</span>
+          </button>
         </div>
       </div>
 

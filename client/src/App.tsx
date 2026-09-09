@@ -10,7 +10,10 @@ import { RisksMatrixView } from './components/RisksMatrixView';
 import { BaselinesView } from './components/BaselinesView';
 import { ArtifactsView } from './components/ArtifactsView';
 import { AuditView } from './components/AuditView';
-import { Project, Tracker, EngineeringObject, Folder, RequirementType, SafetyLevel, TestSubProcess, Relationship, TestStep, Artifact } from './types/elm';
+import { LoginView } from './components/LoginView';
+import { AdminConsoleView } from './components/AdminConsoleView';
+import { Project, Tracker, EngineeringObject, Folder, RequirementType, SafetyLevel, TestSubProcess, Relationship, TestStep, Artifact, User } from './types/elm';
+import { authService } from './api/auth';
 
 const INITIAL_PROJECTS: Project[] = [
   {
@@ -204,6 +207,9 @@ const getInitialData = <T,>(key: string, defaultValue: T): T => {
 };
 
 export const App: React.FC = () => {
+  const [currentUser, setCurrentUser] = useState<User | null>(() => authService.getCurrentUser());
+  const [adminMode, setAdminMode] = useState<'CONSOLE' | 'INSPECT'>('CONSOLE');
+
   const [projects, setProjects] = useState<Project[]>(() => getInitialData('projects', INITIAL_PROJECTS));
   
   const [activeProjectId, setActiveProjectId] = useState<number>(() => {
@@ -235,6 +241,42 @@ export const App: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewMode>('DASHBOARD');
   const [searchQuery, setSearchQuery] = useState('');
   const [impactObjectId, setImpactObjectId] = useState<number | null>(null);
+
+  // Handle Demo reset on tab load/refresh or demo login
+  useEffect(() => {
+    if (currentUser?.role === 'DEMO') {
+      const isDemoActive = sessionStorage.getItem('roboserv_demo_active');
+      if (!isDemoActive) {
+        sessionStorage.setItem('roboserv_demo_active', 'true');
+        setProjects(INITIAL_PROJECTS);
+        setAllTrackers(INITIAL_TRACKERS);
+        setAllFolders(INITIAL_FOLDERS);
+        setAllObjects(INITIAL_OBJECTS);
+        setRelationships(INITIAL_RELATIONSHIPS);
+        setTestSteps(INITIAL_TEST_STEPS);
+        setArtifacts(INITIAL_ARTIFACTS);
+        setActiveProjectId(INITIAL_PROJECTS[0].id);
+        setSelectedTrackerId(INITIAL_TRACKERS[0].id);
+      }
+    }
+  }, [currentUser]);
+
+  const handleLogout = () => {
+    authService.logout();
+    sessionStorage.removeItem('roboserv_demo_active');
+    setCurrentUser(null);
+    setAdminMode('CONSOLE');
+  };
+
+  const handleSelectProjectToInspect = (p: Project) => {
+    handleSelectProject(p);
+    setAdminMode('INSPECT');
+  };
+
+  const refreshAuthData = () => {
+    setProjects(getInitialData('projects', INITIAL_PROJECTS));
+    setAllTrackers(getInitialData('trackers', INITIAL_TRACKERS));
+  };
 
   // Derived state: Active Project & Active Trackers
   const activeProject = projects.find(p => p.id === activeProjectId) || projects[0] || INITIAL_PROJECTS[0];
@@ -512,15 +554,49 @@ export const App: React.FC = () => {
     setActiveView('IMPACT');
   };
 
+  if (!currentUser) {
+    return <LoginView onLoginSuccess={(u) => setCurrentUser(u)} />;
+  }
+
+  if (currentUser.role === 'ADMIN_OWNER' && adminMode === 'CONSOLE') {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-dark)' }}>
+        <Header
+          project={activeProject}
+          projects={projects}
+          currentUser={currentUser}
+          onSelectProject={handleSelectProject}
+          onCreateProject={handleCreateProject}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          onLogout={handleLogout}
+        />
+        <AdminConsoleView
+          currentUser={currentUser}
+          projects={projects}
+          allObjects={allObjects}
+          allTrackers={allTrackers}
+          onSelectProjectToInspect={handleSelectProjectToInspect}
+          onCreateProject={handleCreateProject}
+          onCreateTracker={handleCreateTracker}
+          onRefreshData={refreshAuthData}
+        />
+      </div>
+    );
+  }
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-dark)' }}>
       <Header
         project={activeProject}
         projects={projects}
+        currentUser={currentUser}
         onSelectProject={handleSelectProject}
         onCreateProject={handleCreateProject}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
+        onLogout={handleLogout}
+        onOpenAdminConsole={() => setAdminMode('CONSOLE')}
       />
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
@@ -530,6 +606,9 @@ export const App: React.FC = () => {
           setActiveView={setActiveView}
           selectedTracker={selectedTracker}
           setSelectedTracker={(t) => setSelectedTrackerId(t?.id || null)}
+          currentUser={currentUser}
+          activeProjectId={activeProject.id}
+          activeProjectName={activeProject.name}
           onCreateTracker={handleCreateTracker}
           onDeleteTracker={handleDeleteTracker}
         />
