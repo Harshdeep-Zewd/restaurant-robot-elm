@@ -305,7 +305,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                 cursor: 'pointer'
               }}
             >
-              💻 Engineer (`engineer`)
+              💻 Alex Rivera (`alex` or `engineer`)
             </button>
           </div>
         </div>

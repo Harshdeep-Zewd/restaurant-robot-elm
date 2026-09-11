@@ -154,11 +154,22 @@ export class AuthService {
   }
 
   public login(username: string, pass: string): { success: boolean; user?: User; message?: string } {
-    const cleanUser = username.trim().toLowerCase();
-    const target = this.users.find(u => u.username.toLowerCase() === cleanUser);
+    const clean = username.trim().toLowerCase();
+    if (!clean) {
+      return { success: false, message: 'Please enter a username or email.' };
+    }
+
+    // Match by username, email, full name, or first name (e.g. "alex", "alex rivera", "engineer")
+    const target = this.users.find(u => 
+      u.username.toLowerCase() === clean ||
+      u.email.toLowerCase() === clean ||
+      u.name.toLowerCase() === clean ||
+      u.name.toLowerCase().startsWith(clean) ||
+      u.name.toLowerCase().includes(clean)
+    );
 
     if (!target) {
-      return { success: false, message: 'Invalid username or credentials' };
+      return { success: false, message: 'Invalid username, name, or credentials.' };
     }
 
     if (target.status === 'SUSPENDED') {
