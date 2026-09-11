@@ -207,7 +207,7 @@ const getInitialData = <T,>(key: string, defaultValue: T): T => {
 };
 
 export const App: React.FC = () => {
-  const [currentUser, setCurrentUser] = useState<User | null>(() => authService.getCurrentUser());
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [adminMode, setAdminMode] = useState<'CONSOLE' | 'INSPECT'>('CONSOLE');
 
   const [projects, setProjects] = useState<Project[]>(() => getInitialData('projects', INITIAL_PROJECTS));

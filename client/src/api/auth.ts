@@ -127,14 +127,14 @@ export class AuthService {
     this.projectRequests = getStored<ProjectRequest[]>('project_requests', INITIAL_PROJECT_REQUESTS);
     this.trackerRequests = getStored<TrackerRequest[]>('tracker_requests', INITIAL_TRACKER_REQUESTS);
     
-    // Remove legacy localStorage user session if present
-    localStorage.removeItem('roboserv_auth_current_user');
-
-    // Restore tab-isolated session
-    const savedUser = getStoredSession<User | null>('current_user', null);
-    if (savedUser && this.users.some(u => u.id === savedUser.id)) {
-      this.currentUser = savedUser;
+    // Always purge stored user session so tab restoration (Ctrl+Shift+T) or new tabs force re-authentication
+    try {
+      sessionStorage.removeItem('roboserv_auth_current_user');
+      localStorage.removeItem('roboserv_auth_current_user');
+    } catch (e) {
+      console.error('Failed to clear storage:', e);
     }
+    this.currentUser = null;
   }
 
   public getUsers(): User[] {
@@ -177,21 +177,23 @@ export class AuthService {
     }
 
     this.currentUser = target;
-    setStoredSession('current_user', target);
     return { success: true, user: target };
   }
 
   public loginAsDemo(): User {
     const demoUser = this.users.find(u => u.role === 'DEMO') || INITIAL_USERS[3];
     this.currentUser = demoUser;
-    setStoredSession('current_user', demoUser);
     return demoUser;
   }
 
   public logout(): void {
     this.currentUser = null;
-    sessionStorage.removeItem('roboserv_auth_current_user');
-    localStorage.removeItem('roboserv_auth_current_user');
+    try {
+      sessionStorage.removeItem('roboserv_auth_current_user');
+      localStorage.removeItem('roboserv_auth_current_user');
+    } catch (e) {
+      console.error('Logout cleanup error:', e);
+    }
   }
 
   public createUser(data: { username: string; email: string; name: string; role: UserRole; engineering_role?: any }): User {
