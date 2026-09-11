@@ -278,8 +278,12 @@ export const App: React.FC = () => {
     setAllTrackers(getInitialData('trackers', INITIAL_TRACKERS));
   };
 
-  // Derived state: Active Project & Active Trackers
-  const activeProject = projects.find(p => p.id === activeProjectId) || projects[0] || INITIAL_PROJECTS[0];
+  // Derived state: User Accessible Projects, Active Project & Active Trackers
+  const visibleProjects = currentUser?.role === 'ADMIN_OWNER'
+    ? projects
+    : projects.filter(p => currentUser?.assigned_project_ids?.includes(p.id) || p.id === projects[0]?.id);
+
+  const activeProject = visibleProjects.find(p => p.id === activeProjectId) || visibleProjects[0] || projects[0] || INITIAL_PROJECTS[0];
 
   const currentTrackers = allTrackers
     .filter(t => t.project_id === activeProject.id)
@@ -589,7 +593,7 @@ export const App: React.FC = () => {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-dark)' }}>
       <Header
         project={activeProject}
-        projects={projects}
+        projects={visibleProjects}
         currentUser={currentUser}
         onSelectProject={handleSelectProject}
         onCreateProject={handleCreateProject}

@@ -97,6 +97,25 @@ const setStored = <T,>(key: string, value: T) => {
   }
 };
 
+const getStoredSession = <T,>(key: string, fallback: T): T => {
+  try {
+    localStorage.removeItem('roboserv_auth_current_user');
+    const s = sessionStorage.getItem(`roboserv_auth_${key}`);
+    if (s) return JSON.parse(s);
+  } catch (e) {
+    console.error('Session storage error for auth key:', key, e);
+  }
+  return fallback;
+};
+
+const setStoredSession = <T,>(key: string, value: T) => {
+  try {
+    sessionStorage.setItem(`roboserv_auth_${key}`, JSON.stringify(value));
+  } catch (e) {
+    console.error('Save session error for auth key:', key, e);
+  }
+};
+
 export class AuthService {
   private users: User[];
   private projectRequests: ProjectRequest[];
@@ -108,8 +127,11 @@ export class AuthService {
     this.projectRequests = getStored<ProjectRequest[]>('project_requests', INITIAL_PROJECT_REQUESTS);
     this.trackerRequests = getStored<TrackerRequest[]>('tracker_requests', INITIAL_TRACKER_REQUESTS);
     
-    // Restore session
-    const savedUser = getStored<User | null>('current_user', null);
+    // Remove legacy localStorage user session if present
+    localStorage.removeItem('roboserv_auth_current_user');
+
+    // Restore tab-isolated session
+    const savedUser = getStoredSession<User | null>('current_user', null);
     if (savedUser && this.users.some(u => u.id === savedUser.id)) {
       this.currentUser = savedUser;
     }
@@ -144,19 +166,20 @@ export class AuthService {
     }
 
     this.currentUser = target;
-    setStored('current_user', target);
+    setStoredSession('current_user', target);
     return { success: true, user: target };
   }
 
   public loginAsDemo(): User {
     const demoUser = this.users.find(u => u.role === 'DEMO') || INITIAL_USERS[3];
     this.currentUser = demoUser;
-    setStored('current_user', demoUser);
+    setStoredSession('current_user', demoUser);
     return demoUser;
   }
 
   public logout(): void {
     this.currentUser = null;
+    sessionStorage.removeItem('roboserv_auth_current_user');
     localStorage.removeItem('roboserv_auth_current_user');
   }
 
