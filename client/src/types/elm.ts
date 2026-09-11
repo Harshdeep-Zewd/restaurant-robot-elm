@@ -6,6 +6,7 @@ export interface User {
   username: string;
   email: string;
   name: string;
+  password?: string;
   role: UserRole;
   engineering_role?: Role;
   avatar_url?: string;

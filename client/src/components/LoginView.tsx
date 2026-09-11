@@ -31,7 +31,9 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
 
   const handleQuickLogin = (uname: string) => {
     setError('');
-    const res = authService.login(uname, '123');
+    const targetUser = authService.getUsers().find(u => u.username === uname || u.name.toLowerCase().includes(uname));
+    const pwd = targetUser?.password || '123';
+    const res = authService.login(uname, pwd);
     if (res.success && res.user) {
       onLoginSuccess(res.user);
     } else {

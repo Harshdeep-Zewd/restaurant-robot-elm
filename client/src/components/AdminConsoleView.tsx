@@ -50,6 +50,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
   const [newUsername, setNewUsername] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newName, setNewName] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState<UserRole>('USER');
 
   // Create Project Modal state
@@ -78,6 +79,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
       username: newUsername,
       email: newEmail,
       name: newName,
+      password: newPassword.trim() || 'user123',
       role: newRole
     });
 
@@ -85,6 +87,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
     setNewUsername('');
     setNewEmail('');
     setNewName('');
+    setNewPassword('');
     refreshAll();
   };
 
@@ -704,6 +707,20 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
                   onChange={(e) => setNewEmail(e.target.value)}
                   style={{ width: '100%', fontSize: '0.85rem' }}
                   placeholder="sarah@roboserv.io"
+                />
+              </div>
+
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
+                  Account Password *
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  style={{ width: '100%', fontSize: '0.85rem' }}
+                  placeholder="Set account password (e.g. sarah123)"
                 />
               </div>
 

@@ -6,6 +6,7 @@ const INITIAL_USERS: User[] = [
     username: 'admin',
     email: 'admin@roboserv.io',
     name: 'Admin Owner (Superadmin)',
+    password: 'admin123',
     role: 'ADMIN_OWNER',
     engineering_role: 'ADMIN',
     status: 'ACTIVE',
@@ -17,6 +18,7 @@ const INITIAL_USERS: User[] = [
     username: 'zewd',
     email: 'zewd@roboserv.io',
     name: 'Zewd (Lead Systems Engineer)',
+    password: 'zewd123',
     role: 'USER',
     engineering_role: 'SYSTEMS_ENGINEER',
     status: 'ACTIVE',
@@ -28,6 +30,7 @@ const INITIAL_USERS: User[] = [
     username: 'engineer',
     email: 'engineer@roboserv.io',
     name: 'Alex Rivera (ROS2 Dev)',
+    password: 'user123',
     role: 'USER',
     engineering_role: 'SOFTWARE_ENGINEER',
     status: 'ACTIVE',
@@ -39,6 +42,7 @@ const INITIAL_USERS: User[] = [
     username: 'demo',
     email: 'demo@public.io',
     name: 'Public Demo Visitor',
+    password: 'demo123',
     role: 'DEMO',
     engineering_role: 'VIEWER',
     status: 'ACTIVE',
@@ -159,6 +163,10 @@ export class AuthService {
       return { success: false, message: 'Please enter a username or email.' };
     }
 
+    if (!pass || !pass.trim()) {
+      return { success: false, message: 'Password is required to log in.' };
+    }
+
     // Match by username, email, full name, or first name (e.g. "alex", "alex rivera", "engineer")
     const target = this.users.find(u => 
       u.username.toLowerCase() === clean ||
@@ -174,6 +182,14 @@ export class AuthService {
 
     if (target.status === 'SUSPENDED') {
       return { success: false, message: 'This user account is suspended by Admin Owner.' };
+    }
+
+    // Strict Password Validation
+    const cleanPass = pass.trim();
+    const expectedPass = target.password || '123';
+
+    if (cleanPass !== expectedPass) {
+      return { success: false, message: 'Incorrect password. Access denied.' };
     }
 
     this.currentUser = target;
@@ -196,12 +212,13 @@ export class AuthService {
     }
   }
 
-  public createUser(data: { username: string; email: string; name: string; role: UserRole; engineering_role?: any }): User {
+  public createUser(data: { username: string; email: string; name: string; password?: string; role: UserRole; engineering_role?: any }): User {
     const newUser: User = {
       id: Date.now(),
       username: data.username.trim().toLowerCase(),
       email: data.email.trim(),
       name: data.name.trim(),
+      password: data.password?.trim() || 'user123',
       role: data.role,
       engineering_role: data.engineering_role || 'SYSTEMS_ENGINEER',
       status: 'ACTIVE',
