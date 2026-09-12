@@ -210,8 +210,8 @@ export const Header: React.FC<HeaderProps> = ({
               {currentUser?.name || 'Zewd'}
             </div>
             <div style={{ fontSize: '0.7rem', color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              {currentUser?.role === 'ADMIN_OWNER' && <span style={{ color: 'var(--accent-amber)', fontWeight: 800 }}>👑 Admin Owner</span>}
-              {currentUser?.role === 'DEMO' && <span style={{ color: 'var(--accent-emerald)', fontWeight: 800 }}>🎭 Demo Sandbox</span>}
+              {currentUser?.role === 'ADMIN_OWNER' && <span style={{ color: 'var(--accent-amber)', fontWeight: 800 }}>👑 Zewd (Owner)</span>}
+              {currentUser?.role === 'DEMO' && <span style={{ color: 'var(--accent-emerald)', fontWeight: 800 }}>🎭 Public Demo</span>}
               {currentUser?.role === 'USER' && <span>👤 Standard User</span>}
             </div>
           </div>

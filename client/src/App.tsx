@@ -208,7 +208,7 @@ const getInitialData = <T,>(key: string, defaultValue: T): T => {
 
 export const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [adminMode, setAdminMode] = useState<'CONSOLE' | 'INSPECT'>('CONSOLE');
+  const [adminMode, setAdminMode] = useState<'CONSOLE' | 'INSPECT'>('INSPECT');
 
   const [projects, setProjects] = useState<Project[]>(() => getInitialData('projects', INITIAL_PROJECTS));
   
@@ -242,6 +242,29 @@ export const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [impactObjectId, setImpactObjectId] = useState<number | null>(null);
 
+  // Direct URL routing listener: ?account=demo or ?account=zewd
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const acc = params.get('account') || params.get('role') || params.get('user');
+      if (acc) {
+        const clean = acc.trim().toLowerCase();
+        if (clean === 'demo') {
+          const u = authService.loginAsDemo();
+          setCurrentUser(u);
+        } else if (clean === 'zewd') {
+          const res = authService.login('zewd', 'zewd123');
+          if (res.success && res.user) {
+            setCurrentUser(res.user);
+            setAdminMode('INSPECT');
+          }
+        }
+      }
+    } catch (e) {
+      console.error('URL account parameter error:', e);
+    }
+  }, []);
+
   // Handle Demo reset on tab load/refresh or demo login
   useEffect(() => {
     if (currentUser?.role === 'DEMO') {
@@ -265,7 +288,7 @@ export const App: React.FC = () => {
     authService.logout();
     sessionStorage.removeItem('roboserv_demo_active');
     setCurrentUser(null);
-    setAdminMode('CONSOLE');
+    setAdminMode('INSPECT');
   };
 
   const handleSelectProjectToInspect = (p: Project) => {

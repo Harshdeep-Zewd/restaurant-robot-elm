@@ -3,10 +3,10 @@ import { User, UserRole, ProjectRequest, TrackerRequest } from '../types/elm';
 const INITIAL_USERS: User[] = [
   {
     id: 1,
-    username: 'admin',
-    email: 'admin@roboserv.io',
-    name: 'Admin Owner (Superadmin)',
-    password: 'admin123',
+    username: 'zewd',
+    email: 'zewd@roboserv.io',
+    name: 'Zewd (Owner)',
+    password: 'zewd123',
     role: 'ADMIN_OWNER',
     engineering_role: 'ADMIN',
     status: 'ACTIVE',
@@ -15,30 +15,6 @@ const INITIAL_USERS: User[] = [
   },
   {
     id: 2,
-    username: 'zewd',
-    email: 'zewd@roboserv.io',
-    name: 'Zewd (Lead Systems Engineer)',
-    password: 'zewd123',
-    role: 'USER',
-    engineering_role: 'SYSTEMS_ENGINEER',
-    status: 'ACTIVE',
-    assigned_project_ids: [1],
-    created_at: new Date().toISOString()
-  },
-  {
-    id: 3,
-    username: 'engineer',
-    email: 'engineer@roboserv.io',
-    name: 'Alex Rivera (ROS2 Dev)',
-    password: 'user123',
-    role: 'USER',
-    engineering_role: 'SOFTWARE_ENGINEER',
-    status: 'ACTIVE',
-    assigned_project_ids: [1],
-    created_at: new Date().toISOString()
-  },
-  {
-    id: 4,
     username: 'demo',
     email: 'demo@public.io',
     name: 'Public Demo Visitor',
@@ -51,37 +27,8 @@ const INITIAL_USERS: User[] = [
   }
 ];
 
-const INITIAL_PROJECT_REQUESTS: ProjectRequest[] = [
-  {
-    id: 101,
-    user_id: 3,
-    user_name: 'Alex Rivera (ROS2 Dev)',
-    requested_name: 'RoboServ-M2 Micro Delivery Bot',
-    key: 'MICRO',
-    description: 'Compact indoor hallway delivery chassis spec.',
-    reason: 'Sub-system development for indoor hotel delivery',
-    status: 'PENDING',
-    created_at: new Date().toISOString()
-  }
-];
-
-const INITIAL_TRACKER_REQUESTS: TrackerRequest[] = [
-  {
-    id: 201,
-    user_id: 2,
-    user_name: 'Zewd (Lead Systems Engineer)',
-    project_id: 1,
-    project_name: 'RoboServ-X1 Autonomous Delivery Robot',
-    requested_name: 'Hardware Interface Specs',
-    requested_key: 'HW-IF-',
-    type: 'REQUIREMENT',
-    enable_test_steps: false,
-    enable_folders: true,
-    reason: 'Track CANbus bus interface & power distribution specs',
-    status: 'PENDING',
-    created_at: new Date().toISOString()
-  }
-];
+const INITIAL_PROJECT_REQUESTS: ProjectRequest[] = [];
+const INITIAL_TRACKER_REQUESTS: TrackerRequest[] = [];
 
 const getStored = <T,>(key: string, fallback: T): T => {
   try {
@@ -197,7 +144,7 @@ export class AuthService {
   }
 
   public loginAsDemo(): User {
-    const demoUser = this.users.find(u => u.role === 'DEMO') || INITIAL_USERS[3];
+    const demoUser = this.users.find(u => u.role === 'DEMO') || INITIAL_USERS[1];
     this.currentUser = demoUser;
     return demoUser;
   }
