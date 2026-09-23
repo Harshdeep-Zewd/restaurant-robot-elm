@@ -366,6 +366,40 @@ export const App: React.FC = () => {
     setActiveView('DASHBOARD');
   };
 
+  const handleUpdateProject = (id: number, updates: Partial<Project>) => {
+    setProjects(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+  };
+
+  const handleDeleteProject = (id: number) => {
+    if (projects.length <= 1) {
+      alert("Cannot delete the only remaining project!");
+      return;
+    }
+
+    const pTrackers = allTrackers.filter(t => t.project_id === id);
+    const pTrackerIds = pTrackers.map(t => t.id);
+    const pObjects = allObjects.filter(o => pTrackerIds.includes(o.tracker_id));
+    const pObjIds = pObjects.map(o => o.id);
+
+    setProjects(prev => prev.filter(p => p.id !== id));
+    setAllTrackers(prev => prev.filter(t => !pTrackerIds.includes(t.id)));
+    setAllFolders(prev => prev.filter(f => !pTrackerIds.includes(f.tracker_id)));
+    setAllObjects(prev => prev.filter(o => !pTrackerIds.includes(o.tracker_id)));
+    setRelationships(prev => prev.filter(r => !pObjIds.includes(r.source_id) && !pObjIds.includes(r.target_id)));
+    setTestSteps(prev => prev.filter(s => !pObjIds.includes(s.test_case_id)));
+    setArtifacts(prev => prev.filter(a => !pObjIds.includes(a.object_id || -1)));
+
+    if (activeProjectId === id) {
+      const remainingProjects = projects.filter(p => p.id !== id);
+      const nextProject = remainingProjects[0];
+      if (nextProject) {
+        setActiveProjectId(nextProject.id);
+        const nextTrackers = allTrackers.filter(t => t.project_id === nextProject.id);
+        setSelectedTrackerId(nextTrackers[0]?.id || null);
+      }
+    }
+  };
+
   const handleCreateTracker = (data: {
     name: string;
     key: string;
@@ -594,6 +628,8 @@ export const App: React.FC = () => {
           currentUser={currentUser}
           onSelectProject={handleSelectProject}
           onCreateProject={handleCreateProject}
+          onUpdateProject={handleUpdateProject}
+          onDeleteProject={handleDeleteProject}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           onLogout={handleLogout}
@@ -605,6 +641,8 @@ export const App: React.FC = () => {
           allTrackers={allTrackers}
           onSelectProjectToInspect={handleSelectProjectToInspect}
           onCreateProject={handleCreateProject}
+          onUpdateProject={handleUpdateProject}
+          onDeleteProject={handleDeleteProject}
           onCreateTracker={handleCreateTracker}
           onRefreshData={refreshAuthData}
         />
@@ -620,6 +658,8 @@ export const App: React.FC = () => {
         currentUser={currentUser}
         onSelectProject={handleSelectProject}
         onCreateProject={handleCreateProject}
+        onUpdateProject={handleUpdateProject}
+        onDeleteProject={handleDeleteProject}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         onLogout={handleLogout}

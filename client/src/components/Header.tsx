@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bot, Search, Plus, FolderPlus, ChevronDown, Check, User, ShieldCheck, LogOut, Sparkles } from 'lucide-react';
+import { Bot, Search, Plus, FolderPlus, ChevronDown, Check, User, ShieldCheck, LogOut, Sparkles, Pencil, Trash2 } from 'lucide-react';
 import { Project, User as UserType } from '../types/elm';
 
 interface HeaderProps {
@@ -8,6 +8,8 @@ interface HeaderProps {
   currentUser: UserType | null;
   onSelectProject: (p: Project) => void;
   onCreateProject: (data: { key: string; name: string; description?: string }) => void;
+  onUpdateProject?: (id: number, updates: Partial<Project>) => void;
+  onDeleteProject?: (id: number) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   onLogout: () => void;
@@ -20,18 +22,29 @@ export const Header: React.FC<HeaderProps> = ({
   currentUser,
   onSelectProject,
   onCreateProject,
+  onUpdateProject,
+  onDeleteProject,
   searchQuery,
   setSearchQuery,
   onLogout,
   onOpenAdminConsole
 }) => {
   const [showDropdown, setShowDropdown] = useState(false);
+  
+  // Create Modal State
   const [showModal, setShowModal] = useState(false);
   const [key, setKey] = useState('');
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Edit Modal State
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [editKey, setEditKey] = useState('');
+  const [editName, setEditName] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+
+  const handleSubmitCreate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!key.trim() || !name.trim()) return;
 
@@ -45,6 +58,45 @@ export const Header: React.FC<HeaderProps> = ({
     setKey('');
     setName('');
     setDesc('');
+  };
+
+  const handleOpenEdit = (p: Project, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingProject(p);
+    setEditKey(p.key);
+    setEditName(p.name);
+    setEditDesc(p.description || '');
+    setShowEditModal(true);
+    setShowDropdown(false);
+  };
+
+  const handleSubmitEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProject || !editKey.trim() || !editName.trim()) return;
+
+    if (onUpdateProject) {
+      onUpdateProject(editingProject.id, {
+        key: editKey.trim().toUpperCase(),
+        name: editName.trim(),
+        description: editDesc.trim()
+      });
+    }
+
+    setShowEditModal(false);
+    setEditingProject(null);
+  };
+
+  const handleDelete = (p: Project, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (projects.length <= 1) {
+      alert("Cannot delete the only remaining project.");
+      return;
+    }
+    if (confirm(`Are you sure you want to delete project "${p.name}" (${p.key})? All associated trackers, requirements, and test data will be permanently removed.`)) {
+      if (onDeleteProject) {
+        onDeleteProject(p.id);
+      }
+    }
   };
 
   return (
@@ -112,7 +164,8 @@ export const Header: React.FC<HeaderProps> = ({
               borderRadius: '6px',
               color: 'var(--text-main)',
               fontSize: '0.85rem',
-              fontWeight: 600
+              fontWeight: 600,
+              cursor: 'pointer'
             }}
           >
             <span>{project ? project.name : 'Select Project'}</span>
@@ -125,7 +178,7 @@ export const Header: React.FC<HeaderProps> = ({
               position: 'absolute',
               top: '42px',
               left: 0,
-              width: '320px',
+              width: '360px',
               backgroundColor: 'var(--bg-card)',
               border: '1px solid var(--border-color)',
               borderRadius: '8px',
@@ -133,12 +186,45 @@ export const Header: React.FC<HeaderProps> = ({
               zIndex: 200,
               padding: '8px'
             }}>
-              <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', padding: '6px 8px' }}>
-                Engineering Workspaces ({projects.length})
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '6px 8px',
+                borderBottom: '1px solid var(--border-color)',
+                marginBottom: '6px'
+              }}>
+                <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                  Engineering Workspaces ({projects.length})
+                </span>
+                {currentUser?.role === 'ADMIN_OWNER' && (
+                  <button
+                    onClick={() => {
+                      setShowDropdown(false);
+                      setShowModal(true);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      backgroundColor: 'var(--primary)',
+                      color: '#fff',
+                      border: 'none',
+                      padding: '4px 10px',
+                      borderRadius: '4px',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Plus size={13} />
+                    <span>+ New Project</span>
+                  </button>
+                )}
               </div>
 
               {projects.map((p) => (
-                <button
+                <div
                   key={p.id}
                   onClick={() => {
                     onSelectProject(p);
@@ -154,16 +240,57 @@ export const Header: React.FC<HeaderProps> = ({
                     backgroundColor: project?.id === p.id ? 'var(--bg-hover)' : 'transparent',
                     color: project?.id === p.id ? 'var(--accent-cyan)' : 'var(--text-main)',
                     fontSize: '0.85rem',
-                    textAlign: 'left',
+                    cursor: 'pointer',
                     marginBottom: '2px'
                   }}
                 >
-                  <div>
-                    <div style={{ fontWeight: 600 }}>{p.name}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{p.description || 'No description'}</div>
+                  <div style={{ flex: 1, overflow: 'hidden', paddingRight: '8px' }}>
+                    <div style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {p.name} <span className="mono" style={{ fontSize: '0.7rem', opacity: 0.8 }}>({p.key})</span>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {p.description || 'No description'}
+                    </div>
                   </div>
-                  {project?.id === p.id && <Check size={16} color="var(--accent-cyan)" />}
-                </button>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {project?.id === p.id && <Check size={16} color="var(--accent-cyan)" />}
+                    {currentUser?.role === 'ADMIN_OWNER' && (
+                      <>
+                        <button
+                          onClick={(e) => handleOpenEdit(p, e)}
+                          title="Edit project details"
+                          style={{
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            color: 'var(--text-muted)',
+                            padding: '4px',
+                            cursor: 'pointer',
+                            borderRadius: '4px'
+                          }}
+                        >
+                          <Pencil size={14} color="var(--accent-cyan)" />
+                        </button>
+                        {projects.length > 1 && (
+                          <button
+                            onClick={(e) => handleDelete(p, e)}
+                            title="Delete project"
+                            style={{
+                              backgroundColor: 'transparent',
+                              border: 'none',
+                              color: 'var(--accent-rose)',
+                              padding: '4px',
+                              cursor: 'pointer',
+                              borderRadius: '4px'
+                            }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
               ))}
             </div>
           )}
@@ -261,7 +388,7 @@ export const Header: React.FC<HeaderProps> = ({
           }}>
             <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '16px' }}>Create New Engineering Project</h3>
 
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmitCreate}>
               <div style={{ marginBottom: '14px' }}>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
                   Project Name *
@@ -312,7 +439,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--bg-dark)', color: 'var(--text-main)' }}
+                  style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--bg-dark)', color: 'var(--text-main)', border: 'none', cursor: 'pointer' }}
                 >
                   Cancel
                 </button>
@@ -323,7 +450,9 @@ export const Header: React.FC<HeaderProps> = ({
                     borderRadius: '6px',
                     backgroundColor: 'var(--primary)',
                     color: '#fff',
-                    fontWeight: 600
+                    fontWeight: 600,
+                    border: 'none',
+                    cursor: 'pointer'
                   }}
                 >
                   Create & Initialize Project
@@ -333,6 +462,102 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
       )}
+
+      {/* Edit Project Modal */}
+      {showEditModal && editingProject && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.75)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'var(--bg-card)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '12px',
+            width: '480px',
+            padding: '24px',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.6)'
+          }}>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '16px', color: 'var(--accent-cyan)' }}>
+              Edit Project Details
+            </h3>
+
+            <form onSubmit={handleSubmitEdit}>
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                  Project Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  style={{ width: '100%' }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                  Project Key (Prefix) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  maxLength={6}
+                  value={editKey}
+                  onChange={(e) => setEditKey(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                  style={{ width: '100%' }}
+                  className="mono"
+                />
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                  Description
+                </label>
+                <textarea
+                  rows={3}
+                  value={editDesc}
+                  onChange={(e) => setEditDesc(e.target.value)}
+                  style={{ width: '100%' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setEditingProject(null);
+                  }}
+                  style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--bg-dark)', color: 'var(--text-main)', border: 'none', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    backgroundColor: 'var(--primary)',
+                    color: '#fff',
+                    fontWeight: 600,
+                    border: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Save Project Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </header>
   );
 };
+

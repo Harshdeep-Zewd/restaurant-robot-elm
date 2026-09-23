@@ -14,7 +14,9 @@ import {
   Layers,
   Sparkles,
   Lock,
-  Unlock
+  Unlock,
+  Pencil,
+  Trash2
 } from 'lucide-react';
 import { User, Project, ProjectRequest, TrackerRequest, UserRole } from '../types/elm';
 import { authService } from '../api/auth';
@@ -26,6 +28,8 @@ interface AdminConsoleViewProps {
   allTrackers: any[];
   onSelectProjectToInspect: (project: Project) => void;
   onCreateProject: (data: { key: string; name: string; description?: string }) => void;
+  onUpdateProject?: (id: number, updates: Partial<Project>) => void;
+  onDeleteProject?: (id: number) => void;
   onCreateTracker: (data: { name: string; key: string; type: string; enable_test_steps: boolean; enable_folders: boolean }) => void;
   onRefreshData: () => void;
 }
@@ -37,6 +41,8 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
   allTrackers,
   onSelectProjectToInspect,
   onCreateProject,
+  onUpdateProject,
+  onDeleteProject,
   onCreateTracker,
   onRefreshData
 }) => {
@@ -58,6 +64,49 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
   const [projKey, setProjKey] = useState('');
   const [projName, setProjName] = useState('');
   const [projDesc, setProjDesc] = useState('');
+
+  // Edit Project Modal state
+  const [showEditProjectModal, setShowEditProjectModal] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [editProjKey, setEditProjKey] = useState('');
+  const [editProjName, setEditProjName] = useState('');
+  const [editProjDesc, setEditProjDesc] = useState('');
+
+  const handleOpenEditProject = (p: Project) => {
+    setEditingProject(p);
+    setEditProjKey(p.key);
+    setEditProjName(p.name);
+    setEditProjDesc(p.description || '');
+    setShowEditProjectModal(true);
+  };
+
+  const handleSaveEditProject = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProject || !editProjKey.trim() || !editProjName.trim()) return;
+    if (onUpdateProject) {
+      onUpdateProject(editingProject.id, {
+        key: editProjKey.trim().toUpperCase(),
+        name: editProjName.trim(),
+        description: editProjDesc.trim()
+      });
+    }
+    setShowEditProjectModal(false);
+    setEditingProject(null);
+    refreshAll();
+  };
+
+  const handleDeleteProjectClick = (p: Project) => {
+    if (projects.length <= 1) {
+      alert("Cannot delete the only remaining project.");
+      return;
+    }
+    if (confirm(`Are you sure you want to delete project "${p.name}" (${p.key})? All associated trackers, requirements, and test data will be permanently deleted.`)) {
+      if (onDeleteProject) {
+        onDeleteProject(p.id);
+      }
+      refreshAll();
+    }
+  };
 
   const refreshAll = () => {
     setUsers(authService.getUsers());
@@ -539,26 +588,77 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
                   </div>
                 </div>
 
-                <button
-                  onClick={() => onSelectProjectToInspect(p)}
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    borderRadius: '8px',
-                    backgroundColor: 'var(--primary)',
-                    color: '#fff',
-                    fontWeight: 700,
-                    fontSize: '0.85rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <span>Inspect & Open Project Workspace</span>
-                  <ArrowRight size={16} />
-                </button>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                  <button
+                    onClick={() => onSelectProjectToInspect(p)}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      borderRadius: '8px',
+                      backgroundColor: 'var(--primary)',
+                      color: '#fff',
+                      fontWeight: 700,
+                      fontSize: '0.85rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      cursor: 'pointer',
+                      border: 'none'
+                    }}
+                  >
+                    <span>Inspect Project</span>
+                    <ArrowRight size={16} />
+                  </button>
+
+                  {currentUser?.role === 'ADMIN_OWNER' && (
+                    <>
+                      <button
+                        onClick={() => handleOpenEditProject(p)}
+                        title="Edit project details"
+                        style={{
+                          padding: '10px 12px',
+                          borderRadius: '8px',
+                          backgroundColor: 'var(--bg-dark)',
+                          border: '1px solid var(--border-color)',
+                          color: 'var(--accent-cyan)',
+                          fontWeight: 700,
+                          fontSize: '0.85rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <Pencil size={15} />
+                        <span>Edit</span>
+                      </button>
+
+                      {projects.length > 1 && (
+                        <button
+                          onClick={() => handleDeleteProjectClick(p)}
+                          title="Delete project"
+                          style={{
+                            padding: '10px 12px',
+                            borderRadius: '8px',
+                            backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                            color: 'var(--accent-rose)',
+                            fontWeight: 700,
+                            fontSize: '0.85rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <Trash2 size={15} />
+                          <span>Delete</span>
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -831,11 +931,83 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
                 >
                   Cancel
                 </button>
+      {/* Modal 3: Edit Project */}
+      {showEditProjectModal && editingProject && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.75)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'var(--bg-card)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '12px',
+            width: '460px',
+            padding: '24px'
+          }}>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '16px', color: 'var(--accent-cyan)' }}>
+              Edit Project Details
+            </h3>
+
+            <form onSubmit={handleSaveEditProject}>
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
+                  Project Key (Prefix) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editProjKey}
+                  onChange={(e) => setEditProjKey(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                  style={{ width: '100%', fontSize: '0.85rem', fontFamily: 'var(--font-mono)' }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
+                  Project Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editProjName}
+                  onChange={(e) => setEditProjName(e.target.value)}
+                  style={{ width: '100%', fontSize: '0.85rem' }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
+                  Description
+                </label>
+                <textarea
+                  rows={3}
+                  value={editProjDesc}
+                  onChange={(e) => setEditProjDesc(e.target.value)}
+                  style={{ width: '100%', fontSize: '0.85rem' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditProjectModal(false);
+                    setEditingProject(null);
+                  }}
+                  style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--bg-dark)', color: 'var(--text-main)', border: 'none', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
                 <button
                   type="submit"
-                  style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700 }}
+                  style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700, border: 'none', cursor: 'pointer' }}
                 >
-                  Provision Project
+                  Save Changes
                 </button>
               </div>
             </form>
