@@ -763,7 +763,13 @@ export const App: React.FC = () => {
           )}
 
           {activeView === 'TEST_EXECUTION' && (
-            <TestExecutionView />
+            <TestExecutionView
+              currentUser={currentUser}
+              activeProject={activeProject}
+              allObjects={allObjects}
+              testSteps={testSteps}
+              relationships={relationships}
+            />
           )}
 
           {activeView === 'RISK_MATRIX' && (
