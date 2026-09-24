@@ -931,6 +931,18 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
                 >
                   Cancel
                 </button>
+                <button
+                  type="submit"
+                  style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700 }}
+                >
+                  Provision Project
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Modal 3: Edit Project */}
       {showEditProjectModal && editingProject && (
         <div style={{
