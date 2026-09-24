@@ -18,9 +18,39 @@ export const TestExecutionView: React.FC<TestExecutionViewProps> = ({
   testSteps = [],
   relationships = []
 }) => {
-  const [runs, setRuns] = useState<TestRun[]>([]);
-  const [selectedRunId, setSelectedRunId] = useState<number | null>(null);
-  const [runDetailsMap, setRunDetailsMap] = useState<Record<number, any>>({});
+  const [runs, setRuns] = useState<TestRun[]>(() => {
+    if (currentUser?.role === 'ADMIN_OWNER') {
+      try {
+        const saved = localStorage.getItem('roboserv_elm_test_runs');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch (e) {
+        console.error('Failed to parse saved test runs:', e);
+      }
+    }
+    return [];
+  });
+
+  const [runDetailsMap, setRunDetailsMap] = useState<Record<number, any>>(() => {
+    if (currentUser?.role === 'ADMIN_OWNER') {
+      try {
+        const saved = localStorage.getItem('roboserv_elm_test_run_details');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && typeof parsed === 'object') return parsed;
+        }
+      } catch (e) {
+        console.error('Failed to parse saved test run details:', e);
+      }
+    }
+    return {};
+  });
+
+  const [selectedRunId, setSelectedRunId] = useState<number | null>(() => {
+    return runs.length > 0 ? runs[0].id : null;
+  });
   
   // New Test Run Modal State
   const [showModal, setShowModal] = useState(false);
@@ -34,8 +64,26 @@ export const TestExecutionView: React.FC<TestExecutionViewProps> = ({
   const availableTestSets = allObjects.filter(o => o.type === 'TEST_SET');
   const availableTestCases = allObjects.filter(o => o.type === 'TEST_CASE');
 
+  // Auto-persist test runs and step execution details for Zewd (ADMIN_OWNER) account
   useEffect(() => {
-    loadRuns();
+    if (currentUser?.role === 'ADMIN_OWNER' && runs.length > 0) {
+      localStorage.setItem('roboserv_elm_test_runs', JSON.stringify(runs));
+    }
+  }, [runs, currentUser]);
+
+  useEffect(() => {
+    if (currentUser?.role === 'ADMIN_OWNER' && Object.keys(runDetailsMap).length > 0) {
+      localStorage.setItem('roboserv_elm_test_run_details', JSON.stringify(runDetailsMap));
+    }
+  }, [runDetailsMap, currentUser]);
+
+  useEffect(() => {
+    if (runs.length === 0) {
+      loadRuns();
+    } else if (!selectedRunId) {
+      setSelectedRunId(runs[0].id);
+      loadRunDetail(runs[0].id);
+    }
   }, []);
 
   const loadRuns = async () => {
