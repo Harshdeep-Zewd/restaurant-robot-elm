@@ -2,6 +2,14 @@
 
 A Codebeamer and Jama-inspired **Systems Engineering & Engineering Lifecycle Management** application built specifically for the **Autonomous Restaurant Delivery Robot ("RoboServ-X1")** project.
 
+## 🌐 Live Production Deployment Links
+
+- 👑 **Zewd (Owner - Persistent Data Account)**:  
+  [https://restaurant-robot-elm-server.vercel.app/?account=zewd](https://restaurant-robot-elm-server.vercel.app/?account=zewd)
+
+- 🎭 **Public Demo (Temporary Sandbox Account)**:  
+  [https://restaurant-robot-elm-server.vercel.app/?account=demo](https://restaurant-robot-elm-server.vercel.app/?account=demo)
+
 ---
 
 ## 🌟 Key Features & Modules
