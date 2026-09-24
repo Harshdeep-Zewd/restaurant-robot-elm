@@ -337,33 +337,54 @@ export const Header: React.FC<HeaderProps> = ({
               {currentUser?.name || 'Zewd'}
             </div>
             <div style={{ fontSize: '0.7rem', color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              {currentUser?.role === 'ADMIN_OWNER' && <span style={{ color: 'var(--accent-amber)', fontWeight: 800 }}>👑 Zewd (Owner)</span>}
-              {currentUser?.role === 'DEMO' && <span style={{ color: 'var(--accent-emerald)', fontWeight: 800 }}>🎭 Public Demo</span>}
-              {currentUser?.role === 'USER' && <span>👤 Standard User</span>}
+              {currentUser?.role === 'ADMIN_OWNER' && <span style={{ color: 'var(--accent-amber)', fontWeight: 800 }}>👑 Zewd (Owner) • Storage Saved</span>}
+              {currentUser?.role === 'DEMO' && <span style={{ color: 'var(--accent-emerald)', fontWeight: 800 }}>🎭 Public Demo • Ephemeral</span>}
             </div>
           </div>
 
-          <button
-            onClick={onLogout}
-            title="Logout of session"
-            style={{
-              backgroundColor: 'rgba(239, 68, 68, 0.12)',
-              color: 'var(--accent-rose)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              padding: '6px 10px',
-              borderRadius: '6px',
-              fontSize: '0.75rem',
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              cursor: 'pointer',
-              marginLeft: '8px'
-            }}
-          >
-            <LogOut size={14} />
-            <span>Logout</span>
-          </button>
+          {currentUser?.role === 'DEMO' ? (
+            <button
+              onClick={() => { window.location.href = window.location.pathname + '?account=zewd'; }}
+              title="Switch to Zewd Owner Account (Permanent Storage)"
+              style={{
+                backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                color: 'var(--accent-amber)',
+                border: '1px solid rgba(245, 158, 11, 0.4)',
+                padding: '6px 12px',
+                borderRadius: '6px',
+                fontSize: '0.75rem',
+                fontWeight: 800,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                cursor: 'pointer',
+                marginLeft: '8px'
+              }}
+            >
+              <span>👑 Switch to Zewd (Owner)</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => { window.location.href = window.location.pathname + '?account=demo'; }}
+              title="Switch to Ephemeral Public Demo (Temporary Guest)"
+              style={{
+                backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                color: 'var(--accent-emerald)',
+                border: '1px solid rgba(16, 185, 129, 0.4)',
+                padding: '6px 12px',
+                borderRadius: '6px',
+                fontSize: '0.75rem',
+                fontWeight: 800,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                cursor: 'pointer',
+                marginLeft: '8px'
+              }}
+            >
+              <span>🎭 Switch to Demo</span>
+            </button>
+          )}
         </div>
       </div>
 

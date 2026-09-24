@@ -206,37 +206,78 @@ const getInitialData = <T,>(key: string, defaultValue: T): T => {
   return defaultValue;
 };
 
+const isZewdAccount = (): boolean => {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const acc = (params.get('account') || params.get('role') || params.get('user') || '').trim().toLowerCase();
+    return acc === 'zewd';
+  } catch (e) {
+    return false;
+  }
+};
+
 export const App: React.FC = () => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const initialIsZewd = isZewdAccount();
+
+  const [currentUser, setCurrentUser] = useState<User>(() => {
+    if (initialIsZewd) {
+      const res = authService.login('zewd', 'zewd123');
+      if (res.success && res.user) return res.user;
+    }
+    return authService.loginAsDemo();
+  });
+
   const [adminMode, setAdminMode] = useState<'CONSOLE' | 'INSPECT'>('INSPECT');
 
-  const [projects, setProjects] = useState<Project[]>(() => getInitialData('projects', INITIAL_PROJECTS));
+  const [projects, setProjects] = useState<Project[]>(() => {
+    return initialIsZewd ? getInitialData('projects', INITIAL_PROJECTS) : INITIAL_PROJECTS;
+  });
   
   const [activeProjectId, setActiveProjectId] = useState<number>(() => {
-    const savedId = getInitialData<number | null>('active_project_id', null);
-    const loadedProjects = getInitialData<Project[]>('projects', INITIAL_PROJECTS);
-    if (savedId && loadedProjects.some(p => p.id === savedId)) {
-      return savedId;
+    if (initialIsZewd) {
+      const savedId = getInitialData<number | null>('active_project_id', null);
+      const loadedProjects = getInitialData<Project[]>('projects', INITIAL_PROJECTS);
+      if (savedId && loadedProjects.some(p => p.id === savedId)) {
+        return savedId;
+      }
     }
-    return loadedProjects[0]?.id || INITIAL_PROJECTS[0].id;
+    return INITIAL_PROJECTS[0].id;
   });
 
-  const [allTrackers, setAllTrackers] = useState<Tracker[]>(() => getInitialData('trackers', INITIAL_TRACKERS));
+  const [allTrackers, setAllTrackers] = useState<Tracker[]>(() => {
+    return initialIsZewd ? getInitialData('trackers', INITIAL_TRACKERS) : INITIAL_TRACKERS;
+  });
   
   const [selectedTrackerId, setSelectedTrackerId] = useState<number | null>(() => {
-    const savedId = getInitialData<number | null>('selected_tracker_id', null);
-    const loadedTrackers = getInitialData<Tracker[]>('trackers', INITIAL_TRACKERS);
-    if (savedId && loadedTrackers.some(t => t.id === savedId)) {
-      return savedId;
+    if (initialIsZewd) {
+      const savedId = getInitialData<number | null>('selected_tracker_id', null);
+      const loadedTrackers = getInitialData<Tracker[]>('trackers', INITIAL_TRACKERS);
+      if (savedId && loadedTrackers.some(t => t.id === savedId)) {
+        return savedId;
+      }
     }
-    return loadedTrackers[0]?.id || INITIAL_TRACKERS[0].id;
+    return INITIAL_TRACKERS[0].id;
   });
 
-  const [allFolders, setAllFolders] = useState<Folder[]>(() => getInitialData('folders', INITIAL_FOLDERS));
-  const [allObjects, setAllObjects] = useState<EngineeringObject[]>(() => getInitialData('objects', INITIAL_OBJECTS));
-  const [relationships, setRelationships] = useState<Relationship[]>(() => getInitialData('relationships', INITIAL_RELATIONSHIPS));
-  const [testSteps, setTestSteps] = useState<TestStep[]>(() => getInitialData('test_steps', INITIAL_TEST_STEPS));
-  const [artifacts, setArtifacts] = useState<Artifact[]>(() => getInitialData('artifacts', INITIAL_ARTIFACTS));
+  const [allFolders, setAllFolders] = useState<Folder[]>(() => {
+    return initialIsZewd ? getInitialData('folders', INITIAL_FOLDERS) : INITIAL_FOLDERS;
+  });
+
+  const [allObjects, setAllObjects] = useState<EngineeringObject[]>(() => {
+    return initialIsZewd ? getInitialData('objects', INITIAL_OBJECTS) : INITIAL_OBJECTS;
+  });
+
+  const [relationships, setRelationships] = useState<Relationship[]>(() => {
+    return initialIsZewd ? getInitialData('relationships', INITIAL_RELATIONSHIPS) : INITIAL_RELATIONSHIPS;
+  });
+
+  const [testSteps, setTestSteps] = useState<TestStep[]>(() => {
+    return initialIsZewd ? getInitialData('test_steps', INITIAL_TEST_STEPS) : INITIAL_TEST_STEPS;
+  });
+
+  const [artifacts, setArtifacts] = useState<Artifact[]>(() => {
+    return initialIsZewd ? getInitialData('artifacts', INITIAL_ARTIFACTS) : INITIAL_ARTIFACTS;
+  });
   
   const [activeView, setActiveView] = useState<ViewMode>('DASHBOARD');
   const [searchQuery, setSearchQuery] = useState('');
@@ -249,13 +290,27 @@ export const App: React.FC = () => {
       const acc = params.get('account') || params.get('role') || params.get('user');
       if (acc) {
         const clean = acc.trim().toLowerCase();
-        if (clean === 'demo') {
+        if (clean === 'demo' && currentUser.role !== 'DEMO') {
           const u = authService.loginAsDemo();
           setCurrentUser(u);
-        } else if (clean === 'zewd') {
+          setProjects(INITIAL_PROJECTS);
+          setAllTrackers(INITIAL_TRACKERS);
+          setAllFolders(INITIAL_FOLDERS);
+          setAllObjects(INITIAL_OBJECTS);
+          setRelationships(INITIAL_RELATIONSHIPS);
+          setTestSteps(INITIAL_TEST_STEPS);
+          setArtifacts(INITIAL_ARTIFACTS);
+        } else if (clean === 'zewd' && currentUser.role !== 'ADMIN_OWNER') {
           const res = authService.login('zewd', 'zewd123');
           if (res.success && res.user) {
             setCurrentUser(res.user);
+            setProjects(getInitialData('projects', INITIAL_PROJECTS));
+            setAllTrackers(getInitialData('trackers', INITIAL_TRACKERS));
+            setAllFolders(getInitialData('folders', INITIAL_FOLDERS));
+            setAllObjects(getInitialData('objects', INITIAL_OBJECTS));
+            setRelationships(getInitialData('relationships', INITIAL_RELATIONSHIPS));
+            setTestSteps(getInitialData('test_steps', INITIAL_TEST_STEPS));
+            setArtifacts(getInitialData('artifacts', INITIAL_ARTIFACTS));
             setAdminMode('INSPECT');
           }
         }
@@ -263,32 +318,14 @@ export const App: React.FC = () => {
     } catch (e) {
       console.error('URL account parameter error:', e);
     }
-  }, []);
-
-  // Handle Demo reset on tab load/refresh or demo login
-  useEffect(() => {
-    if (currentUser?.role === 'DEMO') {
-      const isDemoActive = sessionStorage.getItem('roboserv_demo_active');
-      if (!isDemoActive) {
-        sessionStorage.setItem('roboserv_demo_active', 'true');
-        setProjects(INITIAL_PROJECTS);
-        setAllTrackers(INITIAL_TRACKERS);
-        setAllFolders(INITIAL_FOLDERS);
-        setAllObjects(INITIAL_OBJECTS);
-        setRelationships(INITIAL_RELATIONSHIPS);
-        setTestSteps(INITIAL_TEST_STEPS);
-        setArtifacts(INITIAL_ARTIFACTS);
-        setActiveProjectId(INITIAL_PROJECTS[0].id);
-        setSelectedTrackerId(INITIAL_TRACKERS[0].id);
-      }
-    }
   }, [currentUser]);
 
   const handleLogout = () => {
-    authService.logout();
-    sessionStorage.removeItem('roboserv_demo_active');
-    setCurrentUser(null);
-    setAdminMode('INSPECT');
+    if (currentUser?.role === 'ADMIN_OWNER') {
+      window.location.href = window.location.pathname + '?account=demo';
+    } else {
+      window.location.href = window.location.pathname + '?account=zewd';
+    }
   };
 
   const handleSelectProjectToInspect = (p: Project) => {
@@ -297,8 +334,10 @@ export const App: React.FC = () => {
   };
 
   const refreshAuthData = () => {
-    setProjects(getInitialData('projects', INITIAL_PROJECTS));
-    setAllTrackers(getInitialData('trackers', INITIAL_TRACKERS));
+    if (currentUser?.role === 'ADMIN_OWNER') {
+      setProjects(getInitialData('projects', INITIAL_PROJECTS));
+      setAllTrackers(getInitialData('trackers', INITIAL_TRACKERS));
+    }
   };
 
   // Derived state: User Accessible Projects, Active Project & Active Trackers
@@ -317,16 +356,17 @@ export const App: React.FC = () => {
 
   const selectedTracker = currentTrackers.find(t => t.id === selectedTrackerId) || currentTrackers[0] || null;
 
-  // Auto-persist state to localStorage on any modification
-  useEffect(() => { localStorage.setItem('roboserv_elm_projects', JSON.stringify(projects)); }, [projects]);
-  useEffect(() => { localStorage.setItem('roboserv_elm_active_project_id', JSON.stringify(activeProjectId)); }, [activeProjectId]);
-  useEffect(() => { localStorage.setItem('roboserv_elm_trackers', JSON.stringify(allTrackers)); }, [allTrackers]);
-  useEffect(() => { localStorage.setItem('roboserv_elm_selected_tracker_id', JSON.stringify(selectedTracker?.id || null)); }, [selectedTracker]);
-  useEffect(() => { localStorage.setItem('roboserv_elm_folders', JSON.stringify(allFolders)); }, [allFolders]);
-  useEffect(() => { localStorage.setItem('roboserv_elm_objects', JSON.stringify(allObjects)); }, [allObjects]);
-  useEffect(() => { localStorage.setItem('roboserv_elm_relationships', JSON.stringify(relationships)); }, [relationships]);
-  useEffect(() => { localStorage.setItem('roboserv_elm_test_steps', JSON.stringify(testSteps)); }, [testSteps]);
-  useEffect(() => { localStorage.setItem('roboserv_elm_artifacts', JSON.stringify(artifacts)); }, [artifacts]);
+  // STRICT RULE: Auto-persist state to localStorage ONLY for Zewd (ADMIN_OWNER) account.
+  // Ephemeral Demo users NEVER save or store any data to localStorage!
+  useEffect(() => { if (currentUser?.role === 'ADMIN_OWNER') localStorage.setItem('roboserv_elm_projects', JSON.stringify(projects)); }, [projects, currentUser]);
+  useEffect(() => { if (currentUser?.role === 'ADMIN_OWNER') localStorage.setItem('roboserv_elm_active_project_id', JSON.stringify(activeProjectId)); }, [activeProjectId, currentUser]);
+  useEffect(() => { if (currentUser?.role === 'ADMIN_OWNER') localStorage.setItem('roboserv_elm_trackers', JSON.stringify(allTrackers)); }, [allTrackers, currentUser]);
+  useEffect(() => { if (currentUser?.role === 'ADMIN_OWNER') localStorage.setItem('roboserv_elm_selected_tracker_id', JSON.stringify(selectedTracker?.id || null)); }, [selectedTracker, currentUser]);
+  useEffect(() => { if (currentUser?.role === 'ADMIN_OWNER') localStorage.setItem('roboserv_elm_folders', JSON.stringify(allFolders)); }, [allFolders, currentUser]);
+  useEffect(() => { if (currentUser?.role === 'ADMIN_OWNER') localStorage.setItem('roboserv_elm_objects', JSON.stringify(allObjects)); }, [allObjects, currentUser]);
+  useEffect(() => { if (currentUser?.role === 'ADMIN_OWNER') localStorage.setItem('roboserv_elm_relationships', JSON.stringify(relationships)); }, [relationships, currentUser]);
+  useEffect(() => { if (currentUser?.role === 'ADMIN_OWNER') localStorage.setItem('roboserv_elm_test_steps', JSON.stringify(testSteps)); }, [testSteps, currentUser]);
+  useEffect(() => { if (currentUser?.role === 'ADMIN_OWNER') localStorage.setItem('roboserv_elm_artifacts', JSON.stringify(artifacts)); }, [artifacts, currentUser]);
 
   const handleSelectProject = (p: Project) => {
     setActiveProjectId(p.id);
