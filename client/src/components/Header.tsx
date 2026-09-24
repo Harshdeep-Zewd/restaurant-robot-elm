@@ -127,29 +127,6 @@ export const Header: React.FC<HeaderProps> = ({
           <span>RoboServ ELM</span>
         </div>
 
-        {/* Admin Command Center Return Button */}
-        {currentUser?.role === 'ADMIN_OWNER' && onOpenAdminConsole && (
-          <button
-            onClick={onOpenAdminConsole}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              backgroundColor: 'rgba(245, 158, 11, 0.15)',
-              color: 'var(--accent-amber)',
-              border: '1px solid rgba(245, 158, 11, 0.4)',
-              padding: '6px 12px',
-              borderRadius: '6px',
-              fontSize: '0.8rem',
-              fontWeight: 800,
-              cursor: 'pointer'
-            }}
-          >
-            <ShieldCheck size={16} />
-            <span>👑 Admin Command Center</span>
-          </button>
-        )}
-
         {/* Project Selector Dropdown */}
         <div style={{ position: 'relative' }}>
           <button
@@ -336,55 +313,11 @@ export const Header: React.FC<HeaderProps> = ({
             <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>
               {currentUser?.name || 'Zewd'}
             </div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              {currentUser?.role === 'ADMIN_OWNER' && <span style={{ color: 'var(--accent-amber)', fontWeight: 800 }}>👑 Zewd (Owner) • Storage Saved</span>}
-              {currentUser?.role === 'DEMO' && <span style={{ color: 'var(--accent-emerald)', fontWeight: 800 }}>🎭 Public Demo • Ephemeral</span>}
+            <div style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+              {currentUser?.role === 'ADMIN_OWNER' && <span style={{ color: 'var(--accent-amber)', fontWeight: 800 }}>👑 Zewd (Owner)</span>}
+              {currentUser?.role === 'DEMO' && <span style={{ color: 'var(--accent-emerald)', fontWeight: 800 }}>🎭 Public Demo</span>}
             </div>
           </div>
-
-          {currentUser?.role === 'DEMO' ? (
-            <button
-              onClick={() => { window.location.href = window.location.pathname + '?account=zewd'; }}
-              title="Switch to Zewd Owner Account (Permanent Storage)"
-              style={{
-                backgroundColor: 'rgba(245, 158, 11, 0.15)',
-                color: 'var(--accent-amber)',
-                border: '1px solid rgba(245, 158, 11, 0.4)',
-                padding: '6px 12px',
-                borderRadius: '6px',
-                fontSize: '0.75rem',
-                fontWeight: 800,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                cursor: 'pointer',
-                marginLeft: '8px'
-              }}
-            >
-              <span>👑 Switch to Zewd (Owner)</span>
-            </button>
-          ) : (
-            <button
-              onClick={() => { window.location.href = window.location.pathname + '?account=demo'; }}
-              title="Switch to Ephemeral Public Demo (Temporary Guest)"
-              style={{
-                backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                color: 'var(--accent-emerald)',
-                border: '1px solid rgba(16, 185, 129, 0.4)',
-                padding: '6px 12px',
-                borderRadius: '6px',
-                fontSize: '0.75rem',
-                fontWeight: 800,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                cursor: 'pointer',
-                marginLeft: '8px'
-              }}
-            >
-              <span>🎭 Switch to Demo</span>
-            </button>
-          )}
         </div>
       </div>
 
