@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { Play, CheckCircle2, XCircle, AlertOctagon, HelpCircle, Plus, Activity, Layers, User, Settings, Check, X } from 'lucide-react';
-import { api } from '../api/client';
 import { TestRun, Project, EngineeringObject, TestStep, Relationship, User as UserType } from '../types/elm';
 
 interface TestExecutionViewProps {
@@ -9,6 +8,10 @@ interface TestExecutionViewProps {
   allObjects?: EngineeringObject[];
   testSteps?: TestStep[];
   relationships?: Relationship[];
+  testRuns?: TestRun[];
+  testRunDetailsMap?: Record<number, any>;
+  onUpdateTestRuns?: React.Dispatch<React.SetStateAction<TestRun[]>>;
+  onUpdateRunDetailsMap?: React.Dispatch<React.SetStateAction<Record<number, any>>>;
 }
 
 export const TestExecutionView: React.FC<TestExecutionViewProps> = ({
@@ -16,40 +19,14 @@ export const TestExecutionView: React.FC<TestExecutionViewProps> = ({
   activeProject,
   allObjects = [],
   testSteps = [],
-  relationships = []
+  relationships = [],
+  testRuns = [],
+  testRunDetailsMap = {},
+  onUpdateTestRuns,
+  onUpdateRunDetailsMap
 }) => {
-  const [runs, setRuns] = useState<TestRun[]>(() => {
-    if (currentUser?.role === 'ADMIN_OWNER') {
-      try {
-        const saved = localStorage.getItem('roboserv_elm_test_runs');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-        }
-      } catch (e) {
-        console.error('Failed to parse saved test runs:', e);
-      }
-    }
-    return [];
-  });
-
-  const [runDetailsMap, setRunDetailsMap] = useState<Record<number, any>>(() => {
-    if (currentUser?.role === 'ADMIN_OWNER') {
-      try {
-        const saved = localStorage.getItem('roboserv_elm_test_run_details');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (parsed && typeof parsed === 'object') return parsed;
-        }
-      } catch (e) {
-        console.error('Failed to parse saved test run details:', e);
-      }
-    }
-    return {};
-  });
-
   const [selectedRunId, setSelectedRunId] = useState<number | null>(() => {
-    return runs.length > 0 ? runs[0].id : null;
+    return testRuns.length > 0 ? testRuns[0].id : null;
   });
   
   // New Test Run Modal State
@@ -64,79 +41,26 @@ export const TestExecutionView: React.FC<TestExecutionViewProps> = ({
   const availableTestSets = allObjects.filter(o => o.type === 'TEST_SET');
   const availableTestCases = allObjects.filter(o => o.type === 'TEST_CASE');
 
-  // Auto-persist test runs and step execution details for Zewd (ADMIN_OWNER) account
+  // Sync selected run ID when runs list changes
   useEffect(() => {
-    if (currentUser?.role === 'ADMIN_OWNER' && runs.length > 0) {
-      localStorage.setItem('roboserv_elm_test_runs', JSON.stringify(runs));
-    }
-  }, [runs, currentUser]);
-
-  useEffect(() => {
-    if (currentUser?.role === 'ADMIN_OWNER' && Object.keys(runDetailsMap).length > 0) {
-      localStorage.setItem('roboserv_elm_test_run_details', JSON.stringify(runDetailsMap));
-    }
-  }, [runDetailsMap, currentUser]);
-
-  useEffect(() => {
-    if (runs.length === 0) {
-      loadRuns();
-    } else if (!selectedRunId) {
-      setSelectedRunId(runs[0].id);
-      loadRunDetail(runs[0].id);
-    }
-  }, []);
-
-  const loadRuns = async () => {
-    try {
-      const data = await api.getTestRuns();
-      if (Array.isArray(data) && data.length > 0) {
-        setRuns(data);
-        if (!selectedRunId) {
-          setSelectedRunId(data[0].id);
-          loadRunDetail(data[0].id);
-        }
-      } else {
-        // Fallback default run if server returns empty
-        const defaultRun: TestRun = {
-          id: 1,
-          project_id: activeProject?.id || 1,
-          test_set_id: availableTestSets[0]?.id || 9,
-          test_config_id: 1,
-          name: 'Safety & ISO 13482 Validation Run #1',
-          overall_status: 'PASS',
-          tester_name: currentUser?.name || 'Zewd',
-          test_set_key: availableTestSets[0]?.object_key || 'TST-SET-001',
-          test_set_title: availableTestSets[0]?.title || 'Safety & ISO 13482 Validation Test Set',
-          config_name: 'RoboServ-X1 Main Hardware Configuration',
-          software_version: 'v2.4.0-release',
-          started_at: new Date().toISOString()
-        };
-        setRuns([defaultRun]);
-        setSelectedRunId(defaultRun.id);
-        loadRunDetail(defaultRun.id);
+    if (testRuns.length > 0) {
+      if (!selectedRunId || !testRuns.some(r => r.id === selectedRunId)) {
+        setSelectedRunId(testRuns[0].id);
       }
-    } catch (e) {
-      console.error('Failed to load test runs:', e);
+    } else {
+      setSelectedRunId(null);
     }
-  };
+  }, [testRuns, selectedRunId]);
 
-  const loadRunDetail = async (runId: number) => {
-    if (runDetailsMap[runId]) return;
-    try {
-      const detail = await api.getTestRunDetail(runId);
-      if (detail && !detail.error) {
-        setRunDetailsMap(prev => ({ ...prev, [runId]: detail }));
-      } else {
-        // Build mock detail if server endpoint fallback
-        buildMockRunDetail(runId);
-      }
-    } catch (e) {
-      buildMockRunDetail(runId);
+  // Dynamically build detail if a run exists but has no entry in map
+  useEffect(() => {
+    if (selectedRunId && !testRunDetailsMap[selectedRunId]) {
+      buildMockRunDetail(selectedRunId);
     }
-  };
+  }, [selectedRunId, testRunDetailsMap]);
 
   const buildMockRunDetail = (runId: number) => {
-    const targetRun = runs.find(r => r.id === runId);
+    const targetRun = testRuns.find(r => r.id === runId);
     
     // Find test cases included in the test set via relationships or default
     let includedCases = availableTestCases;
@@ -182,11 +106,13 @@ export const TestExecutionView: React.FC<TestExecutionViewProps> = ({
       caseResults
     };
 
-    setRunDetailsMap(prev => ({ ...prev, [runId]: detailObj }));
+    if (onUpdateRunDetailsMap) {
+      onUpdateRunDetailsMap(prev => ({ ...prev, [runId]: detailObj }));
+    }
   };
 
   const handleOpenCreateModal = () => {
-    setNewRunName(`Test Run #${runs.length + 1} - ${new Date().toLocaleDateString()}`);
+    setNewRunName(`Test Run #${testRuns.length + 1} - ${new Date().toLocaleDateString()}`);
     setSelectedTestSetId(availableTestSets[0]?.id || null);
     setTesterName(currentUser?.name || 'Zewd');
     setShowModal(true);
@@ -269,8 +195,12 @@ export const TestExecutionView: React.FC<TestExecutionViewProps> = ({
       caseResults
     };
 
-    setRuns(prev => [newRun, ...prev]);
-    setRunDetailsMap(prev => ({ ...prev, [newRunId]: detailObj }));
+    if (onUpdateTestRuns) {
+      onUpdateTestRuns(prev => [newRun, ...prev]);
+    }
+    if (onUpdateRunDetailsMap) {
+      onUpdateRunDetailsMap(prev => ({ ...prev, [newRunId]: detailObj }));
+    }
     setSelectedRunId(newRunId);
     setShowModal(false);
   };
@@ -283,7 +213,7 @@ export const TestExecutionView: React.FC<TestExecutionViewProps> = ({
   ) => {
     if (!selectedRunId) return;
 
-    const currentDetail = runDetailsMap[selectedRunId];
+    const currentDetail = testRunDetailsMap[selectedRunId];
     if (!currentDetail) return;
 
     const updatedCaseResults = currentDetail.caseResults.map((cr: any) => {
@@ -326,11 +256,15 @@ export const TestExecutionView: React.FC<TestExecutionViewProps> = ({
       caseResults: updatedCaseResults
     };
 
-    setRunDetailsMap(prev => ({ ...prev, [selectedRunId]: updatedDetail }));
-    setRuns(prev => prev.map(r => r.id === selectedRunId ? { ...r, overall_status: newOverallStatus as any } : r));
+    if (onUpdateRunDetailsMap) {
+      onUpdateRunDetailsMap(prev => ({ ...prev, [selectedRunId]: updatedDetail }));
+    }
+    if (onUpdateTestRuns) {
+      onUpdateTestRuns(prev => prev.map(r => r.id === selectedRunId ? { ...r, overall_status: newOverallStatus as any } : r));
+    }
   };
 
-  const activeRunDetail = selectedRunId ? runDetailsMap[selectedRunId] : null;
+  const activeRunDetail = selectedRunId ? testRunDetailsMap[selectedRunId] : null;
 
   return (
     <div style={{ display: 'flex', height: 'calc(100vh - 60px)', overflow: 'hidden' }}>
@@ -338,7 +272,7 @@ export const TestExecutionView: React.FC<TestExecutionViewProps> = ({
       <div style={{ width: '300px', borderRight: '1px solid var(--border-color)', backgroundColor: 'var(--bg-sidebar)', padding: '16px 12px', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
           <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-            Test Execution Runs ({runs.length})
+            Test Execution Runs ({testRuns.length})
           </span>
         </div>
 
@@ -368,13 +302,10 @@ export const TestExecutionView: React.FC<TestExecutionViewProps> = ({
 
         {/* Runs List */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, overflowY: 'auto' }}>
-          {runs.map((r) => (
+          {testRuns.map((r) => (
             <div
               key={r.id}
-              onClick={() => {
-                setSelectedRunId(r.id);
-                loadRunDetail(r.id);
-              }}
+              onClick={() => setSelectedRunId(r.id)}
               style={{
                 padding: '12px',
                 borderRadius: '8px',
@@ -702,4 +633,3 @@ export const TestExecutionView: React.FC<TestExecutionViewProps> = ({
     </div>
   );
 };
-

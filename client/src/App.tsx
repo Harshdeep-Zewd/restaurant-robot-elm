@@ -12,8 +12,9 @@ import { ArtifactsView } from './components/ArtifactsView';
 import { AuditView } from './components/AuditView';
 import { LoginView } from './components/LoginView';
 import { AdminConsoleView } from './components/AdminConsoleView';
-import { Project, Tracker, EngineeringObject, Folder, RequirementType, SafetyLevel, TestSubProcess, Relationship, TestStep, Artifact, User } from './types/elm';
+import { Project, Tracker, EngineeringObject, Folder, RequirementType, SafetyLevel, TestSubProcess, Relationship, TestStep, Artifact, User, TestRun } from './types/elm';
 import { authService } from './api/auth';
+
 
 const INITIAL_PROJECTS: Project[] = [
   {
@@ -196,6 +197,119 @@ const INITIAL_ARTIFACTS: Artifact[] = [
   }
 ];
 
+const INITIAL_TEST_RUNS: TestRun[] = [
+  {
+    id: 1,
+    project_id: 1,
+    test_set_id: 9,
+    test_config_id: 1,
+    name: 'Safety & ISO 13482 Validation Run #1',
+    overall_status: 'PASS',
+    tester_name: 'Zewd',
+    test_set_key: 'TST-SET-001',
+    test_set_title: 'Safety & ISO 13482 Validation Test Set',
+    config_name: 'RoboServ-X1 Main Hardware Configuration',
+    software_version: 'v2.4.0-release',
+    started_at: new Date().toISOString()
+  }
+];
+
+const INITIAL_TEST_RUN_DETAILS: Record<number, any> = {
+  1: {
+    id: 1,
+    name: 'Safety & ISO 13482 Validation Run #1',
+    test_set_key: 'TST-SET-001',
+    test_set_title: 'Safety & ISO 13482 Validation Test Set',
+    config_name: 'RoboServ-X1 Main Hardware Configuration',
+    software_version: 'v2.4.0-release',
+    tester_name: 'Zewd',
+    overall_status: 'PASS',
+    caseResults: [
+      {
+        id: 107,
+        test_run_id: 1,
+        test_case_id: 7,
+        case_key: 'SYS-TST-001',
+        case_title: 'Dynamic Pedestrian Avoidance & Latency Test',
+        status: 'PASS',
+        steps: [
+          {
+            id: 101,
+            test_run_result_id: 107,
+            test_step_id: 1,
+            step_number: 1,
+            action: 'Initialize ROS2 Iron Nav2 stack and load 3D LiDAR point cloud costmap in restaurant dining room environment.',
+            expected_result: 'Costmap initializes cleanly with zero collision flags and steady 20Hz update rate.',
+            status: 'PASS',
+            actual_result: 'Costmap initialized cleanly at 20Hz. Zero initial collision flags detected.'
+          },
+          {
+            id: 102,
+            test_run_result_id: 107,
+            test_step_id: 2,
+            step_number: 2,
+            action: 'Trigger dynamic pedestrian obstacle walking across robot path at 1.0 m/s velocity at a 2.5 meter range.',
+            expected_result: 'Local DWB trajectory planner computes collision-free evasion path within < 50 milliseconds.',
+            status: 'PASS',
+            actual_result: 'Local DWB trajectory planner calculated evasion path in 38ms (< 50ms requirement).'
+          },
+          {
+            id: 103,
+            test_run_result_id: 107,
+            test_step_id: 3,
+            step_number: 3,
+            action: 'Monitor robot velocity and trajectory during local bypass maneuver.',
+            expected_result: 'Robot maintains smooth velocity profile (> 0.5 m/s) without erratic oscillation or emergency brake locking.',
+            status: 'PASS',
+            actual_result: 'Bypass maneuver maintained steady velocity profile of 0.85 m/s without oscillation.'
+          }
+        ]
+      },
+      {
+        id: 108,
+        test_run_id: 1,
+        test_case_id: 8,
+        case_key: 'SYS-TST-002',
+        case_title: 'Emergency Stop Braking Distance Field Test',
+        status: 'PASS',
+        steps: [
+          {
+            id: 104,
+            test_run_result_id: 108,
+            test_step_id: 4,
+            step_number: 1,
+            action: 'Accelerate RoboServ-X1 robot base to maximum cruising speed of 1.5 m/s on dry tile flooring.',
+            expected_result: 'Base wheel encoders confirm steady 1.5 m/s cruising velocity.',
+            status: 'PASS',
+            actual_result: 'Base encoders confirmed steady 1.50 m/s velocity on test track.'
+          },
+          {
+            id: 105,
+            test_run_result_id: 108,
+            test_step_id: 5,
+            step_number: 2,
+            action: 'Trigger emergency stop hardware break signal via wireless e-stop safety button.',
+            expected_result: 'Power relay opens instantly, killing motor drive power and engaging electromechanical brakes.',
+            status: 'PASS',
+            actual_result: 'E-stop relay opened in < 2ms, electromechanical brakes engaged.'
+          },
+          {
+            id: 106,
+            test_run_result_id: 108,
+            test_step_id: 6,
+            step_number: 3,
+            action: 'Measure total physical stopping distance from brake trigger location using optical ground tracking sensor.',
+            expected_result: 'Total measured stopping distance is strictly <= 0.35 meters.',
+            status: 'PASS',
+            actual_result: 'Measured stopping distance was 0.28 meters (passed <= 0.35m threshold).'
+          }
+        ]
+      }
+    ]
+  }
+};
+
+
 const getInitialData = <T,>(key: string, defaultValue: T): T => {
   try {
     const saved = localStorage.getItem(`roboserv_elm_${key}`);
@@ -278,6 +392,14 @@ export const App: React.FC = () => {
   const [artifacts, setArtifacts] = useState<Artifact[]>(() => {
     return initialIsZewd ? getInitialData('artifacts', INITIAL_ARTIFACTS) : INITIAL_ARTIFACTS;
   });
+
+  const [testRuns, setTestRuns] = useState<TestRun[]>(() => {
+    return initialIsZewd ? getInitialData('test_runs', INITIAL_TEST_RUNS) : INITIAL_TEST_RUNS;
+  });
+
+  const [testRunDetailsMap, setTestRunDetailsMap] = useState<Record<number, any>>(() => {
+    return initialIsZewd ? getInitialData('test_run_details', INITIAL_TEST_RUN_DETAILS) : INITIAL_TEST_RUN_DETAILS;
+  });
   
   const [activeView, setActiveView] = useState<ViewMode>('DASHBOARD');
   const [searchQuery, setSearchQuery] = useState('');
@@ -300,6 +422,8 @@ export const App: React.FC = () => {
           setRelationships(INITIAL_RELATIONSHIPS);
           setTestSteps(INITIAL_TEST_STEPS);
           setArtifacts(INITIAL_ARTIFACTS);
+          setTestRuns(INITIAL_TEST_RUNS);
+          setTestRunDetailsMap(INITIAL_TEST_RUN_DETAILS);
         } else if (clean === 'zewd' && currentUser.role !== 'ADMIN_OWNER') {
           const res = authService.login('zewd', 'zewd123');
           if (res.success && res.user) {
@@ -311,6 +435,8 @@ export const App: React.FC = () => {
             setRelationships(getInitialData('relationships', INITIAL_RELATIONSHIPS));
             setTestSteps(getInitialData('test_steps', INITIAL_TEST_STEPS));
             setArtifacts(getInitialData('artifacts', INITIAL_ARTIFACTS));
+            setTestRuns(getInitialData('test_runs', INITIAL_TEST_RUNS));
+            setTestRunDetailsMap(getInitialData('test_run_details', INITIAL_TEST_RUN_DETAILS));
             setAdminMode('INSPECT');
           }
         }
@@ -337,6 +463,8 @@ export const App: React.FC = () => {
     if (currentUser?.role === 'ADMIN_OWNER') {
       setProjects(getInitialData('projects', INITIAL_PROJECTS));
       setAllTrackers(getInitialData('trackers', INITIAL_TRACKERS));
+      setTestRuns(getInitialData('test_runs', INITIAL_TEST_RUNS));
+      setTestRunDetailsMap(getInitialData('test_run_details', INITIAL_TEST_RUN_DETAILS));
     }
   };
 
@@ -367,6 +495,9 @@ export const App: React.FC = () => {
   useEffect(() => { if (currentUser?.role === 'ADMIN_OWNER') localStorage.setItem('roboserv_elm_relationships', JSON.stringify(relationships)); }, [relationships, currentUser]);
   useEffect(() => { if (currentUser?.role === 'ADMIN_OWNER') localStorage.setItem('roboserv_elm_test_steps', JSON.stringify(testSteps)); }, [testSteps, currentUser]);
   useEffect(() => { if (currentUser?.role === 'ADMIN_OWNER') localStorage.setItem('roboserv_elm_artifacts', JSON.stringify(artifacts)); }, [artifacts, currentUser]);
+  useEffect(() => { if (currentUser?.role === 'ADMIN_OWNER') localStorage.setItem('roboserv_elm_test_runs', JSON.stringify(testRuns)); }, [testRuns, currentUser]);
+  useEffect(() => { if (currentUser?.role === 'ADMIN_OWNER') localStorage.setItem('roboserv_elm_test_run_details', JSON.stringify(testRunDetailsMap)); }, [testRunDetailsMap, currentUser]);
+
 
   const handleSelectProject = (p: Project) => {
     setActiveProjectId(p.id);
@@ -769,6 +900,10 @@ export const App: React.FC = () => {
               allObjects={allObjects}
               testSteps={testSteps}
               relationships={relationships}
+              testRuns={testRuns}
+              testRunDetailsMap={testRunDetailsMap}
+              onUpdateTestRuns={setTestRuns}
+              onUpdateRunDetailsMap={setTestRunDetailsMap}
             />
           )}
 
