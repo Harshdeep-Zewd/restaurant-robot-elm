@@ -1,21 +1,29 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { ShieldAlert, AlertTriangle, ShieldCheck, FileText } from 'lucide-react';
-import { api } from '../api/client';
+import { EngineeringObject, Tracker, Project } from '../types/elm';
 
-export const RisksMatrixView: React.FC = () => {
-  const [risks, setRisks] = useState<any[]>([]);
+interface RisksMatrixViewProps {
+  activeProject?: Project | null;
+  currentTrackers?: Tracker[];
+  allObjects?: EngineeringObject[];
+}
 
-  useEffect(() => {
-    // Fetch risks from tracker #4
-    api.getObjects(4).then(setRisks).catch(console.error);
-  }, []);
+export const RisksMatrixView: React.FC<RisksMatrixViewProps> = ({
+  activeProject,
+  currentTrackers = [],
+  allObjects = []
+}) => {
+  const currentTrackerIds = currentTrackers.map(t => t.id);
+  const projectRisks = allObjects.filter(
+    o => currentTrackerIds.includes(o.tracker_id) && (o.type === 'RISK' || o.object_key.includes('RISK'))
+  );
 
   return (
     <div style={{ padding: '24px', overflowY: 'auto', height: 'calc(100vh - 60px)' }}>
       <div style={{ marginBottom: '24px' }}>
         <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Risk & Hazard Management</h1>
         <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-          Structured hazard analysis, Risk Score Matrix (Severity x Exposure x Avoidance), and requirement mitigations
+          Project: <strong>[{activeProject?.key}] {activeProject?.name}</strong> • Risk Score Matrix (Severity x Exposure x Avoidance)
         </p>
       </div>
 
@@ -51,27 +59,37 @@ export const RisksMatrixView: React.FC = () => {
 
         {/* Risk Summary */}
         <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '20px' }}>
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '16px' }}>Active Hazard Register</h2>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '16px' }}>
+            Active Hazard Register ({projectRisks.length})
+          </h2>
 
-          {risks.map((risk) => {
-            const meta = risk.metadata || {};
-            return (
-              <div key={risk.id} style={{ backgroundColor: 'var(--bg-dark)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '14px', marginBottom: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span className="mono" style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-cyan)' }}>{risk.object_key}</span>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-amber)', backgroundColor: 'rgba(245, 158, 11, 0.15)', padding: '2px 8px', borderRadius: '6px' }}>
-                    Risk Rating: {meta.riskRating || 60}
-                  </span>
-                </div>
-                <div style={{ fontSize: '0.9rem', fontWeight: 600, marginTop: '6px' }}>{risk.title}</div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>{risk.description}</div>
+          {projectRisks.length > 0 ? (
+            projectRisks.map((risk) => {
+              const meta = risk.metadata || {};
+              return (
+                <div key={risk.id} style={{ backgroundColor: 'var(--bg-dark)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '14px', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span className="mono" style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-cyan)' }}>{risk.object_key}</span>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-amber)', backgroundColor: 'rgba(245, 158, 11, 0.15)', padding: '2px 8px', borderRadius: '6px' }}>
+                      Risk Rating: {meta.riskRating || 60}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.9rem', fontWeight: 600, marginTop: '6px' }}>{risk.title}</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>{risk.description}</div>
 
-                <div style={{ fontSize: '0.75rem', color: 'var(--accent-emerald)', marginTop: '8px', borderTop: '1px dashed var(--border-color)', paddingTop: '6px' }}>
-                  <strong>Mitigation:</strong> {meta.mitigation || 'SYS-REQ-001 & SYS-REQ-002'}
+                  {meta.mitigation && (
+                    <div style={{ fontSize: '0.75rem', color: 'var(--accent-emerald)', marginTop: '8px', borderTop: '1px dashed var(--border-color)', paddingTop: '6px' }}>
+                      <strong>Mitigation:</strong> {meta.mitigation}
+                    </div>
+                  )}
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          ) : (
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'center', padding: '40px 10px' }}>
+              No Risk & Hazard objects created in <strong>{activeProject?.name}</strong> yet.
+            </div>
+          )}
         </div>
       </div>
     </div>

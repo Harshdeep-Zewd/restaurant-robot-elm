@@ -853,7 +853,13 @@ export const App: React.FC = () => {
 
         <main style={{ flex: 1, overflow: 'hidden' }}>
           {activeView === 'DASHBOARD' && (
-            <DashboardView project={activeProject} onNavigate={handleNavigate} trackers={currentTrackers} />
+            <DashboardView
+              project={activeProject}
+              onNavigate={handleNavigate}
+              trackers={currentTrackers}
+              allObjects={allObjects}
+              testRuns={testRuns}
+            />
           )}
 
           {activeView === 'TRACKER' && selectedTracker && (
@@ -897,6 +903,7 @@ export const App: React.FC = () => {
             <TestExecutionView
               currentUser={currentUser}
               activeProject={activeProject}
+              currentTrackers={currentTrackers}
               allObjects={allObjects}
               testSteps={testSteps}
               relationships={relationships}
@@ -908,7 +915,11 @@ export const App: React.FC = () => {
           )}
 
           {activeView === 'RISK_MATRIX' && (
-            <RisksMatrixView />
+            <RisksMatrixView
+              activeProject={activeProject}
+              currentTrackers={currentTrackers}
+              allObjects={allObjects}
+            />
           )}
 
           {activeView === 'BASELINES' && (

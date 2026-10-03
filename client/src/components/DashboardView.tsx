@@ -1,25 +1,31 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { ShieldAlert, CheckCircle2, AlertTriangle, Layers, Activity, FolderArchive, ArrowUpRight } from 'lucide-react';
-import { api } from '../api/client';
 import { ViewMode } from './Sidebar';
-import { Project, Tracker } from '../types/elm';
+import { Project, Tracker, EngineeringObject, TestRun } from '../types/elm';
 
 interface DashboardViewProps {
   project: Project;
   onNavigate: (view: ViewMode, tracker?: Tracker) => void;
   trackers: Tracker[];
+  allObjects?: EngineeringObject[];
+  testRuns?: TestRun[];
 }
 
-export const DashboardView: React.FC<DashboardViewProps> = ({ project, onNavigate, trackers }) => {
-  const [coverage, setCoverage] = useState<any>(null);
-  const [runs, setRuns] = useState<any[]>([]);
-  const [baselines, setBaselines] = useState<any[]>([]);
+export const DashboardView: React.FC<DashboardViewProps> = ({
+  project,
+  onNavigate,
+  trackers,
+  allObjects = [],
+  testRuns = []
+}) => {
+  const currentTrackerIds = trackers.map(t => t.id);
+  const projectObjects = allObjects.filter(o => currentTrackerIds.includes(o.tracker_id));
+  const reqs = projectObjects.filter(o => o.type === 'REQUIREMENT');
+  const testCases = projectObjects.filter(o => o.type === 'TEST_CASE');
+  const risks = projectObjects.filter(o => o.type === 'RISK' || o.object_key.includes('RISK'));
+  const pRuns = testRuns.filter(r => r.project_id === project.id);
 
-  useEffect(() => {
-    api.getTraceabilityCoverage(1).then(setCoverage).catch(console.error);
-    api.getTestRuns().then(setRuns).catch(console.error);
-    api.getBaselines().then(setBaselines).catch(console.error);
-  }, []);
+  const latestRun = pRuns.length > 0 ? pRuns[0] : null;
 
   return (
     <div style={{ padding: '24px', overflowY: 'auto', height: 'calc(100vh - 60px)' }}>
@@ -29,7 +35,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ project, onNavigat
             {project.name}
           </h1>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            {project.description || 'Systems Engineering Lifecycle Management & ISO 13482 Safety Compliance Workspace'}
+            {project.description || 'Systems Engineering Lifecycle Management Workspace'}
           </p>
         </div>
 
@@ -80,10 +86,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ project, onNavigat
             <CheckCircle2 size={18} color="var(--accent-emerald)" />
           </div>
           <div style={{ fontSize: '1.8rem', fontWeight: 700, margin: '8px 0', color: 'var(--accent-emerald)' }}>
-            100%
+            {reqs.length > 0 ? (testCases.length > 0 ? '100%' : '50%') : '0%'}
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            All 3 System Requirements mapped to test cases
+            {reqs.length} Requirements & {testCases.length} Test Cases
           </div>
         </div>
 
@@ -93,10 +99,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ project, onNavigat
             <Activity size={18} color="var(--accent-cyan)" />
           </div>
           <div style={{ fontSize: '1.8rem', fontWeight: 700, margin: '8px 0', color: 'var(--accent-cyan)' }}>
-            {runs.length > 0 ? runs[0].overall_status : 'PASS'}
+            {latestRun ? latestRun.overall_status : '0 Runs'}
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            Latest Run: Safety Validation Run #1
+            {latestRun ? `Latest: ${latestRun.name}` : 'No Test Runs launched yet'}
           </div>
         </div>
 
@@ -106,32 +112,34 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ project, onNavigat
             <ShieldAlert size={18} color="var(--accent-amber)" />
           </div>
           <div style={{ fontSize: '1.8rem', fontWeight: 700, margin: '8px 0', color: 'var(--accent-amber)' }}>
-            2 / 2
+            {risks.length} Hazards
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            Collision & Liquid Spill hazards fully mitigated
+            {risks.length > 0 ? 'Hazards registered in Risk Matrix' : 'Zero hazards registered'}
           </div>
         </div>
 
         <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase' }}>
-            <span>Active Baseline</span>
+            <span>Active Trackers</span>
             <FolderArchive size={18} color="var(--accent-purple)" />
           </div>
-          <div style={{ fontSize: '1.2rem', fontWeight: 700, margin: '8px 0', color: 'var(--accent-purple)' }}>
-            {baselines.length > 0 ? baselines[0].version_tag : 'v1.0-safety'}
+          <div style={{ fontSize: '1.8rem', fontWeight: 700, margin: '8px 0', color: 'var(--accent-purple)' }}>
+            {trackers.length} Trackers
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            Safety Freeze V1.0 (ISO 13482 Audit)
+            Configured for {project.key} Workspace
           </div>
         </div>
       </div>
 
-      {/* Main Grid: Trackers List & Recent Activity */}
+      {/* Main Grid: Trackers List & Project Info */}
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
         {/* Trackers Grid */}
         <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '20px' }}>
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '16px' }}>Active Engineering Trackers</h2>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '16px' }}>
+            Active Trackers for [{project.key}] {project.name}
+          </h2>
           
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             {trackers.map((t) => (
@@ -151,19 +159,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ project, onNavigat
                 }}
               >
                 <div>
-                  <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--accent-cyan)' }}>{t.name}</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }} className="mono">
-                    Prefix: {t.prefix}
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-cyan)' }} className="mono">
+                    {t.prefix || t.key}
+                  </div>
+                  <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-main)', marginTop: '2px' }}>
+                    {t.name}
                   </div>
                 </div>
-                <div style={{
-                  fontSize: '1.1rem',
-                  fontWeight: 700,
-                  backgroundColor: 'rgba(56, 189, 248, 0.1)',
-                  padding: '4px 10px',
-                  borderRadius: '6px',
-                  color: 'var(--accent-cyan)'
-                }}>
+                <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-muted)' }}>
                   {t.object_count || 0}
                 </div>
               </div>
@@ -171,25 +174,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ project, onNavigat
           </div>
         </div>
 
-        {/* Coverage & Audit Quick Summary */}
+        {/* Project Summary */}
         <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '20px' }}>
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '16px' }}>Verification & Audit Summary</h2>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ padding: '12px', backgroundColor: 'var(--bg-dark)', borderRadius: '8px', borderLeft: '4px solid var(--accent-emerald)' }}>
-              <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>Obstacle Avoidance Latency</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Verified by SYS-TST-001 (Pass: 34ms)</div>
-            </div>
-
-            <div style={{ padding: '12px', backgroundColor: 'var(--bg-dark)', borderRadius: '8px', borderLeft: '4px solid var(--accent-emerald)' }}>
-              <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>Emergency Stop Braking Distance</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Verified by SYS-TST-002 (Pass: 0.284m)</div>
-            </div>
-
-            <div style={{ padding: '12px', backgroundColor: 'var(--bg-dark)', borderRadius: '8px', borderLeft: '4px solid var(--accent-amber)' }}>
-              <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>Change Request CR-001 under Review</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Affects SYS-REQ-001 and SW-REQ-001</div>
-            </div>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '12px' }}>Project Overview</h2>
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+            <p><strong>Project Key:</strong> <span className="mono">{project.key}</span></p>
+            <p style={{ marginTop: '8px' }}><strong>Total Objects:</strong> {projectObjects.length}</p>
+            <p style={{ marginTop: '8px' }}><strong>Total Test Runs:</strong> {pRuns.length}</p>
+            <p style={{ marginTop: '8px' }}><strong>Description:</strong> {project.description || 'Systems Engineering Lifecycle Management'}</p>
           </div>
         </div>
       </div>

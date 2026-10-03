@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Play, CheckCircle2, XCircle, AlertOctagon, HelpCircle, Plus, Activity, Layers, User, Settings, Check, X } from 'lucide-react';
-import { TestRun, Project, EngineeringObject, TestStep, Relationship, User as UserType } from '../types/elm';
+import { TestRun, Project, Tracker, EngineeringObject, TestStep, Relationship, User as UserType } from '../types/elm';
 
 interface TestExecutionViewProps {
   currentUser?: UserType | null;
   activeProject?: Project | null;
+  currentTrackers?: Tracker[];
   allObjects?: EngineeringObject[];
   testSteps?: TestStep[];
   relationships?: Relationship[];
@@ -17,6 +18,7 @@ interface TestExecutionViewProps {
 export const TestExecutionView: React.FC<TestExecutionViewProps> = ({
   currentUser,
   activeProject,
+  currentTrackers = [],
   allObjects = [],
   testSteps = [],
   relationships = [],
@@ -25,8 +27,15 @@ export const TestExecutionView: React.FC<TestExecutionViewProps> = ({
   onUpdateTestRuns,
   onUpdateRunDetailsMap
 }) => {
+  // Filter objects and runs strictly for the current active project
+  const currentTrackerIds = currentTrackers.map(t => t.id);
+
+  const availableTestSets = allObjects.filter(o => o.type === 'TEST_SET' && currentTrackerIds.includes(o.tracker_id));
+  const availableTestCases = allObjects.filter(o => o.type === 'TEST_CASE' && currentTrackerIds.includes(o.tracker_id));
+  const projectRuns = testRuns.filter(r => r.project_id === activeProject?.id);
+
   const [selectedRunId, setSelectedRunId] = useState<number | null>(() => {
-    return testRuns.length > 0 ? testRuns[0].id : null;
+    return projectRuns.length > 0 ? projectRuns[0].id : null;
   });
   
   // New Test Run Modal State
@@ -34,23 +43,20 @@ export const TestExecutionView: React.FC<TestExecutionViewProps> = ({
   const [newRunName, setNewRunName] = useState('');
   const [selectedTestSetId, setSelectedTestSetId] = useState<number | null>(null);
   const [testerName, setTesterName] = useState(currentUser?.name || 'Zewd');
-  const [configName, setConfigName] = useState('RoboServ-X1 ISO 13482 Release 2.4');
-  const [swVersion, setSwVersion] = useState('v2.4.1-rc3');
+  const [configName, setConfigName] = useState(`${activeProject?.key || 'PROJ'} Hardware Config Rev 1`);
+  const [swVersion, setSwVersion] = useState('v1.0.0-release');
 
-  // Filter available Test Sets in current workspace
-  const availableTestSets = allObjects.filter(o => o.type === 'TEST_SET');
-  const availableTestCases = allObjects.filter(o => o.type === 'TEST_CASE');
-
-  // Sync selected run ID when runs list changes
+  // Sync selected run ID when project, runs, or active selection changes
   useEffect(() => {
-    if (testRuns.length > 0) {
-      if (!selectedRunId || !testRuns.some(r => r.id === selectedRunId)) {
-        setSelectedRunId(testRuns[0].id);
+    const pRuns = testRuns.filter(r => r.project_id === activeProject?.id);
+    if (pRuns.length > 0) {
+      if (!selectedRunId || !pRuns.some(r => r.id === selectedRunId)) {
+        setSelectedRunId(pRuns[0].id);
       }
     } else {
       setSelectedRunId(null);
     }
-  }, [testRuns, selectedRunId]);
+  }, [testRuns, activeProject?.id, selectedRunId]);
 
   // Dynamically build detail if a run exists but has no entry in map
   useEffect(() => {
@@ -81,7 +87,7 @@ export const TestExecutionView: React.FC<TestExecutionViewProps> = ({
         case_key: tc.object_key,
         case_title: tc.title,
         status: 'PASS',
-        steps: tcSteps.map(s => ({
+        steps: tcSteps.length > 0 ? tcSteps.map(s => ({
           id: s.id * 100 + runId,
           test_run_result_id: Date.now() + tc.id,
           test_step_id: s.id,
@@ -90,17 +96,28 @@ export const TestExecutionView: React.FC<TestExecutionViewProps> = ({
           expected_result: s.expected_result,
           status: 'PASS',
           actual_result: 'Verified output matching expected result.'
-        }))
+        })) : [
+          {
+            id: Date.now() + 500,
+            test_run_result_id: Date.now() + tc.id,
+            test_step_id: 1,
+            step_number: 1,
+            action: `Execute verification procedure for ${tc.title}`,
+            expected_result: `System operates in compliance with ${tc.object_key}`,
+            status: 'PASS',
+            actual_result: 'Verified output matching specification.'
+          }
+        ]
       };
     });
 
     const detailObj = {
       id: runId,
       name: targetRun?.name || `Test Run #${runId}`,
-      test_set_key: targetRun?.test_set_key || 'TST-SET-001',
-      test_set_title: targetRun?.test_set_title || 'ISO 13482 Validation Test Set',
-      config_name: targetRun?.config_name || 'Default Hardware Config',
-      software_version: targetRun?.software_version || 'v2.4.0',
+      test_set_key: targetRun?.test_set_key || (availableTestSets[0]?.object_key || 'TST-SET-001'),
+      test_set_title: targetRun?.test_set_title || (availableTestSets[0]?.title || 'System Test Set'),
+      config_name: targetRun?.config_name || `${activeProject?.key || 'PROJ'} Configuration`,
+      software_version: targetRun?.software_version || 'v1.0.0',
       tester_name: targetRun?.tester_name || currentUser?.name || 'Zewd',
       overall_status: targetRun?.overall_status || 'PASS',
       caseResults
@@ -112,8 +129,10 @@ export const TestExecutionView: React.FC<TestExecutionViewProps> = ({
   };
 
   const handleOpenCreateModal = () => {
-    setNewRunName(`Test Run #${testRuns.length + 1} - ${new Date().toLocaleDateString()}`);
+    setNewRunName(`${activeProject?.key || 'PROJ'} Test Run #${projectRuns.length + 1}`);
     setSelectedTestSetId(availableTestSets[0]?.id || null);
+    setConfigName(`${activeProject?.key || 'PROJ'} Main Hardware Configuration`);
+    setSwVersion('v1.0.0-rc1');
     setTesterName(currentUser?.name || 'Zewd');
     setShowModal(true);
   };
@@ -133,8 +152,8 @@ export const TestExecutionView: React.FC<TestExecutionViewProps> = ({
       name: newRunName.trim(),
       overall_status: 'IN_PROGRESS',
       tester_name: testerName.trim() || currentUser?.name || 'Zewd',
-      test_set_key: selectedSet?.object_key || 'TST-SET-001',
-      test_set_title: selectedSet?.title || 'System Test Set',
+      test_set_key: selectedSet?.object_key || `${activeProject?.key || 'SET'}-001`,
+      test_set_title: selectedSet?.title || `${activeProject?.name || 'Project'} Test Suite`,
       config_name: configName.trim(),
       software_version: swVersion.trim(),
       started_at: new Date().toISOString()
@@ -272,7 +291,7 @@ export const TestExecutionView: React.FC<TestExecutionViewProps> = ({
       <div style={{ width: '300px', borderRight: '1px solid var(--border-color)', backgroundColor: 'var(--bg-sidebar)', padding: '16px 12px', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
           <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-            Test Execution Runs ({testRuns.length})
+            Test Runs ({projectRuns.length})
           </span>
         </div>
 
@@ -302,43 +321,49 @@ export const TestExecutionView: React.FC<TestExecutionViewProps> = ({
 
         {/* Runs List */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, overflowY: 'auto' }}>
-          {testRuns.map((r) => (
-            <div
-              key={r.id}
-              onClick={() => setSelectedRunId(r.id)}
-              style={{
-                padding: '12px',
-                borderRadius: '8px',
-                backgroundColor: selectedRunId === r.id ? 'var(--bg-hover)' : 'var(--bg-card)',
-                border: `1px solid ${selectedRunId === r.id ? 'var(--accent-cyan)' : 'var(--border-color)'}`,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: selectedRunId === r.id ? 'var(--accent-cyan)' : 'var(--text-main)', marginBottom: '4px' }}>
-                {r.name}
-              </div>
+          {projectRuns.length > 0 ? (
+            projectRuns.map((r) => (
+              <div
+                key={r.id}
+                onClick={() => setSelectedRunId(r.id)}
+                style={{
+                  padding: '12px',
+                  borderRadius: '8px',
+                  backgroundColor: selectedRunId === r.id ? 'var(--bg-hover)' : 'var(--bg-card)',
+                  border: `1px solid ${selectedRunId === r.id ? 'var(--accent-cyan)' : 'var(--border-color)'}`,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: selectedRunId === r.id ? 'var(--accent-cyan)' : 'var(--text-main)', marginBottom: '4px' }}>
+                  {r.name}
+                </div>
 
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Layers size={12} color="var(--accent-cyan)" />
-                <span>Test Set: <strong className="mono">{r.test_set_key || 'TST-SET-001'}</strong></span>
-              </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Layers size={12} color="var(--accent-cyan)" />
+                  <span>Test Set: <strong className="mono">{r.test_set_key || 'TST-SET-001'}</strong></span>
+                </div>
 
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <User size={12} />
-                <span>Tester: {r.tester_name || 'Zewd'}</span>
-              </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <User size={12} />
+                  <span>Tester: {r.tester_name || 'Zewd'}</span>
+                </div>
 
-              <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span className={`badge badge-${(r.overall_status || 'PASS').toLowerCase().replace(/_/g, '-')}`}>
-                  {r.overall_status || 'PASS'}
-                </span>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                  {r.started_at ? new Date(r.started_at).toLocaleDateString() : 'Today'}
-                </span>
+                <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span className={`badge badge-${(r.overall_status || 'PASS').toLowerCase().replace(/_/g, '-')}`}>
+                    {r.overall_status || 'PASS'}
+                  </span>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                    {r.started_at ? new Date(r.started_at).toLocaleDateString() : 'Today'}
+                  </span>
+                </div>
               </div>
+            ))
+          ) : (
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center', padding: '20px 10px' }}>
+              No test runs created for project <strong>{activeProject?.name}</strong> yet.
             </div>
-          ))}
+          )}
         </div>
       </div>
 
@@ -496,7 +521,31 @@ export const TestExecutionView: React.FC<TestExecutionViewProps> = ({
           </div>
         ) : (
           <div style={{ color: 'var(--text-muted)', textAlign: 'center', marginTop: '100px' }}>
-            Select a Test Execution Run from the left sidebar or click <strong>+ New Test Run</strong> to initialize execution.
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '8px' }}>
+              Workspace Project: {activeProject?.name || 'Current Project'}
+            </h3>
+            <p style={{ fontSize: '0.85rem', marginBottom: '20px' }}>
+              No Test Execution Runs exist in this project yet.
+            </p>
+            <button
+              onClick={handleOpenCreateModal}
+              style={{
+                padding: '10px 20px',
+                borderRadius: '8px',
+                backgroundColor: 'var(--primary)',
+                color: '#fff',
+                fontWeight: 700,
+                fontSize: '0.9rem',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              <Plus size={16} />
+              <span>Create First Test Run for {activeProject?.key || 'Project'}</span>
+            </button>
           </div>
         )}
       </div>
@@ -520,9 +569,12 @@ export const TestExecutionView: React.FC<TestExecutionViewProps> = ({
             padding: '24px',
             boxShadow: '0 20px 40px rgba(0,0,0,0.6)'
           }}>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '16px', color: 'var(--accent-cyan)' }}>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '4px', color: 'var(--accent-cyan)' }}>
               Create New Test Execution Run
             </h3>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
+              Project: <strong>[{activeProject?.key}] {activeProject?.name}</strong>
+            </p>
 
             <form onSubmit={handleCreateTestRunSubmit}>
               <div style={{ marginBottom: '14px' }}>
@@ -535,7 +587,7 @@ export const TestExecutionView: React.FC<TestExecutionViewProps> = ({
                   value={newRunName}
                   onChange={(e) => setNewRunName(e.target.value)}
                   style={{ width: '100%' }}
-                  placeholder="e.g. Safety Braking & Navigation Qualification Run #2"
+                  placeholder="e.g. Qualification Run #1"
                 />
               </div>
 
@@ -555,11 +607,11 @@ export const TestExecutionView: React.FC<TestExecutionViewProps> = ({
                       </option>
                     ))
                   ) : (
-                    <option value={1}>[TST-SET-001] ISO 13482 Validation Test Set</option>
+                    <option value={0}>No Test Sets found in this project - Sample Suite will be created</option>
                   )}
                 </select>
                 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginTop: '4px' }}>
-                  Loads all test cases registered inside this test set.
+                  Loads test cases registered inside this test set for {activeProject?.key}.
                 </span>
               </div>
 
@@ -572,7 +624,7 @@ export const TestExecutionView: React.FC<TestExecutionViewProps> = ({
                   value={configName}
                   onChange={(e) => setConfigName(e.target.value)}
                   style={{ width: '100%' }}
-                  placeholder="e.g. RoboServ-X1 ISO 13482 Hardware Revision 3"
+                  placeholder="e.g. Main Hardware Revision 1"
                 />
               </div>
 
@@ -586,7 +638,7 @@ export const TestExecutionView: React.FC<TestExecutionViewProps> = ({
                   onChange={(e) => setSwVersion(e.target.value)}
                   style={{ width: '100%' }}
                   className="mono"
-                  placeholder="e.g. v2.4.1-rc3"
+                  placeholder="e.g. v1.0.0-rc1"
                 />
               </div>
 
