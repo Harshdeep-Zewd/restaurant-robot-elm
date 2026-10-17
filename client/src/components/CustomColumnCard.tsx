@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   FileText, Paperclip, Image as ImageIcon, Table, ExternalLink,
-  Plus, Trash2, X, Download, Eye
+  Plus, Trash2, X, Download, Eye, ArrowUp, ArrowDown
 } from 'lucide-react';
 import { CustomColumn } from '../types/elm';
 
@@ -10,13 +10,17 @@ interface CustomColumnCardProps {
   readOnly?: boolean;
   onUpdateContent?: (content: any) => void;
   onDeleteColumn?: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
 }
 
 export const CustomColumnCard: React.FC<CustomColumnCardProps> = ({
   column,
   readOnly = true,
   onUpdateContent,
-  onDeleteColumn
+  onDeleteColumn,
+  onMoveUp,
+  onMoveDown
 }) => {
   // Local state for inline file addition
   const [newFileName, setNewFileName] = useState('');
@@ -165,7 +169,7 @@ export const CustomColumnCard: React.FC<CustomColumnCardProps> = ({
     }}>
       {/* Header Bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <span style={{
             backgroundColor: meta.badgeColor,
             color: meta.textColor,
@@ -183,27 +187,87 @@ export const CustomColumnCard: React.FC<CustomColumnCardProps> = ({
           <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
             {column.name}
           </h4>
+
+          {/* Placement Indicator Badge */}
+          <span style={{
+            fontSize: '0.68rem',
+            fontWeight: 600,
+            color: 'var(--text-muted)',
+            backgroundColor: 'var(--bg-dark)',
+            padding: '2px 7px',
+            borderRadius: '4px',
+            border: '1px solid var(--border-color)'
+          }}>
+            📍 {column.placement === 'ABOVE' ? 'Above' : 'Below'} {
+              column.position_reference === 'TITLE' ? 'Title' :
+              column.position_reference === 'PRE_ACTION' ? 'Pre-Action' :
+              column.position_reference === 'DESCRIPTION' ? 'Description' :
+              column.position_reference === 'TEST_STEPS' ? 'Test Steps' :
+              'Post-Action'
+            }
+          </span>
         </div>
 
-        {!readOnly && onDeleteColumn && (
-          <button
-            type="button"
-            onClick={() => {
-              if (confirm(`Remove custom column "${column.name}"?`)) {
-                onDeleteColumn();
-              }
-            }}
-            title="Delete this section"
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--accent-rose)',
-              cursor: 'pointer',
-              padding: '4px'
-            }}
-          >
-            <Trash2 size={15} />
-          </button>
+        {!readOnly && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            {onMoveUp && (
+              <button
+                type="button"
+                onClick={onMoveUp}
+                title="Move section up"
+                style={{
+                  background: 'transparent',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  padding: '3px 6px',
+                  borderRadius: '4px'
+                }}
+              >
+                <ArrowUp size={13} />
+              </button>
+            )}
+
+            {onMoveDown && (
+              <button
+                type="button"
+                onClick={onMoveDown}
+                title="Move section down"
+                style={{
+                  background: 'transparent',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  padding: '3px 6px',
+                  borderRadius: '4px'
+                }}
+              >
+                <ArrowDown size={13} />
+              </button>
+            )}
+
+            {onDeleteColumn && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm(`Remove custom column "${column.name}"?`)) {
+                    onDeleteColumn();
+                  }
+                }}
+                title="Delete this section"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--accent-rose)',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  marginLeft: '4px'
+                }}
+              >
+                <Trash2 size={15} />
+              </button>
+            )}
+          </div>
         )}
       </div>
 

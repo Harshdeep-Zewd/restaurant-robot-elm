@@ -278,6 +278,20 @@ export const RequirementEditDashboard: React.FC<RequirementEditDashboardProps> =
     setCustomColumns(prev => prev.filter(c => c.id !== colId));
   };
 
+  const handleMoveColumn = (colId: string, direction: 'UP' | 'DOWN') => {
+    setCustomColumns(prev => {
+      const idx = prev.findIndex(c => c.id === colId);
+      if (idx === -1) return prev;
+      const targetIdx = direction === 'UP' ? idx - 1 : idx + 1;
+      if (targetIdx < 0 || targetIdx >= prev.length) return prev;
+      const next = [...prev];
+      const temp = next[idx];
+      next[idx] = next[targetIdx];
+      next[targetIdx] = temp;
+      return next;
+    });
+  };
+
   // Helper to render custom columns positioned above or below a specific reference
   const renderCustomColumns = (targetRef: 'TITLE' | 'PRE_ACTION' | 'DESCRIPTION' | 'TEST_STEPS' | 'POST_ACTION', placement: 'ABOVE' | 'BELOW') => {
     const cols = activeCustomColumns.filter(c => c.position_reference === targetRef && c.placement === placement);
@@ -292,44 +306,10 @@ export const RequirementEditDashboard: React.FC<RequirementEditDashboardProps> =
             readOnly={isHistorical}
             onUpdateContent={(content) => handleUpdateCustomColumnContent(col.id, content)}
             onDeleteColumn={() => handleDeleteCustomColumn(col.id)}
+            onMoveUp={() => handleMoveColumn(col.id, 'UP')}
+            onMoveDown={() => handleMoveColumn(col.id, 'DOWN')}
           />
         ))}
-      </div>
-    );
-  };
-
-  // Helper button to open the "Add Column" modal pre-targeted
-  const renderAddColumnTrigger = (targetRef: 'TITLE' | 'PRE_ACTION' | 'DESCRIPTION' | 'TEST_STEPS' | 'POST_ACTION', placement: 'ABOVE' | 'BELOW', label?: string) => {
-    if (isHistorical) return null;
-
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', margin: '4px 0' }}>
-        <button
-          type="button"
-          onClick={() => {
-            setColModalTarget(targetRef);
-            setColModalPlacement(placement);
-            setShowAddColumnModal(true);
-          }}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            backgroundColor: 'rgba(56, 189, 248, 0.05)',
-            border: '1px dashed rgba(56, 189, 248, 0.3)',
-            color: 'var(--accent-cyan)',
-            padding: '5px 14px',
-            borderRadius: '20px',
-            fontSize: '0.74rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-            transition: 'all 0.15s ease'
-          }}
-          title={`Add a custom column ${placement.toLowerCase()} this block`}
-        >
-          <Plus size={13} />
-          <span>{label || `+ Add Column / Section (${placement.toLowerCase()})`}</span>
-        </button>
       </div>
     );
   };
@@ -953,7 +933,6 @@ export const RequirementEditDashboard: React.FC<RequirementEditDashboardProps> =
 
         {/* ── Custom Columns BELOW Title / ABOVE Pre-Action ── */}
         {renderCustomColumns('TITLE', 'BELOW')}
-        {renderAddColumnTrigger('TITLE', 'BELOW', '+ Add Section / Column Below Title')}
         {renderCustomColumns('PRE_ACTION', 'ABOVE')}
 
         {/* ═══ 2. ⚡ PRE-ACTION (Initial / Preconditions) ═══ */}
@@ -990,7 +969,6 @@ export const RequirementEditDashboard: React.FC<RequirementEditDashboardProps> =
 
         {/* ── Custom Columns BELOW Pre-Action / ABOVE Description ── */}
         {renderCustomColumns('PRE_ACTION', 'BELOW')}
-        {renderAddColumnTrigger('PRE_ACTION', 'BELOW', '+ Add Section / Column Below Pre-Action')}
         {renderCustomColumns('DESCRIPTION', 'ABOVE')}
 
         {/* ═══ 3. DESCRIPTION / SPECIFICATION * ═══ */}
@@ -1022,7 +1000,39 @@ export const RequirementEditDashboard: React.FC<RequirementEditDashboardProps> =
 
         {/* ── Custom Columns BELOW Description / ABOVE Test Steps ── */}
         {renderCustomColumns('DESCRIPTION', 'BELOW')}
-        {renderAddColumnTrigger('DESCRIPTION', 'BELOW', '+ Add Section / Column Below Description')}
+
+        {/* ── Single Add Section / Column Trigger (Kept once) ── */}
+        {!isHistorical && (
+          <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0' }}>
+            <button
+              type="button"
+              onClick={() => {
+                setColModalTarget('DESCRIPTION');
+                setColModalPlacement('BELOW');
+                setShowAddColumnModal(true);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                backgroundColor: 'rgba(168, 85, 247, 0.08)',
+                border: '1px dashed rgba(168, 85, 247, 0.45)',
+                color: 'var(--accent-purple)',
+                padding: '8px 24px',
+                borderRadius: '24px',
+                fontSize: '0.82rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+              title="Add a custom section / column and set its order by selecting Reference Section and Relative Placement"
+            >
+              <Plus size={15} />
+              <span>+ Add Section / Column Below Description</span>
+            </button>
+          </div>
+        )}
+
         {renderCustomColumns('TEST_STEPS', 'ABOVE')}
 
         {/* ═══ 4. 🧪 TEST CASE VERIFICATION STEPS ═══ */}
@@ -1110,7 +1120,6 @@ export const RequirementEditDashboard: React.FC<RequirementEditDashboardProps> =
 
         {/* ── Custom Columns BELOW Test Steps / ABOVE Post-Action ── */}
         {renderCustomColumns('TEST_STEPS', 'BELOW')}
-        {renderAddColumnTrigger('TEST_STEPS', 'BELOW', '+ Add Section / Column Below Test Steps')}
         {renderCustomColumns('POST_ACTION', 'ABOVE')}
 
         {/* ═══ 5. 🎯 POST-ACTION (Exit / Postconditions) ═══ */}
@@ -1147,7 +1156,6 @@ export const RequirementEditDashboard: React.FC<RequirementEditDashboardProps> =
 
         {/* ── Custom Columns BELOW Post-Action ── */}
         {renderCustomColumns('POST_ACTION', 'BELOW')}
-        {renderAddColumnTrigger('POST_ACTION', 'BELOW', '+ Add Section / Column Below Post-Action')}
 
         {/* ═══ 6. ASSOCIATION / TRACEABILITY BAR ═══ */}
         <div style={{
@@ -1331,37 +1339,69 @@ export const RequirementEditDashboard: React.FC<RequirementEditDashboardProps> =
                 />
               </div>
 
-              {/* 2. Position Reference & Placement (Above / Below) */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, marginBottom: '6px' }}>
-                    Relative Placement
-                  </label>
-                  <select
-                    value={colModalPlacement}
-                    onChange={(e) => setColModalPlacement(e.target.value as 'ABOVE' | 'BELOW')}
-                    style={{ width: '100%', fontSize: '0.82rem', padding: '8px 10px' }}
-                  >
-                    <option value="ABOVE">Above (Before)</option>
-                    <option value="BELOW">Below (After)</option>
-                  </select>
+              {/* 2. Position Reference & Placement (Above / Below) - Set New Column Order */}
+              <div style={{
+                backgroundColor: 'rgba(168, 85, 247, 0.05)',
+                border: '1px solid rgba(168, 85, 247, 0.25)',
+                borderRadius: '8px',
+                padding: '12px 14px',
+                marginBottom: '16px'
+              }}>
+                <div style={{ fontSize: '0.74rem', fontWeight: 800, color: 'var(--accent-purple)', marginBottom: '8px', textTransform: 'uppercase' }}>
+                  Section Ordering &amp; Placement
                 </div>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, marginBottom: '6px' }}>
-                    Reference Section
-                  </label>
-                  <select
-                    value={colModalTarget}
-                    onChange={(e) => setColModalTarget(e.target.value as any)}
-                    style={{ width: '100%', fontSize: '0.82rem', padding: '8px 10px' }}
-                  >
-                    <option value="TITLE">Summary / Title</option>
-                    <option value="PRE_ACTION">⚡ Pre-Action</option>
-                    <option value="DESCRIPTION">Description / Specification</option>
-                    {isTestCaseTracker && <option value="TEST_STEPS">🧪 Test Steps</option>}
-                    <option value="POST_ACTION">🎯 Post-Action</option>
-                  </select>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '10px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, marginBottom: '6px', color: 'var(--text-main)' }}>
+                      Relative Placement
+                    </label>
+                    <select
+                      value={colModalPlacement}
+                      onChange={(e) => setColModalPlacement(e.target.value as 'ABOVE' | 'BELOW')}
+                      style={{ width: '100%', fontSize: '0.82rem', padding: '8px 10px', backgroundColor: 'var(--bg-card)' }}
+                    >
+                      <option value="ABOVE">Above (Before Reference)</option>
+                      <option value="BELOW">Below (After Reference)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, marginBottom: '6px', color: 'var(--text-main)' }}>
+                      Reference Section
+                    </label>
+                    <select
+                      value={colModalTarget}
+                      onChange={(e) => setColModalTarget(e.target.value as any)}
+                      style={{ width: '100%', fontSize: '0.82rem', padding: '8px 10px', backgroundColor: 'var(--bg-card)' }}
+                    >
+                      <option value="TITLE">Summary / Title</option>
+                      <option value="PRE_ACTION">⚡ Pre-Action</option>
+                      <option value="DESCRIPTION">Description / Specification</option>
+                      {isTestCaseTracker && <option value="TEST_STEPS">🧪 Test Steps</option>}
+                      <option value="POST_ACTION">🎯 Post-Action</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{
+                  fontSize: '0.74rem',
+                  color: 'var(--accent-cyan)',
+                  backgroundColor: 'var(--bg-card)',
+                  padding: '7px 10px',
+                  borderRadius: '5px',
+                  border: '1px solid var(--border-color)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  <span>📍 <strong>Position Order:</strong> New column will appear <strong>{colModalPlacement === 'ABOVE' ? 'Above (Before)' : 'Below (After)'}</strong> the <strong>{
+                    colModalTarget === 'TITLE' ? 'Summary / Title' :
+                    colModalTarget === 'PRE_ACTION' ? '⚡ Pre-Action' :
+                    colModalTarget === 'DESCRIPTION' ? 'Description / Specification' :
+                    colModalTarget === 'TEST_STEPS' ? '🧪 Test Steps' :
+                    '🎯 Post-Action'
+                  }</strong> section.</span>
                 </div>
               </div>
 
