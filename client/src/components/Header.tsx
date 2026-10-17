@@ -299,7 +299,7 @@ export const Header: React.FC<HeaderProps> = ({
             width: '32px',
             height: '32px',
             borderRadius: '50%',
-            backgroundColor: currentUser?.role === 'ADMIN_OWNER' ? 'var(--accent-amber)' : currentUser?.role === 'DEMO' ? 'var(--accent-emerald)' : '#0284c7',
+            backgroundColor: 'var(--accent-amber)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -307,15 +307,14 @@ export const Header: React.FC<HeaderProps> = ({
             color: '#000',
             fontSize: '0.85rem'
           }}>
-            {currentUser?.name.charAt(0) || 'U'}
+            Z
           </div>
           <div>
             <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>
-              {currentUser?.name || 'Zewd'}
+              Zewd
             </div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-              {currentUser?.role === 'ADMIN_OWNER' && <span style={{ color: 'var(--accent-amber)', fontWeight: 800 }}>👑 Zewd (Owner)</span>}
-              {currentUser?.role === 'DEMO' && <span style={{ color: 'var(--accent-emerald)', fontWeight: 800 }}>🎭 Public Demo</span>}
+            <div style={{ fontSize: '0.75rem', color: 'var(--accent-amber)', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+              👑 Zewd (Owner)
             </div>
           </div>
         </div>

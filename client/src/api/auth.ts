@@ -12,18 +12,6 @@ const INITIAL_USERS: User[] = [
     status: 'ACTIVE',
     assigned_project_ids: [1],
     created_at: new Date().toISOString()
-  },
-  {
-    id: 2,
-    username: 'demo',
-    email: 'demo@public.io',
-    name: 'Public Demo Visitor',
-    password: 'demo123',
-    role: 'DEMO',
-    engineering_role: 'VIEWER',
-    status: 'ACTIVE',
-    assigned_project_ids: [1],
-    created_at: new Date().toISOString()
   }
 ];
 
@@ -144,9 +132,9 @@ export class AuthService {
   }
 
   public loginAsDemo(): User {
-    const demoUser = this.users.find(u => u.role === 'DEMO') || INITIAL_USERS[1];
-    this.currentUser = demoUser;
-    return demoUser;
+    const owner = this.users[0] || INITIAL_USERS[0];
+    this.currentUser = owner;
+    return owner;
   }
 
   public logout(): void {
