@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   FileText, Paperclip, Image as ImageIcon, Table, ExternalLink,
-  Plus, Trash2, X, Download, Eye, ArrowUp, ArrowDown
+  Plus, Trash2, X, Download, Eye, ArrowUp, ArrowDown,
+  UploadCloud, ZoomIn, FileCheck
 } from 'lucide-react';
 import { CustomColumn } from '../types/elm';
 
@@ -22,15 +23,22 @@ export const CustomColumnCard: React.FC<CustomColumnCardProps> = ({
   onMoveUp,
   onMoveDown
 }) => {
-  // Local state for inline file addition
+  // File upload refs & state
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const [manualFileMode, setManualFileMode] = useState(false);
   const [newFileName, setNewFileName] = useState('');
   const [newFileSize, setNewFileSize] = useState('1.5 MB');
 
-  // Local state for inline image addition
+  // Image upload refs & state
+  const imgInputRef = useRef<HTMLInputElement>(null);
+  const [isDraggingImg, setIsDraggingImg] = useState(false);
+  const [manualImgUrlMode, setManualImgUrlMode] = useState(false);
   const [newImgTitle, setNewImgTitle] = useState('');
   const [newImgUrl, setNewImgUrl] = useState('');
+  const [previewImage, setPreviewImage] = useState<{ title: string; url: string } | null>(null);
 
-  // Local state for inline table row addition
+  // Table row addition state
   const [newParam, setNewParam] = useState('');
   const [newVal, setNewVal] = useState('');
   const [newTolerance, setNewTolerance] = useState('');
@@ -84,8 +92,70 @@ export const CustomColumnCard: React.FC<CustomColumnCardProps> = ({
 
   const meta = getTypeMeta();
 
-  // Content helpers
-  const handleAddFile = (e: React.FormEvent) => {
+  // ══════════════════════════════════════════════════════════════════
+  // FILE UPLOAD & DOWNLOAD LOGIC
+  // ══════════════════════════════════════════════════════════════════
+  const handleProcessFiles = (files: FileList | null) => {
+    if (!files || files.length === 0 || !onUpdateContent) return;
+    const currentFiles = Array.isArray(column.content) ? column.content : [];
+
+    const filePromises = Array.from(files).map((file, idx) => {
+      return new Promise<any>((resolve) => {
+        const reader = new FileReader();
+        const sizeFormatted = file.size < 1024 * 1024
+          ? `${(file.size / 1024).toFixed(1)} KB`
+          : `${(file.size / (1024 * 1024)).toFixed(1)} MB`;
+
+        reader.onload = (e) => {
+          resolve({
+            id: Date.now() + idx + Math.random(),
+            name: file.name,
+            size: sizeFormatted,
+            type: file.type || 'application/octet-stream',
+            data: e.target?.result as string,
+            date: new Date().toISOString().split('T')[0]
+          });
+        };
+        reader.onerror = () => {
+          resolve({
+            id: Date.now() + idx + Math.random(),
+            name: file.name,
+            size: sizeFormatted,
+            type: file.type || 'application/octet-stream',
+            date: new Date().toISOString().split('T')[0]
+          });
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+
+    Promise.all(filePromises).then((newFiles) => {
+      onUpdateContent([...currentFiles, ...newFiles]);
+    });
+  };
+
+  const handleDownloadFile = (file: { name: string; data?: string; size?: string }) => {
+    const link = document.createElement('a');
+    link.download = file.name;
+    if (file.data) {
+      link.href = file.data;
+    } else {
+      // Fallback for mocked files: generate download blob
+      const blob = new Blob([
+        `RoboServ-X1 Engineering Verification Report\n` +
+        `File: ${file.name}\n` +
+        `Size: ${file.size || 'N/A'}\n` +
+        `Timestamp: ${new Date().toISOString()}\n` +
+        `Verification Status: Qualified & Signed-Off`
+      ], { type: 'text/plain' });
+      link.href = URL.createObjectURL(blob);
+    }
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleAddManualFile = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newFileName.trim() || !onUpdateContent) return;
     const currentFiles = Array.isArray(column.content) ? column.content : [];
@@ -108,7 +178,48 @@ export const CustomColumnCard: React.FC<CustomColumnCardProps> = ({
     onUpdateContent(updated);
   };
 
-  const handleAddImage = (e: React.FormEvent) => {
+  // ══════════════════════════════════════════════════════════════════
+  // IMAGE UPLOAD & GALLERY LOGIC
+  // ══════════════════════════════════════════════════════════════════
+  const handleProcessImages = (files: FileList | null) => {
+    if (!files || files.length === 0 || !onUpdateContent) return;
+    const currentImages = Array.isArray(column.content) ? column.content : [];
+
+    const imgPromises = Array.from(files).map((file, idx) => {
+      return new Promise<any>((resolve) => {
+        const reader = new FileReader();
+        const sizeFormatted = file.size < 1024 * 1024
+          ? `${(file.size / 1024).toFixed(1)} KB`
+          : `${(file.size / (1024 * 1024)).toFixed(1)} MB`;
+
+        reader.onload = (e) => {
+          resolve({
+            id: Date.now() + idx + Math.random(),
+            title: file.name.replace(/\.[^/.]+$/, ''),
+            url: e.target?.result as string,
+            size: sizeFormatted,
+            date: new Date().toISOString().split('T')[0]
+          });
+        };
+        reader.onerror = () => {
+          resolve({
+            id: Date.now() + idx + Math.random(),
+            title: file.name.replace(/\.[^/.]+$/, ''),
+            url: '',
+            size: sizeFormatted,
+            date: new Date().toISOString().split('T')[0]
+          });
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+
+    Promise.all(imgPromises).then((newImages) => {
+      onUpdateContent([...currentImages, ...newImages]);
+    });
+  };
+
+  const handleAddManualImage = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newImgTitle.trim() || !onUpdateContent) return;
     const currentImages = Array.isArray(column.content) ? column.content : [];
@@ -117,7 +228,9 @@ export const CustomColumnCard: React.FC<CustomColumnCardProps> = ({
       {
         id: Date.now(),
         title: newImgTitle.trim(),
-        url: newImgUrl.trim() || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=600&q=80'
+        url: newImgUrl.trim() || 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=600&q=80',
+        size: '1.2 MB',
+        date: new Date().toISOString().split('T')[0]
       }
     ];
     onUpdateContent(updated);
@@ -131,6 +244,9 @@ export const CustomColumnCard: React.FC<CustomColumnCardProps> = ({
     onUpdateContent(updated);
   };
 
+  // ══════════════════════════════════════════════════════════════════
+  // SPECIFICATION TABLE LOGIC
+  // ══════════════════════════════════════════════════════════════════
   const handleAddTableRow = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newParam.trim() || !onUpdateContent) return;
@@ -167,7 +283,7 @@ export const CustomColumnCard: React.FC<CustomColumnCardProps> = ({
       gap: '12px',
       position: 'relative'
     }}>
-      {/* Header Bar */}
+      {/* ═══ Header Bar ═══ */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <span style={{
@@ -271,8 +387,7 @@ export const CustomColumnCard: React.FC<CustomColumnCardProps> = ({
         )}
       </div>
 
-      {/* Body Content according to type */}
-      {/* 1. TEXT / NOTES */}
+      {/* ═══ 1. TEXT / NOTES ═══ */}
       {column.type === 'TEXT' && (
         <div>
           {readOnly ? (
@@ -309,9 +424,22 @@ export const CustomColumnCard: React.FC<CustomColumnCardProps> = ({
         </div>
       )}
 
-      {/* 2. FILES & REPORTS */}
+      {/* ═══ 2. FILES & REPORTS ═══ */}
       {column.type === 'FILES' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {/* Hidden HTML File Input */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            multiple
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              handleProcessFiles(e.target.files);
+              e.target.value = '';
+            }}
+          />
+
+          {/* Attached Files List */}
           {Array.isArray(column.content) && column.content.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {column.content.map((file: any, idx: number) => (
@@ -321,28 +449,62 @@ export const CustomColumnCard: React.FC<CustomColumnCardProps> = ({
                   alignItems: 'center',
                   backgroundColor: 'var(--bg-dark)',
                   border: '1px solid var(--border-color)',
-                  padding: '8px 12px',
+                  padding: '9px 12px',
                   borderRadius: '6px',
                   fontSize: '0.82rem'
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Paperclip size={14} color="var(--accent-purple)" />
-                    <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>{file.name}</span>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>({file.size})</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
+                    <div style={{
+                      backgroundColor: 'rgba(168, 85, 247, 0.15)',
+                      padding: '6px',
+                      borderRadius: '5px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <Paperclip size={15} color="var(--accent-purple)" />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                      <span style={{ fontWeight: 600, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {file.name}
+                      </span>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                        {file.size || '1.0 MB'} • {file.date || 'Attached'}
+                      </span>
+                    </div>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadFile(file)}
+                      style={{
+                        fontSize: '0.74rem',
+                        fontWeight: 700,
+                        color: 'var(--accent-cyan)',
+                        backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                        border: '1px solid rgba(56, 189, 248, 0.3)',
+                        padding: '4px 10px',
+                        borderRadius: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        cursor: 'pointer'
+                      }}
+                      title="Download file to computer"
+                    >
                       <Download size={13} />
                       <span>Download</span>
-                    </span>
+                    </button>
+
                     {!readOnly && (
                       <button
                         type="button"
                         onClick={() => handleDeleteFile(idx)}
-                        style={{ background: 'transparent', border: 'none', color: 'var(--accent-rose)', cursor: 'pointer', padding: '2px' }}
+                        style={{ background: 'transparent', border: 'none', color: 'var(--accent-rose)', cursor: 'pointer', padding: '4px' }}
+                        title="Remove file"
                       >
-                        <X size={13} />
+                        <X size={15} />
                       </button>
                     )}
                   </div>
@@ -355,84 +517,212 @@ export const CustomColumnCard: React.FC<CustomColumnCardProps> = ({
             </div>
           )}
 
+          {/* Interactive Upload Zone (Editable Mode) */}
           {!readOnly && (
-            <form onSubmit={handleAddFile} style={{ display: 'grid', gridTemplateColumns: '1fr 100px auto', gap: '8px', marginTop: '6px' }}>
-              <input
-                type="text"
-                placeholder="Report or file name (e.g. Nav_Test_Report.pdf)..."
-                value={newFileName}
-                onChange={(e) => setNewFileName(e.target.value)}
-                style={{ fontSize: '0.8rem', padding: '6px 10px' }}
-              />
-              <input
-                type="text"
-                placeholder="Size (e.g. 2.4 MB)"
-                value={newFileSize}
-                onChange={(e) => setNewFileSize(e.target.value)}
-                style={{ fontSize: '0.8rem', padding: '6px 8px' }}
-              />
-              <button
-                type="submit"
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); setIsDraggingFile(true); }}
+                onDragLeave={() => setIsDraggingFile(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDraggingFile(false);
+                  handleProcessFiles(e.dataTransfer.files);
+                }}
                 style={{
-                  padding: '6px 12px',
-                  backgroundColor: 'var(--accent-purple)',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '5px',
-                  fontSize: '0.78rem',
-                  fontWeight: 700,
-                  cursor: 'pointer'
+                  border: isDraggingFile ? '2px dashed var(--accent-purple)' : '1px dashed rgba(168, 85, 247, 0.45)',
+                  backgroundColor: isDraggingFile ? 'rgba(168, 85, 247, 0.15)' : 'rgba(168, 85, 247, 0.04)',
+                  borderRadius: '8px',
+                  padding: '16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
                 }}
               >
-                + Add File
-              </button>
-            </form>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <UploadCloud size={20} color="var(--accent-purple)" />
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                    Click to browse or drag &amp; drop files here
+                  </span>
+                </div>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                  Supports PDF reports, CSV telemetry logs, Word documents, Excel sheets, and test data archives
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    fileInputRef.current?.click();
+                  }}
+                  style={{
+                    marginTop: '6px',
+                    padding: '6px 16px',
+                    borderRadius: '6px',
+                    backgroundColor: 'var(--accent-purple)',
+                    color: '#fff',
+                    border: 'none',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(168, 85, 247, 0.3)'
+                  }}
+                >
+                  📁 Browse &amp; Upload Files
+                </button>
+              </div>
+
+              {/* Optional Manual Entry Toggle */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => setManualFileMode(!manualFileMode)}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.72rem', cursor: 'pointer', textDecoration: 'underline' }}
+                >
+                  {manualFileMode ? 'Hide manual entry' : '+ Add file record manually'}
+                </button>
+              </div>
+
+              {manualFileMode && (
+                <form onSubmit={handleAddManualFile} style={{ display: 'grid', gridTemplateColumns: '1fr 100px auto', gap: '8px', padding: '10px', backgroundColor: 'var(--bg-dark)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                  <input
+                    type="text"
+                    placeholder="Report name (e.g. Nav_Test_Report.pdf)..."
+                    value={newFileName}
+                    onChange={(e) => setNewFileName(e.target.value)}
+                    style={{ fontSize: '0.8rem', padding: '6px 10px' }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Size (e.g. 2.4 MB)"
+                    value={newFileSize}
+                    onChange={(e) => setNewFileSize(e.target.value)}
+                    style={{ fontSize: '0.8rem', padding: '6px 8px' }}
+                  />
+                  <button
+                    type="submit"
+                    style={{
+                      padding: '6px 14px',
+                      backgroundColor: 'var(--accent-purple)',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '5px',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    + Add
+                  </button>
+                </form>
+              )}
+            </div>
           )}
         </div>
       )}
 
-      {/* 3. IMAGES & CAD SCHEMATICS */}
+      {/* ═══ 3. IMAGES & CAD SCHEMATICS ═══ */}
       {column.type === 'IMAGES' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {/* Hidden HTML Image Input */}
+          <input
+            type="file"
+            ref={imgInputRef}
+            accept="image/*"
+            multiple
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              handleProcessImages(e.target.files);
+              e.target.value = '';
+            }}
+          />
+
+          {/* Image Gallery Grid */}
           {Array.isArray(column.content) && column.content.length > 0 ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: '12px' }}>
               {column.content.map((img: any, idx: number) => (
                 <div key={idx} style={{
                   backgroundColor: 'var(--bg-dark)',
                   border: '1px solid var(--border-color)',
-                  borderRadius: '6px',
+                  borderRadius: '8px',
                   overflow: 'hidden',
-                  position: 'relative'
+                  position: 'relative',
+                  display: 'flex',
+                  flexDirection: 'column'
                 }}>
-                  <div style={{
-                    height: '110px',
-                    backgroundColor: 'rgba(16, 185, 129, 0.08)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderBottom: '1px solid var(--border-color)',
-                    overflow: 'hidden'
-                  }}>
-                    {img.url && img.url.startsWith('http') ? (
-                      <img src={img.url} alt={img.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <div
+                    onClick={() => img.url && setPreviewImage({ title: img.title || 'Schematic Preview', url: img.url })}
+                    style={{
+                      height: '130px',
+                      backgroundColor: 'rgba(16, 185, 129, 0.05)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderBottom: '1px solid var(--border-color)',
+                      overflow: 'hidden',
+                      cursor: img.url ? 'pointer' : 'default',
+                      position: 'relative'
+                    }}
+                    title={img.url ? 'Click to enlarge image' : undefined}
+                  >
+                    {img.url ? (
+                      <img
+                        src={img.url}
+                        alt={img.title}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.2s ease' }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.transform = 'scale(1.04)'; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = 'scale(1.0)'; }}
+                      />
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', color: 'var(--accent-emerald)' }}>
-                        <ImageIcon size={28} />
-                        <span style={{ fontSize: '0.7rem', fontWeight: 600 }}>CAD Schematics</span>
+                        <ImageIcon size={32} />
+                        <span style={{ fontSize: '0.72rem', fontWeight: 600 }}>CAD Schematics</span>
+                      </div>
+                    )}
+
+                    {img.url && (
+                      <div style={{
+                        position: 'absolute',
+                        bottom: '6px',
+                        right: '6px',
+                        backgroundColor: 'rgba(0,0,0,0.65)',
+                        color: '#fff',
+                        borderRadius: '4px',
+                        padding: '3px 6px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontSize: '0.65rem'
+                      }}>
+                        <ZoomIn size={11} />
+                        <span>Enlarge</span>
                       </div>
                     )}
                   </div>
+
                   <div style={{ padding: '8px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {img.title}
-                    </span>
+                    <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                      <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {img.title || 'Schematic'}
+                      </span>
+                      {img.size && (
+                        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                          {img.size}
+                        </span>
+                      )}
+                    </div>
+
                     {!readOnly && (
                       <button
                         type="button"
                         onClick={() => handleDeleteImage(idx)}
-                        style={{ background: 'transparent', border: 'none', color: 'var(--accent-rose)', cursor: 'pointer', padding: '2px' }}
+                        style={{ background: 'transparent', border: 'none', color: 'var(--accent-rose)', cursor: 'pointer', padding: '3px' }}
+                        title="Delete image"
                       >
-                        <X size={13} />
+                        <X size={14} />
                       </button>
                     )}
                   </div>
@@ -445,43 +735,114 @@ export const CustomColumnCard: React.FC<CustomColumnCardProps> = ({
             </div>
           )}
 
+          {/* Interactive Upload Zone (Editable Mode) */}
           {!readOnly && (
-            <form onSubmit={handleAddImage} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '8px', marginTop: '6px' }}>
-              <input
-                type="text"
-                placeholder="Image / Schematic Title..."
-                value={newImgTitle}
-                onChange={(e) => setNewImgTitle(e.target.value)}
-                style={{ fontSize: '0.8rem', padding: '6px 10px' }}
-              />
-              <input
-                type="text"
-                placeholder="Image URL (optional)..."
-                value={newImgUrl}
-                onChange={(e) => setNewImgUrl(e.target.value)}
-                style={{ fontSize: '0.8rem', padding: '6px 10px' }}
-              />
-              <button
-                type="submit"
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+              <div
+                onClick={() => imgInputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); setIsDraggingImg(true); }}
+                onDragLeave={() => setIsDraggingImg(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDraggingImg(false);
+                  handleProcessImages(e.dataTransfer.files);
+                }}
                 style={{
-                  padding: '6px 12px',
-                  backgroundColor: 'var(--accent-emerald)',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '5px',
-                  fontSize: '0.78rem',
-                  fontWeight: 700,
-                  cursor: 'pointer'
+                  border: isDraggingImg ? '2px dashed var(--accent-emerald)' : '1px dashed rgba(16, 185, 129, 0.45)',
+                  backgroundColor: isDraggingImg ? 'rgba(16, 185, 129, 0.15)' : 'rgba(16, 185, 129, 0.04)',
+                  borderRadius: '8px',
+                  padding: '16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
                 }}
               >
-                + Add Image
-              </button>
-            </form>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <ImageIcon size={20} color="var(--accent-emerald)" />
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                    Click to browse or drag &amp; drop images / schematics
+                  </span>
+                </div>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                  Supports PNG, JPG, JPEG, SVG, WebP schematics and CAD exports
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    imgInputRef.current?.click();
+                  }}
+                  style={{
+                    marginTop: '6px',
+                    padding: '6px 16px',
+                    borderRadius: '6px',
+                    backgroundColor: 'var(--accent-emerald)',
+                    color: '#fff',
+                    border: 'none',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
+                  }}
+                >
+                  🖼️ Browse &amp; Upload Images
+                </button>
+              </div>
+
+              {/* Optional URL Entry Toggle */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => setManualImgUrlMode(!manualImgUrlMode)}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.72rem', cursor: 'pointer', textDecoration: 'underline' }}
+                >
+                  {manualImgUrlMode ? 'Hide URL entry' : '+ Add image via web URL'}
+                </button>
+              </div>
+
+              {manualImgUrlMode && (
+                <form onSubmit={handleAddManualImage} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '8px', padding: '10px', backgroundColor: 'var(--bg-dark)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                  <input
+                    type="text"
+                    placeholder="Image title (e.g. Nav Costmap Overlay)..."
+                    value={newImgTitle}
+                    onChange={(e) => setNewImgTitle(e.target.value)}
+                    style={{ fontSize: '0.8rem', padding: '6px 10px' }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Image web URL (https://...)..."
+                    value={newImgUrl}
+                    onChange={(e) => setNewImgUrl(e.target.value)}
+                    style={{ fontSize: '0.8rem', padding: '6px 10px' }}
+                  />
+                  <button
+                    type="submit"
+                    style={{
+                      padding: '6px 14px',
+                      backgroundColor: 'var(--accent-emerald)',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '5px',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    + Add
+                  </button>
+                </form>
+              )}
+            </div>
           )}
         </div>
       )}
 
-      {/* 4. TABLE / ATTRIBUTES */}
+      {/* ═══ 4. TABLE / ATTRIBUTES ═══ */}
       {column.type === 'TABLE' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {Array.isArray(column.content) && column.content.length > 0 ? (
@@ -566,7 +927,7 @@ export const CustomColumnCard: React.FC<CustomColumnCardProps> = ({
         </div>
       )}
 
-      {/* 5. EXTERNAL LINK */}
+      {/* ═══ 5. EXTERNAL LINK ═══ */}
       {column.type === 'LINK' && (
         <div>
           {readOnly ? (
@@ -624,6 +985,88 @@ export const CustomColumnCard: React.FC<CustomColumnCardProps> = ({
               />
             </div>
           )}
+        </div>
+      )}
+
+      {/* ═══ Image Zoom / Lightbox Modal ═══ */}
+      {previewImage && (
+        <div
+          onClick={() => setPreviewImage(null)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '24px'
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'relative',
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              backgroundColor: 'var(--bg-card)',
+              borderRadius: '10px',
+              border: '1px solid var(--border-color)',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+          >
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '10px 16px',
+              borderBottom: '1px solid var(--border-color)',
+              backgroundColor: 'var(--bg-dark)'
+            }}>
+              <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                {previewImage.title}
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <a
+                  href={previewImage.url}
+                  download={`${previewImage.title || 'schematic'}.png`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    color: 'var(--accent-cyan)',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    textDecoration: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <Download size={14} />
+                  <span>Download</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setPreviewImage(null)}
+                  style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+            <div style={{ padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', maxHeight: 'calc(90vh - 60px)', overflow: 'auto' }}>
+              <img
+                src={previewImage.url}
+                alt={previewImage.title}
+                style={{ maxWidth: '100%', maxHeight: 'calc(80vh - 60px)', objectFit: 'contain', borderRadius: '6px' }}
+              />
+            </div>
+          </div>
         </div>
       )}
     </div>

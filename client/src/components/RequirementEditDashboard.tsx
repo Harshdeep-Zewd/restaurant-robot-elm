@@ -237,13 +237,9 @@ export const RequirementEditDashboard: React.FC<RequirementEditDashboardProps> =
     if (colModalType === 'TEXT') {
       defaultContent = 'Enter detailed engineering notes, safety observations, or technical requirements here...';
     } else if (colModalType === 'FILES') {
-      defaultContent = [
-        { name: `${colModalName.replace(/\s+/g, '_')}_Spec.pdf`, size: '1.8 MB', date: new Date().toISOString().split('T')[0] }
-      ];
+      defaultContent = [];
     } else if (colModalType === 'IMAGES') {
-      defaultContent = [
-        { title: `${colModalName} Diagram`, url: '' }
-      ];
+      defaultContent = [];
     } else if (colModalType === 'TABLE') {
       defaultContent = [
         { parameter: 'Nominal Operating Threshold', value: '48.0 V', tolerance: '±0.5 V' },
