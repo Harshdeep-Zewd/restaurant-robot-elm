@@ -97,6 +97,14 @@ export interface EngineeringObject {
   created_by_name?: string;
   pre_action?: string;
   post_action?: string;
+  start_date?: string;
+  end_date?: string;
+  planned_effort?: string;
+  spent_effort?: string;
+  category?: string;
+  resolution?: string;
+  release?: string;
+  parent_id?: number | null;
   version: number;
   metadata?: Record<string, any>;
   created_at: string;

@@ -9,6 +9,8 @@ import {
   Tracker, Folder as FolderType, EngineeringObject, RequirementType,
   SafetyLevel, TestSubProcess, Relationship, TestStep, Artifact
 } from '../types/elm';
+import { RequirementEditDashboard } from './RequirementEditDashboard';
+import { EnterpriseCreateModal } from './EnterpriseCreateModal';
 
 interface TrackerTableViewProps {
   tracker: Tracker;
@@ -30,11 +32,19 @@ interface TrackerTableViewProps {
     safety_level?: SafetyLevel;
     test_subprocess?: TestSubProcess;
     priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+    start_date?: string;
+    end_date?: string;
+    planned_effort?: string;
+    spent_effort?: string;
+    category?: string;
+    resolution?: string;
+    release?: string;
+    owner_name?: string;
     test_step_action?: string;
     test_step_expected?: string;
     included_test_case_ids?: number[];
     metadata?: any;
-  }) => void;
+  }) => number | void;
   onUpdateObject: (id: number, updates: Partial<EngineeringObject>) => void;
   onDeleteObject?: (id: number) => void;
   onAddRelationship: (source_id: number, target_id: number, type: string) => void;
@@ -98,13 +108,6 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
 
   // Create Object Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [modalTitle, setModalTitle] = useState('');
-  const [modalPreAction, setModalPreAction] = useState('');
-  const [modalDesc, setModalDesc] = useState('');
-  const [modalPostAction, setModalPostAction] = useState('');
-  const [modalSafetyLevel, setModalSafetyLevel] = useState<SafetyLevel>('ASIL-D');
-  const [modalPriority, setModalPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>('MEDIUM');
-  const [modalFolderId, setModalFolderId] = useState<number | null>(null);
 
   // Create Folder Modal State
   const [showFolderModal, setShowFolderModal] = useState(false);
@@ -250,30 +253,6 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
     setAddTestCaseIdMap(prev => ({ ...prev, [setId]: null }));
   };
 
-  // Create Object Submit
-  const handleCreateObjectSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!modalTitle.trim()) return;
-
-    onCreateObject({
-      tracker_id: tracker.id,
-      folder_id: modalFolderId || selectedFolderId,
-      title: modalTitle.trim(),
-      pre_action: modalPreAction.trim(),
-      description: modalDesc.trim(),
-      post_action: modalPostAction.trim(),
-      safety_level: modalSafetyLevel,
-      priority: modalPriority,
-      requirement_type: 'Functional Requirement',
-      test_subprocess: 'System Testing'
-    });
-
-    setShowCreateModal(false);
-    setModalTitle('');
-    setModalPreAction('');
-    setModalDesc('');
-    setModalPostAction('');
-  };
 
   // Create Folder Submit
   const handleCreateFolderSubmit = (e: React.FormEvent) => {
@@ -303,6 +282,9 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
     setTargetObjId(null);
   };
 
+  // Dedicated Edit Dashboard State (Point 3)
+  const [editingObject, setEditingObject] = useState<EngineeringObject | null>(null);
+
   // File Upload Submit (Right Panel)
   const handleFileUploadSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -319,6 +301,62 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
     setNewFilename('');
     setShowFileModal(false);
   };
+
+  // Enterprise Create Save handler (supports Save & Save and New)
+  const handleEnterpriseSave = (data: any, closeAfter: boolean) => {
+    const newId = onCreateObject({
+      tracker_id: data.tracker_id,
+      folder_id: data.folder_id,
+      title: data.title,
+      description: data.description,
+      pre_action: data.pre_action,
+      post_action: data.post_action,
+      safety_level: data.safety_level,
+      priority: data.priority,
+      requirement_type: data.requirement_type,
+      start_date: data.start_date,
+      end_date: data.end_date,
+      planned_effort: data.planned_effort,
+      spent_effort: data.spent_effort,
+      category: data.category,
+      resolution: data.resolution,
+      release: data.release,
+      owner_name: data.owner_name
+    });
+
+    if (newId && data.association && onAddRelationship) {
+      onAddRelationship(newId as number, data.association.target_id, data.association.type);
+    }
+
+    if (closeAfter) {
+      setShowCreateModal(false);
+    }
+  };
+
+  // Dedicated Requirement Edit Dashboard View (Point 3)
+  if (editingObject) {
+    const liveEditingObject = allObjects.find(o => o.id === editingObject.id) || editingObject;
+    return (
+      <RequirementEditDashboard
+        object={liveEditingObject}
+        tracker={tracker}
+        allObjects={allObjects}
+        folders={folders}
+        relationships={relationships}
+        testSteps={testSteps}
+        artifacts={artifacts}
+        onUpdateObject={(id, updates) => {
+          onUpdateObject(id, updates);
+          setEditingObject(prev => prev ? { ...prev, ...updates } : null);
+        }}
+        onAddTestStep={onAddTestStep}
+        onDeleteTestStep={onDeleteTestStep}
+        onAddRelationship={onAddRelationship}
+        onDeleteRelationship={onDeleteRelationship}
+        onDone={() => setEditingObject(null)}
+      />
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 60px)', overflow: 'hidden', backgroundColor: 'var(--bg-dark)' }}>
@@ -840,6 +878,31 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                         <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                           v{obj.version}.0
                         </span>
+
+                        {/* Dedicated Edit Dashboard Link (Point 2 & 3 - Beside Version Tag) */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingObject(obj);
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                            border: '1px solid rgba(56, 189, 248, 0.35)',
+                            color: 'var(--accent-cyan)',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                          title="Open dedicated Requirement Edit Dashboard"
+                        >
+                          <span>✏️ Edit / Update ↗</span>
+                        </button>
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -910,35 +973,43 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                       </div>
                     </div>
 
-                    {/* ═══ Dropdown Contents (Reveals when clicked / expanded) ═══ */}
+                    {/* ═══ Dropdown Contents (Reveals when clicked / expanded - Pure Inspection View) ═══ */}
                     {isExpanded && (
                       <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: '16px', backgroundColor: 'var(--bg-dark)' }}>
 
-                        {/* 1. Title Input */}
-                        <div>
-                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '5px', textTransform: 'uppercase' }}>
-                            Requirement Title *
-                          </label>
-                          <input
-                            type="text"
-                            value={draft.title}
-                            onChange={(e) => updateDraft(obj.id, 'title', e.target.value)}
+                        {/* 1. Requirement Title Header */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+                          <div>
+                            <span style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '4px', textTransform: 'uppercase' }}>
+                              Requirement Title
+                            </span>
+                            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                              {obj.title}
+                            </h3>
+                          </div>
+                          <button
+                            onClick={() => setEditingObject(obj)}
                             style={{
-                              width: '100%',
-                              fontSize: '1.1rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                              border: '1px solid rgba(56, 189, 248, 0.35)',
+                              color: 'var(--accent-cyan)',
+                              padding: '5px 12px',
+                              borderRadius: '5px',
+                              fontSize: '0.78rem',
                               fontWeight: 700,
-                              padding: '8px 12px',
-                              borderRadius: '6px',
-                              backgroundColor: 'var(--bg-card)',
-                              border: '1px solid var(--border-color)',
-                              color: 'var(--text-main)'
+                              cursor: 'pointer'
                             }}
-                          />
+                          >
+                            <span>✏️ Edit / Update ↗</span>
+                          </button>
                         </div>
 
-                        {/* 2. ⚡ Pre-Action (Initial / Preconditions) */}
+                        {/* 2. ⚡ Pre-Action (Initial / Preconditions) - Read Only Callout */}
                         <div style={{
-                          backgroundColor: 'rgba(245, 158, 11, 0.04)',
+                          backgroundColor: 'rgba(245, 158, 11, 0.05)',
                           border: '1px solid rgba(245, 158, 11, 0.3)',
                           borderRadius: '8px',
                           padding: '14px'
@@ -955,109 +1026,104 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                               ⚡ PRE-ACTION
                             </span>
                             <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                              Initial System State, Hardware Preconditions & Entry Criteria
+                              Initial System State, Hardware Preconditions &amp; Entry Criteria
                             </span>
                           </div>
-                          <textarea
-                            rows={3}
-                            value={draft.pre_action}
-                            onChange={(e) => updateDraft(obj.id, 'pre_action', e.target.value)}
-                            placeholder="Specify starting system state, sensor calibration, battery thresholds, environmental constraints..."
-                            style={{
-                              width: '100%',
-                              padding: '8px 10px',
-                              fontSize: '0.85rem',
-                              borderRadius: '6px',
-                              backgroundColor: 'var(--bg-card)',
-                              border: '1px solid rgba(245, 158, 11, 0.2)',
-                              color: 'var(--text-main)',
-                              resize: 'vertical',
-                              lineHeight: '1.4'
-                            }}
-                          />
+                          <div style={{
+                            fontSize: '0.85rem',
+                            color: 'var(--text-main)',
+                            lineHeight: '1.5',
+                            whiteSpace: 'pre-wrap',
+                            backgroundColor: 'var(--bg-card)',
+                            padding: '10px 12px',
+                            borderRadius: '6px',
+                            border: '1px solid rgba(245, 158, 11, 0.2)'
+                          }}>
+                            {obj.pre_action ? obj.pre_action : <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No pre-action specified. Click Edit / Update to add preconditions.</span>}
+                          </div>
                         </div>
 
-                        {/* 3. Description (Full rich text) */}
+                        {/* 3. Description (Detailed Specification) */}
                         <div>
-                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '5px', textTransform: 'uppercase' }}>
-                            Detailed Specification & Description
+                          <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '5px', textTransform: 'uppercase' }}>
+                            Detailed Specification &amp; Description
                           </label>
-                          <textarea
-                            rows={4}
-                            value={draft.description}
-                            onChange={(e) => updateDraft(obj.id, 'description', e.target.value)}
-                            placeholder="Full engineering specification description..."
-                            style={{
-                              width: '100%',
-                              padding: '10px 12px',
-                              fontSize: '0.85rem',
-                              borderRadius: '6px',
-                              backgroundColor: 'var(--bg-card)',
-                              border: '1px solid var(--border-color)',
-                              color: 'var(--text-main)',
-                              resize: 'vertical',
-                              lineHeight: '1.4'
-                            }}
-                          />
+                          <div style={{
+                            fontSize: '0.88rem',
+                            color: 'var(--text-main)',
+                            lineHeight: '1.55',
+                            whiteSpace: 'pre-wrap',
+                            backgroundColor: 'var(--bg-card)',
+                            padding: '12px 14px',
+                            borderRadius: '6px',
+                            border: '1px solid var(--border-color)'
+                          }}>
+                            {obj.description ? obj.description : <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No description provided.</span>}
+                          </div>
                         </div>
 
-                        {/* 4. 👤 Owner Name: Zewd */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <div style={{ flex: 1 }}>
-                            <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '4px', textTransform: 'uppercase' }}>
-                              👤 Assigned Owner
-                            </label>
-                            <input
-                              type="text"
-                              value={draft.owner_name}
-                              onChange={(e) => updateDraft(obj.id, 'owner_name', e.target.value)}
-                              style={{
-                                width: '220px',
-                                padding: '6px 10px',
-                                fontSize: '0.85rem',
-                                fontWeight: 700,
-                                color: 'var(--accent-amber)',
-                                backgroundColor: 'var(--bg-card)',
-                                border: '1px solid var(--border-color)',
-                                borderRadius: '6px'
-                              }}
-                            />
+                        {/* 4. Metadata Badges Row */}
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                          gap: '10px',
+                          backgroundColor: 'var(--bg-card)',
+                          padding: '12px 14px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--border-color)'
+                        }}>
+                          <div>
+                            <span style={{ display: 'block', fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                              👤 Owner
+                            </span>
+                            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--accent-amber)' }}>
+                              {obj.owner_name || 'Zewd'}
+                            </span>
                           </div>
-
-                          <div style={{ width: '160px' }}>
-                            <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '4px', textTransform: 'uppercase' }}>
+                          <div>
+                            <span style={{ display: 'block', fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
                               Status
-                            </label>
-                            <select
-                              value={draft.status}
-                              onChange={(e) => updateDraft(obj.id, 'status', e.target.value)}
-                              style={{ width: '100%', fontSize: '0.8rem', padding: '6px 8px' }}
-                            >
-                              <option value="DRAFT">DRAFT</option>
-                              <option value="REVIEW">REVIEW</option>
-                              <option value="APPROVED">APPROVED</option>
-                              <option value="VERIFIED">VERIFIED</option>
-                            </select>
+                            </span>
+                            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: obj.status === 'APPROVED' ? 'var(--accent-emerald)' : obj.status === 'REVIEW' ? 'var(--accent-amber)' : 'var(--text-muted)' }}>
+                              {obj.status}
+                            </span>
                           </div>
-
-                          <div style={{ width: '160px' }}>
-                            <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '4px', textTransform: 'uppercase' }}>
+                          <div>
+                            <span style={{ display: 'block', fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
                               Safety Level
-                            </label>
-                            <select
-                              value={draft.safety_level}
-                              onChange={(e) => updateDraft(obj.id, 'safety_level', e.target.value as SafetyLevel)}
-                              style={{ width: '100%', fontSize: '0.8rem', padding: '6px 8px' }}
-                            >
-                              <option value="ASIL-D">ASIL-D</option>
-                              <option value="ASIL-C">ASIL-C</option>
-                              <option value="ASIL-B">ASIL-B</option>
-                              <option value="ASIL-A">ASIL-A</option>
-                              <option value="SIL-3">SIL-3</option>
-                              <option value="SIL-2">SIL-2</option>
-                              <option value="Standard / Non-Safety">Standard / Non-Safety</option>
-                            </select>
+                            </span>
+                            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--accent-cyan)' }}>
+                              {obj.safety_level || 'ASIL-D'}
+                            </span>
                           </div>
+                          <div>
+                            <span style={{ display: 'block', fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                              Priority
+                            </span>
+                            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                              {obj.priority || 'MEDIUM'}
+                            </span>
+                          </div>
+                          {obj.category && (
+                            <div>
+                              <span style={{ display: 'block', fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                                Category
+                              </span>
+                              <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                                {obj.category}
+                              </span>
+                            </div>
+                          )}
+                          {obj.release && (
+                            <div>
+                              <span style={{ display: 'block', fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                                Release
+                              </span>
+                              <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                                {obj.release}
+                              </span>
+                            </div>
+                          )}
                         </div>
 
                         {/* 5. 🧪 Test Steps (if Test Case tracker) */}
@@ -1068,19 +1134,38 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                             borderRadius: '8px',
                             padding: '14px'
                           }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-                              <ListOrdered size={16} color="var(--accent-cyan)" />
-                              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>
-                                Test Steps ({objSteps.length})
-                              </span>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <ListOrdered size={16} color="var(--accent-cyan)" />
+                                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                                  Test Steps ({objSteps.length})
+                                </span>
+                              </div>
+                              <button
+                                onClick={() => setEditingObject(obj)}
+                                style={{
+                                  fontSize: '0.72rem',
+                                  color: 'var(--accent-cyan)',
+                                  background: 'none',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  fontWeight: 600
+                                }}
+                              >
+                                Edit Steps ↗
+                              </button>
                             </div>
 
-                            {objSteps.length > 0 && (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '10px' }}>
+                            {objSteps.length === 0 ? (
+                              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic', padding: '6px 0' }}>
+                                No test steps defined for this test case. Click Edit / Update to add steps.
+                              </div>
+                            ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                 {objSteps.map((step, idx) => (
                                   <div key={step.id} style={{
                                     display: 'grid',
-                                    gridTemplateColumns: '30px 1fr 1fr 30px',
+                                    gridTemplateColumns: '28px 1fr 1fr',
                                     gap: '10px',
                                     alignItems: 'center',
                                     backgroundColor: 'var(--bg-dark)',
@@ -1092,51 +1177,10 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                                     <span style={{ fontWeight: 800, color: 'var(--accent-cyan)', textAlign: 'center' }}>#{idx + 1}</span>
                                     <div>{step.action}</div>
                                     <div style={{ color: 'var(--accent-emerald)' }}>{step.expected_result}</div>
-                                    {onDeleteTestStep && (
-                                      <button
-                                        onClick={() => onDeleteTestStep(step.id)}
-                                        style={{ border: 'none', background: 'transparent', color: 'var(--accent-rose)', cursor: 'pointer' }}
-                                      >
-                                        <X size={14} />
-                                      </button>
-                                    )}
                                   </div>
                                 ))}
                               </div>
                             )}
-
-                            {/* Add Step Form */}
-                            <form onSubmit={(e) => handleAddTestStepForObj(obj.id, e)} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '8px' }}>
-                              <input
-                                type="text"
-                                placeholder="Step action..."
-                                value={stepActionMap[obj.id] || ''}
-                                onChange={(e) => setStepActionMap(prev => ({ ...prev, [obj.id]: e.target.value }))}
-                                style={{ fontSize: '0.78rem', padding: '6px 8px' }}
-                              />
-                              <input
-                                type="text"
-                                placeholder="Expected result..."
-                                value={stepExpectedMap[obj.id] || ''}
-                                onChange={(e) => setStepExpectedMap(prev => ({ ...prev, [obj.id]: e.target.value }))}
-                                style={{ fontSize: '0.78rem', padding: '6px 8px' }}
-                              />
-                              <button
-                                type="submit"
-                                style={{
-                                  padding: '6px 12px',
-                                  backgroundColor: 'var(--primary)',
-                                  color: '#fff',
-                                  border: 'none',
-                                  borderRadius: '4px',
-                                  fontSize: '0.78rem',
-                                  fontWeight: 700,
-                                  cursor: 'pointer'
-                                }}
-                              >
-                                + Step
-                              </button>
-                            </form>
                           </div>
                         )}
 
@@ -1148,57 +1192,49 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                             borderRadius: '8px',
                             padding: '14px'
                           }}>
-                            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)', display: 'block', marginBottom: '8px' }}>
-                              Included Test Cases ({incCases.length})
-                            </span>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px' }}>
-                              {incCases.map(item => (
-                                <div key={item.relId} style={{
-                                  display: 'flex',
-                                  justifyContent: 'space-between',
-                                  alignItems: 'center',
-                                  backgroundColor: 'var(--bg-dark)',
-                                  padding: '6px 10px',
-                                  borderRadius: '4px',
-                                  fontSize: '0.8rem'
-                                }}>
-                                  <span><span className="mono" style={{ color: 'var(--accent-cyan)' }}>[{item.tc?.object_key}]</span> {item.tc?.title}</span>
-                                  {onDeleteRelationship && (
-                                    <button onClick={() => onDeleteRelationship(item.relId)} style={{ border: 'none', background: 'transparent', color: 'var(--accent-rose)', cursor: 'pointer' }}>
-                                      <X size={12} />
-                                    </button>
-                                  )}
-                                </div>
-                              ))}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                                Included Test Cases ({incCases.length})
+                              </span>
+                              <button
+                                onClick={() => setEditingObject(obj)}
+                                style={{
+                                  fontSize: '0.72rem',
+                                  color: 'var(--accent-cyan)',
+                                  background: 'none',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  fontWeight: 600
+                                }}
+                              >
+                                Manage Test Cases ↗
+                              </button>
                             </div>
-
-                            {availCases.length > 0 && (
-                              <form onSubmit={(e) => handleAddTestCaseToSetForObj(obj.id, e)} style={{ display: 'flex', gap: '8px' }}>
-                                <select
-                                  value={addTestCaseIdMap[obj.id] || ''}
-                                  onChange={(e) => setAddTestCaseIdMap(prev => ({ ...prev, [obj.id]: Number(e.target.value) || null }))}
-                                  style={{ flex: 1, fontSize: '0.78rem' }}
-                                >
-                                  <option value="">Select test case to include...</option>
-                                  {availCases.map(tc => (
-                                    <option key={tc.id} value={tc.id}>[{tc.object_key}] {tc.title}</option>
-                                  ))}
-                                </select>
-                                <button
-                                  type="submit"
-                                  disabled={!addTestCaseIdMap[obj.id]}
-                                  style={{ padding: '6px 12px', backgroundColor: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}
-                                >
-                                  Include
-                                </button>
-                              </form>
-                            )}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              {incCases.length === 0 ? (
+                                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>No test cases included in this set yet.</div>
+                              ) : (
+                                incCases.map(item => (
+                                  <div key={item.relId} style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    backgroundColor: 'var(--bg-dark)',
+                                    padding: '6px 10px',
+                                    borderRadius: '4px',
+                                    fontSize: '0.8rem'
+                                  }}>
+                                    <span><span className="mono" style={{ color: 'var(--accent-cyan)' }}>[{item.tc?.object_key}]</span> {item.tc?.title}</span>
+                                  </div>
+                                ))
+                              )}
+                            </div>
                           </div>
                         )}
 
-                        {/* 6. 🎯 Post-Action (Exit / Postconditions) */}
+                        {/* 6. 🎯 Post-Action (Exit / Postconditions) - Read Only Callout */}
                         <div style={{
-                          backgroundColor: 'rgba(16, 185, 129, 0.04)',
+                          backgroundColor: 'rgba(16, 185, 129, 0.05)',
                           border: '1px solid rgba(16, 185, 129, 0.3)',
                           borderRadius: '8px',
                           padding: '14px'
@@ -1215,58 +1251,53 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                               🎯 POST-ACTION
                             </span>
                             <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                              Final Exit State, Postconditions, Safety Hold & Verification Output
+                              Final Exit State, Postconditions, Safety Hold &amp; Verification Output
                             </span>
                           </div>
-                          <textarea
-                            rows={3}
-                            value={draft.post_action}
-                            onChange={(e) => updateDraft(obj.id, 'post_action', e.target.value)}
-                            placeholder="Describe final exit system state, telemetry dispatch, mechanical brake holding, postcondition verification..."
-                            style={{
-                              width: '100%',
-                              padding: '8px 10px',
-                              fontSize: '0.85rem',
-                              borderRadius: '6px',
-                              backgroundColor: 'var(--bg-card)',
-                              border: '1px solid rgba(16, 185, 129, 0.2)',
-                              color: 'var(--text-main)',
-                              resize: 'vertical',
-                              lineHeight: '1.4'
-                            }}
-                          />
+                          <div style={{
+                            fontSize: '0.85rem',
+                            color: 'var(--text-main)',
+                            lineHeight: '1.5',
+                            whiteSpace: 'pre-wrap',
+                            backgroundColor: 'var(--bg-card)',
+                            padding: '10px 12px',
+                            borderRadius: '6px',
+                            border: '1px solid rgba(16, 185, 129, 0.2)'
+                          }}>
+                            {obj.post_action ? obj.post_action : <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No post-action specified. Click Edit / Update to add postconditions.</span>}
+                          </div>
                         </div>
 
-                        {/* 7. Save Changes Button for this requirement */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid var(--border-color)' }}>
-                          <div>
-                            {saveStatusMap[obj.id] && (
-                              <span style={{ color: 'var(--accent-emerald)', fontSize: '0.8rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <CheckCircle2 size={14} />
-                                <span>Changes saved to workspace!</span>
-                              </span>
-                            )}
-                          </div>
-
+                        {/* 7. Bottom Navigation Info Bar (No Save Changes button as requested) */}
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          paddingTop: '12px',
+                          borderTop: '1px solid var(--border-color)',
+                          fontSize: '0.8rem',
+                          color: 'var(--text-muted)'
+                        }}>
+                          <span>
+                            Inspection View • To update title, pre-action, post-action, or test steps, click <strong>Edit / Update ↗</strong>.
+                          </span>
                           <button
-                            onClick={() => handleSaveRequirement(obj)}
+                            onClick={() => setEditingObject(obj)}
                             style={{
                               display: 'flex',
                               alignItems: 'center',
                               gap: '6px',
-                              backgroundColor: 'var(--primary)',
-                              color: '#fff',
-                              border: 'none',
-                              padding: '8px 18px',
+                              backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                              border: '1px solid rgba(56, 189, 248, 0.35)',
+                              color: 'var(--accent-cyan)',
+                              padding: '6px 14px',
                               borderRadius: '6px',
                               fontWeight: 700,
-                              fontSize: '0.85rem',
-                              cursor: 'pointer',
-                              boxShadow: '0 2px 8px rgba(2, 132, 199, 0.35)'
+                              fontSize: '0.8rem',
+                              cursor: 'pointer'
                             }}
                           >
-                            <Save size={15} />
-                            <span>Save Changes</span>
+                            <span>✏️ Open Edit Dashboard ↗</span>
                           </button>
                         </div>
 
@@ -1552,141 +1583,16 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
           MODALS: Create Object, Folder, Link, File
           ══════════════════════════════════════════════════════════════════ */}
 
-      {/* 1. Create Requirement Modal */}
-      {showCreateModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.75)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            backgroundColor: 'var(--bg-card)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '12px',
-            width: '540px',
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            padding: '24px',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.6)'
-          }}>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--accent-cyan)', marginBottom: '14px' }}>
-              Create New {tracker.name.replace(/s$/, '')}
-            </h3>
-
-            <form onSubmit={handleCreateObjectSubmit}>
-              <div style={{ marginBottom: '14px' }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
-                  Title *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={modalTitle}
-                  onChange={(e) => setModalTitle(e.target.value)}
-                  style={{ width: '100%' }}
-                  placeholder="e.g. Dynamic Table Rerouting Latency"
-                />
-              </div>
-
-              <div style={{ marginBottom: '14px' }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px', color: 'var(--accent-amber)' }}>
-                  ⚡ Pre-Action (Initial System State & Preconditions)
-                </label>
-                <textarea
-                  rows={2}
-                  value={modalPreAction}
-                  onChange={(e) => setModalPreAction(e.target.value)}
-                  style={{ width: '100%', resize: 'none' }}
-                  placeholder="Starting state, sensor thresholds, battery status before trigger..."
-                />
-              </div>
-
-              <div style={{ marginBottom: '14px' }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
-                  Specification / Description
-                </label>
-                <textarea
-                  rows={3}
-                  value={modalDesc}
-                  onChange={(e) => setModalDesc(e.target.value)}
-                  style={{ width: '100%', resize: 'none' }}
-                  placeholder="Full functional requirements description..."
-                />
-              </div>
-
-              <div style={{ marginBottom: '14px' }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px', color: 'var(--accent-emerald)' }}>
-                  🎯 Post-Action (Exit State & Postconditions)
-                </label>
-                <textarea
-                  rows={2}
-                  value={modalPostAction}
-                  onChange={(e) => setModalPostAction(e.target.value)}
-                  style={{ width: '100%', resize: 'none' }}
-                  placeholder="Final safe state, telemetry feedback, mechanical brake lock..."
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '18px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
-                    Safety Classification
-                  </label>
-                  <select
-                    value={modalSafetyLevel}
-                    onChange={(e) => setModalSafetyLevel(e.target.value as SafetyLevel)}
-                    style={{ width: '100%' }}
-                  >
-                    <option value="ASIL-D">ASIL-D</option>
-                    <option value="ASIL-C">ASIL-C</option>
-                    <option value="ASIL-B">ASIL-B</option>
-                    <option value="ASIL-A">ASIL-A</option>
-                    <option value="SIL-3">SIL-3</option>
-                    <option value="SIL-2">SIL-2</option>
-                    <option value="Standard / Non-Safety">Standard / Non-Safety</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
-                    Priority
-                  </label>
-                  <select
-                    value={modalPriority}
-                    onChange={(e) => setModalPriority(e.target.value as any)}
-                    style={{ width: '100%' }}
-                  >
-                    <option value="CRITICAL">CRITICAL</option>
-                    <option value="HIGH">HIGH</option>
-                    <option value="MEDIUM">MEDIUM</option>
-                    <option value="LOW">LOW</option>
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--bg-dark)', color: 'var(--text-main)', border: 'none', cursor: 'pointer' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  style={{ padding: '8px 18px', borderRadius: '6px', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700, border: 'none', cursor: 'pointer' }}
-                >
-                  Create
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* 1. Codebeamer Enterprise Create Requirement / Test Case Modal (Point 1) */}
+      <EnterpriseCreateModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        tracker={tracker}
+        folders={folders}
+        allObjects={allObjects}
+        selectedFolderId={selectedFolderId}
+        onSave={handleEnterpriseSave}
+      />
 
       {/* 2. Create Folder Modal */}
       {showFolderModal && (

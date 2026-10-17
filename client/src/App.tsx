@@ -671,6 +671,14 @@ export const App: React.FC = () => {
     description?: string;
     pre_action?: string;
     post_action?: string;
+    start_date?: string;
+    end_date?: string;
+    planned_effort?: string;
+    spent_effort?: string;
+    category?: string;
+    resolution?: string;
+    release?: string;
+    status?: string;
     requirement_type?: RequirementType;
     safety_level?: SafetyLevel;
     test_subprocess?: TestSubProcess;
@@ -699,11 +707,18 @@ export const App: React.FC = () => {
       description: data.description || '',
       pre_action: data.pre_action || '',
       post_action: data.post_action || '',
+      start_date: data.start_date || '',
+      end_date: data.end_date || '',
+      planned_effort: data.planned_effort || '',
+      spent_effort: data.spent_effort || '',
+      category: data.category || '',
+      resolution: data.resolution || 'Unresolved',
+      release: data.release || 'Release 2.4',
       type: tracker.type,
       requirement_type: data.requirement_type || 'Functional Requirement',
       safety_level: data.safety_level || 'ASIL-D',
       test_subprocess: data.test_subprocess || 'System Testing',
-      status: 'DRAFT',
+      status: data.status || 'DRAFT',
       priority: data.priority || 'MEDIUM',
       owner_id: 1,
       owner_name: 'Zewd',
@@ -738,6 +753,7 @@ export const App: React.FC = () => {
       }));
       setRelationships(prev => [...prev, ...newRels]);
     }
+    return newObjId;
   };
 
   const handleUpdateObject = (id: number, updates: Partial<EngineeringObject>) => {
