@@ -104,11 +104,45 @@ export interface EngineeringObject {
   category?: string;
   resolution?: string;
   release?: string;
-  parent_id?: number | null;
+  custom_columns?: CustomColumn[];
+  revisions?: ObjectRevision[];
   version: number;
   metadata?: Record<string, any>;
   created_at: string;
   updated_at: string;
+}
+
+export interface CustomColumn {
+  id: string;
+  name: string;
+  type: 'TEXT' | 'FILES' | 'IMAGES' | 'TABLE' | 'LINK';
+  position_reference: 'TITLE' | 'PRE_ACTION' | 'DESCRIPTION' | 'TEST_STEPS' | 'POST_ACTION';
+  placement: 'ABOVE' | 'BELOW';
+  content?: any;
+}
+
+export interface ObjectRevision {
+  version: number;
+  saved_at: string;
+  saved_by?: string;
+  title: string;
+  description?: string;
+  pre_action?: string;
+  post_action?: string;
+  status?: string;
+  safety_level?: SafetyLevel;
+  priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  owner_name?: string;
+  category?: string;
+  release?: string;
+  start_date?: string;
+  end_date?: string;
+  planned_effort?: string;
+  spent_effort?: string;
+  resolution?: string;
+  custom_columns?: CustomColumn[];
+  test_steps?: TestStep[];
+  change_summary?: string;
 }
 
 export interface ObjectVersion {

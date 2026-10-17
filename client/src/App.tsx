@@ -57,7 +57,66 @@ const INITIAL_OBJECTS: EngineeringObject[] = [
     status: 'APPROVED', priority: 'CRITICAL', owner_id: 1, owner_name: 'Zewd', created_by_name: 'Zewd',
     pre_action: 'Robot navigation stack active in autonomous delivery mode with LiDAR costmap streaming at 20Hz.',
     post_action: 'Dynamic avoidance trajectory safely clears obstacle with min 0.5m clearance and resumes mission trajectory.',
-    version: 1,
+    version: 3,
+    custom_columns: [
+      {
+        id: 'col-sys-001-table',
+        name: 'Subsystem Latency & Parameter Spec',
+        type: 'TABLE',
+        position_reference: 'DESCRIPTION',
+        placement: 'BELOW',
+        content: [
+          { parameter: 'Perception LiDAR Processing Pipeline', value: '< 25 ms', tolerance: '±2 ms Max' },
+          { parameter: 'DWB Dynamic Local Path Solver', value: '< 15 ms', tolerance: 'Limit 20 ms' },
+          { parameter: 'CAN Bus Motor Brake Actuation', value: '< 8 ms', tolerance: 'ASIL-D Loop' }
+        ]
+      },
+      {
+        id: 'col-sys-001-files',
+        name: 'Attached Verification Reports & Logs',
+        type: 'FILES',
+        position_reference: 'POST_ACTION',
+        placement: 'BELOW',
+        content: [
+          { name: 'ISO_13482_Compliance_Audit_Report.pdf', size: '2.4 MB', date: '2026-10-15' },
+          { name: 'LiDAR_Costmap_Benchmark_Results.csv', size: '840 KB', date: '2026-10-16' }
+        ]
+      }
+    ],
+    revisions: [
+      {
+        version: 1,
+        saved_at: '2026-03-10T10:00:00.000Z',
+        saved_by: 'Zewd',
+        title: 'Obstacle Detection & Local Rerouting Latency [Initial PRD Draft]',
+        description: 'Initial draft: Robot shall detect obstacles within 2.0 meters and compute avoidance trajectory within 100 milliseconds.',
+        pre_action: 'Robot navigation stack active in autonomous delivery mode.',
+        post_action: 'Avoid obstacle and continue mission trajectory.',
+        status: 'DRAFT',
+        safety_level: 'SIL-2',
+        priority: 'HIGH',
+        owner_name: 'Zewd',
+        category: 'Functional Requirement',
+        release: 'Release 1.0',
+        change_summary: 'Initial PRD draft specification baseline'
+      },
+      {
+        version: 2,
+        saved_at: '2026-06-15T14:30:00.000Z',
+        saved_by: 'Zewd',
+        title: 'Obstacle Detection & Local Rerouting Latency [ASIL-D Safety Upgrade]',
+        description: 'The autonomous navigation system shall detect dynamic obstacles within 2.5 meters and compute a local collision avoidance trajectory within < 75 milliseconds.',
+        pre_action: 'Robot navigation stack active in autonomous delivery mode with LiDAR costmap streaming at 15Hz.',
+        post_action: 'Dynamic avoidance trajectory safely clears obstacle with min 0.4m clearance.',
+        status: 'REVIEW',
+        safety_level: 'ASIL-C',
+        priority: 'CRITICAL',
+        owner_name: 'Zewd',
+        category: 'Functional Requirement',
+        release: 'Release 2.0',
+        change_summary: 'Tighter latency margin and ASIL-C qualification upgrade'
+      }
+    ],
     metadata: { rationale: 'Prevent collision in high-density dining room environments.', source: 'ISO 13482 Standard', verificationMethod: 'Test' },
     created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   },
@@ -69,7 +128,38 @@ const INITIAL_OBJECTS: EngineeringObject[] = [
     status: 'APPROVED', priority: 'CRITICAL', owner_id: 1, owner_name: 'Zewd', created_by_name: 'Zewd',
     pre_action: 'Robot moving at cruising speed 1.5 m/s on dry floor with wireless e-stop safety loop verified closed.',
     post_action: 'Power relay opens instantly, mechanical brakes engage, stopping distance strictly <= 0.35m, robot enters safe IDLE state.',
-    version: 1,
+    version: 2,
+    custom_columns: [
+      {
+        id: 'col-sys-002-link',
+        name: 'CAD / Kinematics Assembly Reference',
+        type: 'LINK',
+        position_reference: 'PRE_ACTION',
+        placement: 'BELOW',
+        content: {
+          title: 'RoboServ-X1 E-Stop & Braking Kinematics (Onshape CAD)',
+          url: 'https://cad.onshape.com/documents/roboserv-x1-estop'
+        }
+      }
+    ],
+    revisions: [
+      {
+        version: 1,
+        saved_at: '2026-04-01T09:15:00.000Z',
+        saved_by: 'Zewd',
+        title: 'Physical & Software Emergency Braking Distance [Initial Inception]',
+        description: 'When an emergency stop signal is triggered, the robot shall come to a complete stop within 0.50 meters from a cruising speed of 1.5 m/s.',
+        pre_action: 'Robot moving at cruising speed 1.5 m/s with e-stop loop closed.',
+        post_action: 'Brakes engage, stopping distance <= 0.50m.',
+        status: 'REVIEW',
+        safety_level: 'ASIL-C',
+        priority: 'CRITICAL',
+        owner_name: 'Zewd',
+        category: 'Functional Requirement',
+        release: 'Release 1.0',
+        change_summary: 'Initial braking distance requirement (0.50m limit)'
+      }
+    ],
     metadata: { rationale: 'Guarantee patron safety when sudden obstacles step directly into path.', source: 'Safety Hazard Analysis SHA-2026-01', verificationMethod: 'Test' },
     created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   },
@@ -412,7 +502,19 @@ export const App: React.FC = () => {
   });
 
   const [allObjects, setAllObjects] = useState<EngineeringObject[]>(() => {
-    return getInitialData('objects', INITIAL_OBJECTS);
+    const loaded = getInitialData<EngineeringObject[]>('objects', INITIAL_OBJECTS);
+    return loaded.map(obj => {
+      const initObj = INITIAL_OBJECTS.find(io => io.id === obj.id);
+      if (initObj) {
+        return {
+          ...obj,
+          custom_columns: (obj.custom_columns && obj.custom_columns.length > 0) ? obj.custom_columns : initObj.custom_columns,
+          revisions: (obj.revisions && obj.revisions.length > 0) ? obj.revisions : initObj.revisions,
+          version: obj.version > 1 ? obj.version : (initObj.version || obj.version)
+        };
+      }
+      return obj;
+    });
   });
 
   const [relationships, setRelationships] = useState<Relationship[]>(() => {
@@ -762,7 +864,9 @@ export const App: React.FC = () => {
         return {
           ...o,
           ...updates,
-          version: updates.title || updates.description || updates.status || updates.requirement_type || updates.safety_level ? o.version + 1 : o.version,
+          version: updates.version !== undefined
+            ? updates.version
+            : (updates.title || updates.description || updates.status || updates.requirement_type || updates.safety_level ? o.version + 1 : o.version),
           updated_at: new Date().toISOString()
         };
       }

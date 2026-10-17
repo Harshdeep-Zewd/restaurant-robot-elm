@@ -7,10 +7,11 @@ import {
 } from 'lucide-react';
 import {
   Tracker, Folder as FolderType, EngineeringObject, RequirementType,
-  SafetyLevel, TestSubProcess, Relationship, TestStep, Artifact
+  SafetyLevel, TestSubProcess, Relationship, TestStep, Artifact, CustomColumn
 } from '../types/elm';
 import { RequirementEditDashboard } from './RequirementEditDashboard';
 import { EnterpriseCreateModal } from './EnterpriseCreateModal';
+import { CustomColumnCard } from './CustomColumnCard';
 
 interface TrackerTableViewProps {
   tracker: Tracker;
@@ -819,6 +820,18 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                   !incRels.some(r => r.source_id === o.id)
                 );
 
+                const renderObjCustomColumns = (targetRef: 'TITLE' | 'PRE_ACTION' | 'DESCRIPTION' | 'TEST_STEPS' | 'POST_ACTION', placement: 'ABOVE' | 'BELOW') => {
+                  const cols = (obj.custom_columns || []).filter(c => c.position_reference === targetRef && c.placement === placement);
+                  if (cols.length === 0) return null;
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {cols.map(col => (
+                        <CustomColumnCard key={col.id} column={col} readOnly={true} />
+                      ))}
+                    </div>
+                  );
+                };
+
                 return (
                   <div
                     key={obj.id}
@@ -977,6 +990,9 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                     {isExpanded && (
                       <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: '16px', backgroundColor: 'var(--bg-dark)' }}>
 
+                        {/* Custom Columns ABOVE Title */}
+                        {renderObjCustomColumns('TITLE', 'ABOVE')}
+
                         {/* 1. Requirement Title Header */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
                           <div>
@@ -1006,6 +1022,10 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                             <span>✏️ Edit / Update ↗</span>
                           </button>
                         </div>
+
+                        {/* Custom Columns BELOW Title / ABOVE Pre-Action */}
+                        {renderObjCustomColumns('TITLE', 'BELOW')}
+                        {renderObjCustomColumns('PRE_ACTION', 'ABOVE')}
 
                         {/* 2. ⚡ Pre-Action (Initial / Preconditions) - Read Only Callout */}
                         <div style={{
@@ -1042,6 +1062,10 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                             {obj.pre_action ? obj.pre_action : <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No pre-action specified. Click Edit / Update to add preconditions.</span>}
                           </div>
                         </div>
+
+                        {/* Custom Columns BELOW Pre-Action / ABOVE Description */}
+                        {renderObjCustomColumns('PRE_ACTION', 'BELOW')}
+                        {renderObjCustomColumns('DESCRIPTION', 'ABOVE')}
 
                         {/* 3. Description (Detailed Specification) */}
                         <div>
@@ -1125,6 +1149,10 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                             </div>
                           )}
                         </div>
+
+                        {/* Custom Columns BELOW Description / ABOVE Test Steps */}
+                        {renderObjCustomColumns('DESCRIPTION', 'BELOW')}
+                        {renderObjCustomColumns('TEST_STEPS', 'ABOVE')}
 
                         {/* 5. 🧪 Test Steps (if Test Case tracker) */}
                         {isTestCaseTracker && (
@@ -1232,6 +1260,10 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                           </div>
                         )}
 
+                        {/* Custom Columns BELOW Test Steps / ABOVE Post-Action */}
+                        {renderObjCustomColumns('TEST_STEPS', 'BELOW')}
+                        {renderObjCustomColumns('POST_ACTION', 'ABOVE')}
+
                         {/* 6. 🎯 Post-Action (Exit / Postconditions) - Read Only Callout */}
                         <div style={{
                           backgroundColor: 'rgba(16, 185, 129, 0.05)',
@@ -1267,6 +1299,9 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                             {obj.post_action ? obj.post_action : <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No post-action specified. Click Edit / Update to add postconditions.</span>}
                           </div>
                         </div>
+
+                        {/* Custom Columns BELOW Post-Action */}
+                        {renderObjCustomColumns('POST_ACTION', 'BELOW')}
 
                         {/* 7. Bottom Navigation Info Bar (No Save Changes button as requested) */}
                         <div style={{
