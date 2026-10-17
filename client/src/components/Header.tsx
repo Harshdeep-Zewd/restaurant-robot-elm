@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bot, Search, Plus, FolderPlus, ChevronDown, Check, User, ShieldCheck, LogOut, Sparkles, Pencil, Trash2 } from 'lucide-react';
+import { Bot, Search, Plus, FolderPlus, ChevronDown, Check, User, ShieldCheck, LogOut, Sparkles, Pencil, Trash2, ArrowLeft } from 'lucide-react';
 import { Project, User as UserType } from '../types/elm';
 
 interface HeaderProps {
@@ -14,6 +14,7 @@ interface HeaderProps {
   setSearchQuery: (query: string) => void;
   onLogout: () => void;
   onOpenAdminConsole?: () => void;
+  onBackToProjects?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -27,7 +28,8 @@ export const Header: React.FC<HeaderProps> = ({
   searchQuery,
   setSearchQuery,
   onLogout,
-  onOpenAdminConsole
+  onOpenAdminConsole,
+  onBackToProjects
 }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   
@@ -121,11 +123,40 @@ export const Header: React.FC<HeaderProps> = ({
           padding: '6px 12px',
           borderRadius: '8px',
           color: '#fff',
-          fontWeight: 700
-        }}>
+          fontWeight: 700,
+          cursor: onBackToProjects ? 'pointer' : 'default'
+        }}
+        onClick={onBackToProjects}
+        title={onBackToProjects ? 'Return to Projects Portal' : 'RoboServ ELM'}
+        >
           <Bot size={22} />
           <span>RoboServ ELM</span>
         </div>
+
+        {/* Back to All Projects Portal Button */}
+        {onBackToProjects && (
+          <button
+            onClick={onBackToProjects}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: 'rgba(56, 189, 248, 0.08)',
+              border: '1px solid rgba(56, 189, 248, 0.3)',
+              color: 'var(--accent-cyan)',
+              padding: '6px 12px',
+              borderRadius: '6px',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+            title="Return to Projects Page"
+          >
+            <ArrowLeft size={14} />
+            <span>← All Projects</span>
+          </button>
+        )}
 
         {/* Project Selector Dropdown */}
         <div style={{ position: 'relative' }}>
@@ -163,6 +194,33 @@ export const Header: React.FC<HeaderProps> = ({
               zIndex: 200,
               padding: '8px'
             }}>
+              {/* Back to Projects Portal Option in Dropdown */}
+              {onBackToProjects && (
+                <div
+                  onClick={() => {
+                    setShowDropdown(false);
+                    onBackToProjects();
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    backgroundColor: 'rgba(56, 189, 248, 0.08)',
+                    border: '1px solid rgba(56, 189, 248, 0.2)',
+                    color: 'var(--accent-cyan)',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    marginBottom: '8px'
+                  }}
+                >
+                  <ArrowLeft size={14} />
+                  <span>← View All Projects Portal</span>
+                </div>
+              )}
+
               <div style={{
                 display: 'flex',
                 justifyContent: 'space-between',

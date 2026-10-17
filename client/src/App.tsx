@@ -12,6 +12,7 @@ import { ArtifactsView } from './components/ArtifactsView';
 import { AuditView } from './components/AuditView';
 import { LoginView } from './components/LoginView';
 import { AdminConsoleView } from './components/AdminConsoleView';
+import { ProjectsPortalView } from './components/ProjectsPortalView';
 import { Project, Tracker, EngineeringObject, Folder, RequirementType, SafetyLevel, TestSubProcess, Relationship, TestStep, Artifact, User, TestRun } from './types/elm';
 import { authService } from './api/auth';
 
@@ -337,13 +338,29 @@ export const App: React.FC = () => {
   const [currentUser] = useState<User>(ZEWD_USER);
   const [adminMode, setAdminMode] = useState<'CONSOLE' | 'INSPECT'>('INSPECT');
 
+  const [currentScreen, setCurrentScreen] = useState<'PROJECTS_PORTAL' | 'WORKSPACE'>(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('project')) return 'WORKSPACE';
+    } catch (e) {}
+    return 'PROJECTS_PORTAL';
+  });
+
   const [projects, setProjects] = useState<Project[]>(() => {
     return getInitialData('projects', INITIAL_PROJECTS);
   });
   
   const [activeProjectId, setActiveProjectId] = useState<number>(() => {
-    const savedId = getInitialData<number | null>('active_project_id', null);
     const loadedProjects = getInitialData<Project[]>('projects', INITIAL_PROJECTS);
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const projParam = params.get('project');
+      if (projParam) {
+        const found = loadedProjects.find(p => p.key.toLowerCase() === projParam.toLowerCase() || String(p.id) === projParam);
+        if (found) return found.id;
+      }
+    } catch (e) {}
+    const savedId = getInitialData<number | null>('active_project_id', null);
     if (savedId && loadedProjects.some(p => p.id === savedId)) {
       return savedId;
     }
@@ -395,6 +412,27 @@ export const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [impactObjectId, setImpactObjectId] = useState<number | null>(null);
 
+  // Sync browser Back/Forward navigation with URL
+  useEffect(() => {
+    const handlePopState = () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const projParam = params.get('project');
+        if (projParam) {
+          const match = projects.find(p => p.key.toLowerCase() === projParam.toLowerCase() || String(p.id) === projParam);
+          if (match) {
+            setActiveProjectId(match.id);
+            setCurrentScreen('WORKSPACE');
+            return;
+          }
+        }
+        setCurrentScreen('PROJECTS_PORTAL');
+      } catch (e) {}
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [projects]);
+
   const handleLogout = () => {
     window.location.reload();
   };
@@ -437,8 +475,6 @@ export const App: React.FC = () => {
   useEffect(() => { localStorage.setItem('roboserv_elm_test_runs', JSON.stringify(testRuns)); }, [testRuns]);
   useEffect(() => { localStorage.setItem('roboserv_elm_test_run_details', JSON.stringify(testRunDetailsMap)); }, [testRunDetailsMap]);
 
-
-
   const handleSelectProject = (p: Project) => {
     setActiveProjectId(p.id);
     const pTrackers = allTrackers.filter(t => t.project_id === p.id);
@@ -448,7 +484,23 @@ export const App: React.FC = () => {
       setSelectedTrackerId(null);
     }
     setActiveView('DASHBOARD');
+    setCurrentScreen('WORKSPACE');
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('project', p.key.toLowerCase());
+      window.history.pushState({}, '', url.toString());
+    } catch (e) {}
   };
+
+  const handleBackToProjectsPortal = () => {
+    setCurrentScreen('PROJECTS_PORTAL');
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('project');
+      window.history.pushState({}, '', url.toString());
+    } catch (e) {}
+  };
+
 
   const handleCreateProject = (data: { key: string; name: string; description?: string }) => {
     const newProjectId = Date.now();
@@ -475,6 +527,12 @@ export const App: React.FC = () => {
     setActiveProjectId(newProjectId);
     setSelectedTrackerId(newTrackers[0].id);
     setActiveView('DASHBOARD');
+    setCurrentScreen('WORKSPACE');
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('project', upperKey.toLowerCase());
+      window.history.pushState({}, '', url.toString());
+    } catch (e) {}
   };
 
   const handleUpdateProject = (id: number, updates: Partial<Project>) => {
@@ -744,6 +802,7 @@ export const App: React.FC = () => {
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           onLogout={handleLogout}
+          onBackToProjects={handleBackToProjectsPortal}
         />
         <AdminConsoleView
           currentUser={currentUser}
@@ -761,6 +820,21 @@ export const App: React.FC = () => {
     );
   }
 
+  if (currentScreen === 'PROJECTS_PORTAL') {
+    return (
+      <ProjectsPortalView
+        projects={visibleProjects}
+        allTrackers={allTrackers}
+        allObjects={allObjects}
+        testRuns={testRuns}
+        onSelectProject={handleSelectProject}
+        onCreateProject={handleCreateProject}
+        onUpdateProject={handleUpdateProject}
+        onDeleteProject={handleDeleteProject}
+      />
+    );
+  }
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-dark)' }}>
       <Header
@@ -775,6 +849,7 @@ export const App: React.FC = () => {
         setSearchQuery={setSearchQuery}
         onLogout={handleLogout}
         onOpenAdminConsole={() => setAdminMode('CONSOLE')}
+        onBackToProjects={handleBackToProjectsPortal}
       />
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
