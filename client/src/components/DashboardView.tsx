@@ -78,7 +78,127 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
-      {/* Top Metrics Cards */}
+      {/* 1. Trackers Grid - Displayed First */}
+      <div style={{
+        backgroundColor: 'var(--bg-card)',
+        border: '1px solid var(--border-color)',
+        borderRadius: '12px',
+        padding: '24px',
+        marginBottom: '24px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+          <div>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Layers size={20} color="var(--accent-cyan)" />
+              <span>Engineering Trackers</span>
+              <span style={{
+                fontSize: '0.75rem',
+                backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                color: 'var(--accent-cyan)',
+                border: '1px solid rgba(56, 189, 248, 0.3)',
+                padding: '2px 8px',
+                borderRadius: '12px',
+                fontWeight: 700
+              }}>
+                {trackers.length} Active
+              </span>
+            </h2>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+              Select any engineering tracker below to enter its dedicated 3-panel dashboard (Requirements, Pre/Post Actions, Traceability & Features).
+            </p>
+          </div>
+        </div>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+          gap: '16px'
+        }}>
+          {trackers.map((t) => {
+            const count = allObjects.filter(o => o.tracker_id === t.id).length;
+            return (
+              <div
+                key={t.id}
+                onClick={() => onNavigate('TRACKER', t)}
+                style={{
+                  backgroundColor: 'var(--bg-dark)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '10px',
+                  padding: '18px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  minHeight: '140px',
+                  position: 'relative'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--accent-cyan)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 18px rgba(56, 189, 248, 0.15)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--border-color)';
+                  e.currentTarget.style.transform = 'none';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <span className="mono" style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 800,
+                      color: 'var(--accent-cyan)',
+                      backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                      border: '1px solid rgba(56, 189, 248, 0.25)',
+                      padding: '3px 8px',
+                      borderRadius: '4px'
+                    }}>
+                      {t.prefix || t.key}
+                    </span>
+                    <span style={{
+                      fontSize: '1.25rem',
+                      fontWeight: 800,
+                      color: count > 0 ? 'var(--accent-emerald)' : 'var(--text-muted)'
+                    }}>
+                      {count} <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>items</span>
+                    </span>
+                  </div>
+
+                  <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '4px' }}>
+                    {t.name}
+                  </h3>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                    {t.description || `${t.type.replace(/_/g, ' ')} repository with full lifecycle traceability`}
+                  </p>
+                </div>
+
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginTop: '14px',
+                  paddingTop: '10px',
+                  borderTop: '1px solid var(--border-color)',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  color: 'var(--accent-cyan)'
+                }}>
+                  <span>Open Tracker Dashboard</span>
+                  <ArrowUpRight size={14} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 2. Project Analytics & Lifecycle Metrics */}
+      <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '14px' }}>
+        Lifecycle & Verification Metrics
+      </h2>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
         <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase' }}>
@@ -128,61 +248,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             {trackers.length} Trackers
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            Configured for {project.key} Workspace
+            Configured for [{project.key}] Workspace
           </div>
         </div>
       </div>
 
-      {/* Main Grid: Trackers List & Project Info */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
-        {/* Trackers Grid */}
-        <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '20px' }}>
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '16px' }}>
-            Active Trackers for [{project.key}] {project.name}
-          </h2>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            {trackers.map((t) => (
-              <div
-                key={t.id}
-                onClick={() => onNavigate('TRACKER', t)}
-                style={{
-                  backgroundColor: 'var(--bg-dark)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '8px',
-                  padding: '14px',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}
-              >
-                <div>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-cyan)' }} className="mono">
-                    {t.prefix || t.key}
-                  </div>
-                  <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-main)', marginTop: '2px' }}>
-                    {t.name}
-                  </div>
-                </div>
-                <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-                  {t.object_count || 0}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Project Summary */}
-        <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '20px' }}>
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '12px' }}>Project Overview</h2>
-          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-            <p><strong>Project Key:</strong> <span className="mono">{project.key}</span></p>
-            <p style={{ marginTop: '8px' }}><strong>Total Objects:</strong> {projectObjects.length}</p>
-            <p style={{ marginTop: '8px' }}><strong>Total Test Runs:</strong> {pRuns.length}</p>
-            <p style={{ marginTop: '8px' }}><strong>Description:</strong> {project.description || 'Systems Engineering Lifecycle Management'}</p>
-          </div>
+      {/* 3. Project Summary */}
+      <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '20px' }}>
+        <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '12px' }}>Project Overview & Scope</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+          <div><strong>Project Key:</strong> <span className="mono" style={{ color: 'var(--accent-cyan)' }}>[{project.key}]</span></div>
+          <div><strong>Total Objects:</strong> <span style={{ color: 'var(--text-main)', fontWeight: 700 }}>{projectObjects.length}</span></div>
+          <div><strong>Total Test Runs:</strong> <span style={{ color: 'var(--text-main)', fontWeight: 700 }}>{pRuns.length}</span></div>
+          <div><strong>Owner:</strong> <span style={{ color: 'var(--accent-amber)', fontWeight: 700 }}>👑 Zewd (Owner)</span></div>
         </div>
       </div>
     </div>

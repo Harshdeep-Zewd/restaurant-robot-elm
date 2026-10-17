@@ -95,6 +95,8 @@ export interface EngineeringObject {
   owner_id: number;
   owner_name?: string;
   created_by_name?: string;
+  pre_action?: string;
+  post_action?: string;
   version: number;
   metadata?: Record<string, any>;
   created_at: string;

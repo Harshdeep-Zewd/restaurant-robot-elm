@@ -54,7 +54,10 @@ const INITIAL_OBJECTS: EngineeringObject[] = [
     title: 'Obstacle Detection & Local Rerouting Latency',
     description: 'The autonomous navigation system shall detect dynamic obstacles within 3.0 meters and compute a local collision avoidance trajectory within < 50 milliseconds.',
     type: 'REQUIREMENT', requirement_type: 'Functional Requirement', safety_level: 'ASIL-D', test_subprocess: 'System Testing',
-    status: 'APPROVED', priority: 'CRITICAL', owner_id: 1, owner_name: 'Zewd', created_by_name: 'Zewd', version: 1,
+    status: 'APPROVED', priority: 'CRITICAL', owner_id: 1, owner_name: 'Zewd', created_by_name: 'Zewd',
+    pre_action: 'Robot navigation stack active in autonomous delivery mode with LiDAR costmap streaming at 20Hz.',
+    post_action: 'Dynamic avoidance trajectory safely clears obstacle with min 0.5m clearance and resumes mission trajectory.',
+    version: 1,
     metadata: { rationale: 'Prevent collision in high-density dining room environments.', source: 'ISO 13482 Standard', verificationMethod: 'Test' },
     created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   },
@@ -63,7 +66,10 @@ const INITIAL_OBJECTS: EngineeringObject[] = [
     title: 'Physical & Software Emergency Braking Distance',
     description: 'When an emergency stop signal is triggered, the robot shall come to a complete stop within 0.35 meters from a cruising speed of 1.5 m/s.',
     type: 'REQUIREMENT', requirement_type: 'Functional Requirement', safety_level: 'ASIL-D', test_subprocess: 'HIL Testing',
-    status: 'APPROVED', priority: 'CRITICAL', owner_id: 1, owner_name: 'Zewd', created_by_name: 'Zewd', version: 1,
+    status: 'APPROVED', priority: 'CRITICAL', owner_id: 1, owner_name: 'Zewd', created_by_name: 'Zewd',
+    pre_action: 'Robot moving at cruising speed 1.5 m/s on dry floor with wireless e-stop safety loop verified closed.',
+    post_action: 'Power relay opens instantly, mechanical brakes engage, stopping distance strictly <= 0.35m, robot enters safe IDLE state.',
+    version: 1,
     metadata: { rationale: 'Guarantee patron safety when sudden obstacles step directly into path.', source: 'Safety Hazard Analysis SHA-2026-01', verificationMethod: 'Test' },
     created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   },
@@ -72,7 +78,10 @@ const INITIAL_OBJECTS: EngineeringObject[] = [
     title: 'Active Hot Food Bay Thermal Maintenance',
     description: 'The insulated payload compartment shall maintain hot soup and plated meals at a minimum internal temperature of 65°C for up to 25 minutes of transit.',
     type: 'REQUIREMENT', requirement_type: 'Non-Functional Requirement', safety_level: 'Standard / Non-Safety', test_subprocess: 'Black-Box Testing',
-    status: 'REVIEW', priority: 'MEDIUM', owner_id: 1, owner_name: 'Zewd', created_by_name: 'Zewd', version: 1,
+    status: 'REVIEW', priority: 'MEDIUM', owner_id: 1, owner_name: 'Zewd', created_by_name: 'Zewd',
+    pre_action: 'Thermal heating elements preheated to 70°C, seal door closed, temperature sensor polling at 1Hz.',
+    post_action: 'Transit concluded within 25 min; verify food core temp >= 65°C and emit delivery confirmation to server.',
+    version: 1,
     metadata: { rationale: 'Ensure food quality and customer satisfaction during peak dining hours.', source: 'PRD §4.2', verificationMethod: 'Inspection' },
     created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   },
@@ -81,7 +90,10 @@ const INITIAL_OBJECTS: EngineeringObject[] = [
     title: 'ROS2 Nav2 DWB Dynamic Local Planner Configuration',
     description: 'The software stack shall integrate ROS2 Iron Nav2 DWB local planner tuned with 20Hz local costmap updates using Ouster 3D LiDAR point cloud scans.',
     type: 'REQUIREMENT', requirement_type: 'Parameter', safety_level: 'ASIL-C', test_subprocess: 'SW Testing',
-    status: 'APPROVED', priority: 'HIGH', owner_id: 1, owner_name: 'Zewd', created_by_name: 'Zewd', version: 1,
+    status: 'APPROVED', priority: 'HIGH', owner_id: 1, owner_name: 'Zewd', created_by_name: 'Zewd',
+    pre_action: 'ROS2 Iron daemon running, Nav2 navigation stack initialized with costmap filter plugins loaded.',
+    post_action: 'DWB local controller produces collision-free cmd_vel twists at 20Hz without oscillation.',
+    version: 1,
     metadata: { rationale: 'Real-time reactive navigation in tight restaurant table aisles.', source: 'Derived from SYS-REQ-001' },
     created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   },
@@ -90,7 +102,10 @@ const INITIAL_OBJECTS: EngineeringObject[] = [
     title: 'RoboServ-X1 Main Cyber-Physical System',
     description: 'Top-level system architecture encapsulating Mobility Base, Sensor Suite, Thermal Bay, Compute, and Power.',
     type: 'ARCHITECTURE', requirement_type: 'Folder', safety_level: 'ASIL-D', test_subprocess: 'Integration Testing',
-    status: 'APPROVED', priority: 'CRITICAL', owner_id: 1, owner_name: 'Zewd', created_by_name: 'Zewd', version: 1,
+    status: 'APPROVED', priority: 'CRITICAL', owner_id: 1, owner_name: 'Zewd', created_by_name: 'Zewd',
+    pre_action: 'System main DC bus powered at 48V, CAN bus 2.0B topology initialized across all motor controllers.',
+    post_action: 'All subsystems reporting healthy heartbeat over ROS2 DDS middleware with zero fault codes.',
+    version: 1,
     metadata: { archType: 'System', subsystems: ['Mobility', 'Sensors', 'Payload', 'Compute'] },
     created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   },
@@ -99,7 +114,10 @@ const INITIAL_OBJECTS: EngineeringObject[] = [
     title: 'Robot Collision with Fast-Moving Dining Room Patron',
     description: 'Hazard: Uncontrolled physical contact with customer in crowded dining area resulting in minor injury or food spill.',
     type: 'RISK', requirement_type: 'Non-Functional Requirement', safety_level: 'ASIL-D', test_subprocess: 'Field Testing',
-    status: 'REVIEW', priority: 'CRITICAL', owner_id: 1, owner_name: 'Zewd', created_by_name: 'Zewd', version: 1,
+    status: 'REVIEW', priority: 'CRITICAL', owner_id: 1, owner_name: 'Zewd', created_by_name: 'Zewd',
+    pre_action: 'Robot navigating during crowded dinner rush hours (18:00 - 21:00) with patrons moving unpredictably.',
+    post_action: 'Speed clamped to < 1.0 m/s in narrow aisles; optical warning chime active to notify nearby persons.',
+    version: 1,
     metadata: { hazard: 'Kinetic collision at 1.5 m/s', severity: 5, exposure: 4, avoidance: 3, riskRating: 60, mitigation: 'SYS-REQ-001 & SYS-REQ-002' },
     created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   },
@@ -108,7 +126,10 @@ const INITIAL_OBJECTS: EngineeringObject[] = [
     title: 'Dynamic Pedestrian Avoidance & Latency Test',
     description: 'Verify that the robot detects a dynamic human target walking across its path at 1.0 m/s and computes a non-colliding path.',
     type: 'TEST_CASE', requirement_type: 'Functional Requirement', safety_level: 'ASIL-D', test_subprocess: 'System Testing',
-    status: 'APPROVED', priority: 'CRITICAL', owner_id: 1, owner_name: 'Zewd', created_by_name: 'Zewd', version: 1,
+    status: 'APPROVED', priority: 'CRITICAL', owner_id: 1, owner_name: 'Zewd', created_by_name: 'Zewd',
+    pre_action: 'Test track clear, mannequin obstacle rigged to motorized cable pulling system with optical tripwire active.',
+    post_action: 'Record trajectory in rosbag; confirm evasion begins within 50ms of tripwire breach.',
+    version: 1,
     metadata: { objective: 'Validate <50ms response time.', preconditions: 'Nav2 active in simulator.' },
     created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   },
@@ -117,7 +138,10 @@ const INITIAL_OBJECTS: EngineeringObject[] = [
     title: 'Emergency Stop Braking Distance Field Test',
     description: 'Perform hard emergency stop triggers at maximum operational velocity (1.5 m/s) and record stopping distance.',
     type: 'TEST_CASE', requirement_type: 'Functional Requirement', safety_level: 'ASIL-D', test_subprocess: 'HIL Testing',
-    status: 'APPROVED', priority: 'CRITICAL', owner_id: 1, owner_name: 'Zewd', created_by_name: 'Zewd', version: 1,
+    status: 'APPROVED', priority: 'CRITICAL', owner_id: 1, owner_name: 'Zewd', created_by_name: 'Zewd',
+    pre_action: 'Ground tracking optical sensor calibrated on dry tile floor; robot battery > 80% with wireless e-stop receiver paired.',
+    post_action: 'Laser distance meter measures point of trigger to wheel rest position; record stopping distance in test log.',
+    version: 1,
     metadata: { objective: 'Verify stopping distance <= 0.35m.', preconditions: 'Dry tile surface.' },
     created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   },
@@ -126,7 +150,10 @@ const INITIAL_OBJECTS: EngineeringObject[] = [
     title: 'Safety & ISO 13482 Validation Test Set',
     description: 'Comprehensive safety suite combining dynamic obstacle avoidance and e-stop braking tests.',
     type: 'TEST_SET', requirement_type: 'Functional Requirement', safety_level: 'ASIL-D', test_subprocess: 'System Testing',
-    status: 'APPROVED', priority: 'CRITICAL', owner_id: 1, owner_name: 'Zewd', created_by_name: 'Zewd', version: 1,
+    status: 'APPROVED', priority: 'CRITICAL', owner_id: 1, owner_name: 'Zewd', created_by_name: 'Zewd',
+    pre_action: 'RoboServ-X1 hardware revision Rev 1 loaded with release candidate firmware v1.0.0-rc1 in certified test pen.',
+    post_action: 'Generate ISO 13482 compliance verification certificate with all test run step outcomes.',
+    version: 1,
     metadata: { targetRelease: 'Release 2.4' },
     created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   }
@@ -642,6 +669,8 @@ export const App: React.FC = () => {
     folder_id?: number | null;
     title: string;
     description?: string;
+    pre_action?: string;
+    post_action?: string;
     requirement_type?: RequirementType;
     safety_level?: SafetyLevel;
     test_subprocess?: TestSubProcess;
@@ -668,6 +697,8 @@ export const App: React.FC = () => {
       object_key,
       title: data.title,
       description: data.description || '',
+      pre_action: data.pre_action || '',
+      post_action: data.post_action || '',
       type: tracker.type,
       requirement_type: data.requirement_type || 'Functional Requirement',
       safety_level: data.safety_level || 'ASIL-D',

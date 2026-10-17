@@ -1,7 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Folder, FolderPlus, ChevronRight, ListOrdered, Paperclip, ChevronDown, ChevronUp, CheckSquare, Square, Trash2 } from 'lucide-react';
-import { Tracker, Folder as FolderType, EngineeringObject, RequirementType, SafetyLevel, TestSubProcess, Relationship, TestStep, Artifact } from '../types/elm';
-import { ObjectDetailPane } from './ObjectDetailPane';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Plus, Folder, FolderPlus, ChevronRight, ListOrdered, Paperclip,
+  CheckSquare, Trash2, Search, Save, ArrowRight, Link as LinkIcon,
+  ShieldAlert, Activity, FileText, Download, CheckCircle2, AlertTriangle,
+  Layers, UploadCloud, ExternalLink, X, Clock, User
+} from 'lucide-react';
+import {
+  Tracker, Folder as FolderType, EngineeringObject, RequirementType,
+  SafetyLevel, TestSubProcess, Relationship, TestStep, Artifact
+} from '../types/elm';
 
 interface TrackerTableViewProps {
   tracker: Tracker;
@@ -17,6 +24,8 @@ interface TrackerTableViewProps {
     folder_id?: number | null;
     title: string;
     description?: string;
+    pre_action?: string;
+    post_action?: string;
     requirement_type?: RequirementType;
     safety_level?: SafetyLevel;
     test_subprocess?: TestSubProcess;
@@ -32,7 +41,7 @@ interface TrackerTableViewProps {
   onDeleteRelationship: (id: number) => void;
   onAddTestStep?: (test_case_id: number, action: string, expected_result: string) => void;
   onDeleteTestStep?: (id: number) => void;
-  onAddArtifact?: (data: { object_id: number; filename: string; category: any; file_size?: number }) => void;
+  onAddArtifact?: (data: { object_id?: number; filename: string; category: any; file_size?: number; stored_path?: string }) => void;
   onDeleteArtifact?: (id: number) => void;
   onSelectObjectForImpact?: (objId: number) => void;
 }
@@ -57,45 +66,62 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
   onDeleteArtifact,
   onSelectObjectForImpact
 }) => {
+  // Navigation & Filter state
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
   const [selectedObjectId, setSelectedObjectId] = useState<number | null>(null);
-  const [expandedObjIds, setExpandedObjIds] = useState<number[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  
-  // Object Modal state
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newTitle, setNewTitle] = useState('');
-  const [newDesc, setNewDesc] = useState('');
-  const [newFolderId, setNewFolderId] = useState<number | null>(null);
-  const [newReqType, setNewReqType] = useState<RequirementType>('Functional Requirement');
-  const [newSafetyLevel, setNewSafetyLevel] = useState<SafetyLevel>('ASIL-D');
-  const [newTestProcess, setNewTestProcess] = useState<TestSubProcess>('System Testing');
-  const [newPriority, setNewPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>('MEDIUM');
+
+  // Middle Panel Active Form State
+  const [title, setTitle] = useState('');
+  const [preAction, setPreAction] = useState('');
+  const [desc, setDesc] = useState('');
+  const [ownerName, setOwnerName] = useState('Zewd');
+  const [postAction, setPostAction] = useState('');
+  const [status, setStatus] = useState('DRAFT');
+  const [priority, setPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>('MEDIUM');
+  const [safetyLevel, setSafetyLevel] = useState<SafetyLevel>('ASIL-D');
+  const [reqType, setReqType] = useState<RequirementType>('Functional Requirement');
+  const [testProcess, setTestProcess] = useState<TestSubProcess>('System Testing');
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState(false);
+
+  // Test Steps state (inside Middle Panel)
   const [newStepAction, setNewStepAction] = useState('');
   const [newStepExpected, setNewStepExpected] = useState('');
 
-  // Test Set specific creation state
-  const [selectedTestCaseIds, setSelectedTestCaseIds] = useState<number[]>([]);
+  // Test Sets: Include Test Case state
+  const [addTestCaseId, setAddTestCaseId] = useState<number | null>(null);
 
-  // Folder Modal state
+  // Create Object Modal State
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [modalTitle, setModalTitle] = useState('');
+  const [modalPreAction, setModalPreAction] = useState('');
+  const [modalDesc, setModalDesc] = useState('');
+  const [modalPostAction, setModalPostAction] = useState('');
+  const [modalSafetyLevel, setModalSafetyLevel] = useState<SafetyLevel>('ASIL-D');
+  const [modalPriority, setModalPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>('MEDIUM');
+  const [modalFolderId, setModalFolderId] = useState<number | null>(null);
+
+  // Create Folder Modal State
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
-  const [inlineFolderInput, setInlineFolderInput] = useState(false);
-  const [inlineFolderName, setInlineFolderName] = useState('');
 
-  const isTestCaseTracker = tracker.enable_test_steps ?? (tracker.type === 'TEST_CASE' && (tracker.key === 'SYS-TST' || tracker.prefix.includes('TST-')));
+  // Link Relationship Modal State (Right Panel)
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [targetObjId, setTargetObjId] = useState<number | null>(null);
+  const [relType, setRelType] = useState<string>('VERIFIED_BY');
+
+  // File Upload State (Right Panel)
+  const [showFileModal, setShowFileModal] = useState(false);
+  const [newFilename, setNewFilename] = useState('');
+  const [newFileCategory, setNewFileCategory] = useState<'PDF' | 'CAD' | 'CSV' | 'OTHER'>('PDF');
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const isTestCaseTracker = tracker.enable_test_steps ?? (tracker.type === 'TEST_CASE' || tracker.key === 'SYS-TST' || tracker.prefix.includes('TST-'));
   const isTestSetTracker = tracker.type === 'TEST_SET' || tracker.key === 'TST-SET' || tracker.prefix.includes('SET-');
-  const hasFolders = tracker.enable_folders ?? true;
 
-  const availableTestCases = allObjects.filter(o => o.type === 'TEST_CASE' || o.object_key.startsWith('SYS-TST') || o.object_key.includes('TST'));
-
-  useEffect(() => {
-    setNewFolderId(selectedFolderId);
-  }, [selectedFolderId]);
-
+  // Filter items in Left Panel
   let filteredObjects = objects;
-
   if (selectedFolderId !== null) {
     filteredObjects = filteredObjects.filter(o => o.folder_id === selectedFolderId);
   }
@@ -108,468 +134,1569 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
       o.object_key.toLowerCase().includes(s) ||
       o.title.toLowerCase().includes(s) ||
       o.description.toLowerCase().includes(s) ||
-      (o.requirement_type && o.requirement_type.toLowerCase().includes(s)) ||
-      (o.safety_level && o.safety_level.toLowerCase().includes(s))
+      (o.pre_action && o.pre_action.toLowerCase().includes(s)) ||
+      (o.post_action && o.post_action.toLowerCase().includes(s))
     );
   }
 
-  const toggleExpand = (e: React.MouseEvent, objId: number) => {
-    e.stopPropagation();
-    setExpandedObjIds(prev =>
-      prev.includes(objId) ? prev.filter(id => id !== objId) : [...prev, objId]
-    );
+  // Automatically select the first object if none is selected
+  useEffect(() => {
+    if (filteredObjects.length > 0) {
+      if (!selectedObjectId || !filteredObjects.some(o => o.id === selectedObjectId)) {
+        setSelectedObjectId(filteredObjects[0].id);
+      }
+    } else {
+      setSelectedObjectId(null);
+    }
+  }, [filteredObjects, tracker.id]);
+
+  // Sync active object into form fields
+  const activeObject = allObjects.find(o => o.id === selectedObjectId);
+
+  useEffect(() => {
+    if (activeObject) {
+      setTitle(activeObject.title || '');
+      setPreAction(activeObject.pre_action || '');
+      setDesc(activeObject.description || '');
+      setOwnerName(activeObject.owner_name || 'Zewd');
+      setPostAction(activeObject.post_action || '');
+      setStatus(activeObject.status || 'DRAFT');
+      setPriority(activeObject.priority || 'MEDIUM');
+      setSafetyLevel(activeObject.safety_level || 'ASIL-D');
+      setReqType(activeObject.requirement_type || 'Functional Requirement');
+      setTestProcess(activeObject.test_subprocess || 'System Testing');
+      setSaveSuccessMsg(false);
+    }
+  }, [activeObject?.id]);
+
+  // Save handler for Middle Panel
+  const handleSaveMiddlePanel = () => {
+    if (!activeObject) return;
+
+    onUpdateObject(activeObject.id, {
+      title: title.trim(),
+      pre_action: preAction.trim(),
+      description: desc.trim(),
+      owner_name: ownerName.trim(),
+      post_action: postAction.trim(),
+      status,
+      priority,
+      safety_level: safetyLevel,
+      requirement_type: reqType,
+      test_subprocess: testProcess
+    });
+
+    setSaveSuccessMsg(true);
+    setTimeout(() => setSaveSuccessMsg(false), 3000);
   };
 
-  const toggleTestCaseSelection = (tcId: number) => {
-    setSelectedTestCaseIds(prev =>
-      prev.includes(tcId) ? prev.filter(id => id !== tcId) : [...prev, tcId]
+  // Add Step for Test Cases
+  const handleAddTestStepInline = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeObject || !newStepAction.trim() || !onAddTestStep) return;
+
+    onAddTestStep(
+      activeObject.id,
+      newStepAction.trim(),
+      newStepExpected.trim() || 'Verified system output complies with requirements.'
     );
+
+    setNewStepAction('');
+    setNewStepExpected('');
   };
 
+  // Add Test Case to Test Set
+  const handleAddTestCaseToSet = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeObject || !addTestCaseId || !onAddRelationship) return;
+    onAddRelationship(addTestCaseId, activeObject.id, 'INCLUDED_IN');
+    setAddTestCaseId(null);
+  };
+
+  // Create Object Submit
+  const handleCreateObjectSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!modalTitle.trim()) return;
+
+    onCreateObject({
+      tracker_id: tracker.id,
+      folder_id: modalFolderId || selectedFolderId,
+      title: modalTitle.trim(),
+      pre_action: modalPreAction.trim(),
+      description: modalDesc.trim(),
+      post_action: modalPostAction.trim(),
+      safety_level: modalSafetyLevel,
+      priority: modalPriority,
+      requirement_type: reqType,
+      test_subprocess: testProcess
+    });
+
+    setShowCreateModal(false);
+    setModalTitle('');
+    setModalPreAction('');
+    setModalDesc('');
+    setModalPostAction('');
+  };
+
+  // Create Folder Submit
   const handleCreateFolderSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newFolderName.trim() || !onCreateFolder) return;
-
     const createdId = onCreateFolder(tracker.id, newFolderName.trim());
     if (typeof createdId === 'number') {
       setSelectedFolderId(createdId);
-      setNewFolderId(createdId);
     }
     setNewFolderName('');
     setShowFolderModal(false);
   };
 
-  const handleInlineCreateFolder = () => {
-    if (!inlineFolderName.trim() || !onCreateFolder) return;
-    const createdId = onCreateFolder(tracker.id, inlineFolderName.trim());
-    if (typeof createdId === 'number') {
-      setNewFolderId(createdId);
-    }
-    setInlineFolderName('');
-    setInlineFolderInput(false);
+  // Create Link Submit (Right Panel)
+  const handleCreateLinkSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeObject || !targetObjId || !onAddRelationship) return;
+    onAddRelationship(activeObject.id, targetObjId, relType);
+    setShowLinkModal(false);
+    setTargetObjId(null);
   };
 
-  const handleCreate = (e: React.FormEvent) => {
+  // File Upload Submit (Right Panel)
+  const handleFileUploadSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle.trim()) return;
+    if (!activeObject || !newFilename.trim() || !onAddArtifact) return;
 
-    onCreateObject({
-      tracker_id: tracker.id,
-      folder_id: newFolderId || selectedFolderId,
-      title: newTitle.trim(),
-      description: newDesc.trim(),
-      requirement_type: newReqType,
-      safety_level: newSafetyLevel,
-      test_subprocess: newTestProcess,
-      priority: newPriority,
-      test_step_action: isTestCaseTracker ? (newStepAction.trim() || undefined) : undefined,
-      test_step_expected: isTestCaseTracker ? (newStepExpected.trim() || undefined) : undefined,
-      included_test_case_ids: isTestSetTracker ? selectedTestCaseIds : undefined,
-      metadata: { rationale: 'Created via workspace UI', author: 'Zewd' }
+    onAddArtifact({
+      object_id: activeObject.id,
+      filename: newFilename.trim(),
+      category: newFileCategory,
+      file_size: Math.floor(Math.random() * 5000000) + 500000,
+      stored_path: `/artifacts/${newFilename.trim()}`
     });
 
-    setShowCreateModal(false);
-    setNewTitle('');
-    setNewDesc('');
-    setNewStepAction('');
-    setNewStepExpected('');
-    setSelectedTestCaseIds([]);
-    setNewPriority('MEDIUM');
+    setNewFilename('');
+    setShowFileModal(false);
   };
 
-  const selectedFolderObj = folders.find(f => f.id === selectedFolderId);
+  // Right Panel Links & Files
+  const outgoingLinks = activeObject ? relationships.filter(r => r.source_id === activeObject.id) : [];
+  const incomingLinks = activeObject ? relationships.filter(r => r.target_id === activeObject.id) : [];
+  const activeObjectFiles = activeObject ? artifacts.filter(a => a.object_id === activeObject.id) : [];
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'APPROVED': return <span className="badge badge-approved">{status}</span>;
-      case 'VERIFIED': return <span className="badge badge-verified">{status}</span>;
-      case 'REVIEW': return <span className="badge badge-review">{status}</span>;
-      case 'OUTDATED': return <span className="badge badge-outdated">{status}</span>;
-      default: return <span className="badge badge-draft">{status}</span>;
-    }
-  };
+  // Included test cases in Test Set
+  const includedTestCaseRels = activeObject ? relationships.filter(r => r.target_id === activeObject.id && r.relationship_type === 'INCLUDED_IN') : [];
+  const includedTestCases = includedTestCaseRels.map(r => {
+    const tcObj = allObjects.find(o => o.id === r.source_id);
+    return { relId: r.id, tcObj };
+  }).filter(item => item.tcObj !== undefined);
 
-  const getPriorityBadge = (priority: string) => {
-    switch (priority) {
-      case 'CRITICAL': return <span className="badge badge-critical">{priority}</span>;
-      case 'HIGH': return <span className="badge badge-high">{priority}</span>;
-      case 'MEDIUM': return <span className="badge badge-medium">{priority}</span>;
-      default: return <span className="badge badge-low">{priority}</span>;
-    }
-  };
+  const availableTestCases = allObjects.filter(o =>
+    (o.type === 'TEST_CASE' || o.object_key.startsWith('SYS-TST')) &&
+    !includedTestCaseRels.some(r => r.source_id === o.id)
+  );
 
-  const getSafetyBadge = (level?: SafetyLevel) => {
-    if (!level) return <span style={{ color: 'var(--text-muted)' }}>-</span>;
-    if (level.startsWith('ASIL')) {
-      return <span style={{ color: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.15)', border: '1px solid #ef4444', padding: '2px 6px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 700 }}>{level}</span>;
-    }
-    if (level.startsWith('SIL')) {
-      return <span style={{ color: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.15)', border: '1px solid #f59e0b', padding: '2px 6px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 700 }}>{level}</span>;
-    }
-    return <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{level}</span>;
-  };
+  const activeSteps = activeObject ? testSteps.filter(s => s.test_case_id === activeObject.id) : [];
 
   return (
-    <div style={{ display: 'flex', height: 'calc(100vh - 60px)', overflow: 'hidden' }}>
-      {/* Folder Tree Sidebar */}
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 60px)', overflow: 'hidden', backgroundColor: 'var(--bg-dark)' }}>
+      {/* Top Tracker Sub-Navbar */}
       <div style={{
-        width: '240px',
-        borderRight: '1px solid var(--border-color)',
-        backgroundColor: 'var(--bg-sidebar)',
-        padding: '16px 12px',
-        overflowY: 'auto'
+        height: '52px',
+        borderBottom: '1px solid var(--border-color)',
+        backgroundColor: 'var(--bg-card)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '0 24px',
+        flexShrink: 0
       }}>
-        <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '10px' }}>
-          Folders / Sub-systems
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span className="mono" style={{
+            fontSize: '0.85rem',
+            fontWeight: 800,
+            color: 'var(--accent-cyan)',
+            backgroundColor: 'rgba(56, 189, 248, 0.12)',
+            border: '1px solid rgba(56, 189, 248, 0.3)',
+            padding: '3px 8px',
+            borderRadius: '5px'
+          }}>
+            {tracker.prefix || tracker.key}
+          </span>
+          <h1 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
+            {tracker.name} Dashboard
+          </h1>
+          <span style={{
+            fontSize: '0.75rem',
+            backgroundColor: 'var(--bg-dark)',
+            color: 'var(--text-muted)',
+            border: '1px solid var(--border-color)',
+            padding: '2px 8px',
+            borderRadius: '12px',
+            fontWeight: 600
+          }}>
+            {objects.length} Total Objects
+          </span>
         </div>
 
-        <button
-          onClick={() => setShowFolderModal(true)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            width: '100%',
-            padding: '8px 12px',
-            borderRadius: '6px',
-            backgroundColor: 'rgba(2, 132, 199, 0.2)',
-            color: 'var(--accent-cyan)',
-            border: '1px dashed var(--accent-cyan)',
-            fontWeight: 700,
-            fontSize: '0.8rem',
-            marginBottom: '12px',
-            cursor: 'pointer'
-          }}
-        >
-          <FolderPlus size={16} />
-          <span>+ Create New Folder</span>
-        </button>
-
-        <button
-          onClick={() => setSelectedFolderId(null)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '8px 10px',
-            borderRadius: '6px',
-            backgroundColor: selectedFolderId === null ? 'var(--bg-hover)' : 'transparent',
-            color: selectedFolderId === null ? 'var(--accent-cyan)' : 'var(--text-main)',
-            width: '100%',
-            textAlign: 'left',
-            fontSize: '0.85rem',
-            marginBottom: '4px'
-          }}
-        >
-          <Folder size={16} />
-          <span>All Items ({objects.length})</span>
-        </button>
-
-        {folders.map((f) => {
-          const count = objects.filter(o => o.folder_id === f.id).length;
-          return (
-            <button
-              key={f.id}
-              onClick={() => setSelectedFolderId(f.id)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '8px 10px',
-                borderRadius: '6px',
-                backgroundColor: selectedFolderId === f.id ? 'var(--bg-hover)' : 'transparent',
-                color: selectedFolderId === f.id ? 'var(--accent-cyan)' : 'var(--text-main)',
-                width: '100%',
-                textAlign: 'left',
-                fontSize: '0.85rem',
-                marginBottom: '2px'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                <ChevronRight size={14} />
-                <span>{f.name}</span>
-              </div>
-              <span style={{ fontSize: '0.7rem', backgroundColor: 'var(--bg-dark)', padding: '2px 6px', borderRadius: '10px', color: 'var(--text-muted)' }}>
-                {count}
-              </span>
-            </button>
-          );
-        })}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: 'var(--primary)',
+              color: '#fff',
+              border: 'none',
+              padding: '7px 14px',
+              borderRadius: '6px',
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(2, 132, 199, 0.35)'
+            }}
+          >
+            <Plus size={16} />
+            <span>+ New Requirement</span>
+          </button>
+        </div>
       </div>
 
-      {/* Main Table Area */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      {/* 3-Panel Split Workspace */}
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+
+        {/* ══════════════════════════════════════════════════════════════════
+            LEFT PANEL: Inventory List & Folder Navigation
+            ══════════════════════════════════════════════════════════════════ */}
         <div style={{
-          padding: '16px 24px',
-          borderBottom: '1px solid var(--border-color)',
+          width: '320px',
+          flexShrink: 0,
+          borderRight: '1px solid var(--border-color)',
+          backgroundColor: 'var(--bg-sidebar)',
           display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          backgroundColor: 'var(--bg-card)'
+          flexDirection: 'column',
+          overflow: 'hidden'
         }}>
-          <div>
-            <h2 style={{ fontSize: '1.2rem', fontWeight: 700 }}>
-              {tracker.name} {selectedFolderObj ? `➔ ${selectedFolderObj.name}` : ''}
-            </h2>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              Showing {filteredObjects.length} engineering objects in {tracker.prefix} {selectedFolderObj ? `(Folder: ${selectedFolderObj.name})` : ''}
-            </span>
-          </div>
+          {/* Search & Status Filter */}
+          <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ position: 'relative' }}>
+              <Search size={14} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--text-muted)' }} />
+              <input
+                type="text"
+                placeholder="Search requirements..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{
+                  width: '100%',
+                  paddingLeft: '32px',
+                  paddingRight: '8px',
+                  paddingTop: '6px',
+                  paddingBottom: '6px',
+                  fontSize: '0.8rem',
+                  backgroundColor: 'var(--bg-dark)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '6px',
+                  color: 'var(--text-main)'
+                }}
+              />
+            </div>
 
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              style={{ fontSize: '0.85rem' }}
-            >
-              <option value="">All Statuses</option>
-              <option value="DRAFT">DRAFT</option>
-              <option value="REVIEW">REVIEW</option>
-              <option value="APPROVED">APPROVED</option>
-              <option value="VERIFIED">VERIFIED</option>
-              <option value="OUTDATED">OUTDATED</option>
-            </select>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                style={{
+                  flex: 1,
+                  fontSize: '0.75rem',
+                  padding: '5px 8px',
+                  backgroundColor: 'var(--bg-dark)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '6px',
+                  color: 'var(--text-main)'
+                }}
+              >
+                <option value="">All Statuses</option>
+                <option value="DRAFT">DRAFT</option>
+                <option value="REVIEW">REVIEW</option>
+                <option value="APPROVED">APPROVED</option>
+                <option value="VERIFIED">VERIFIED</option>
+              </select>
 
-            {hasFolders && (
               <button
                 onClick={() => setShowFolderModal(true)}
+                title="New Folder"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px',
+                  gap: '4px',
                   backgroundColor: 'var(--bg-dark)',
                   border: '1px solid var(--border-color)',
                   color: 'var(--accent-cyan)',
-                  padding: '8px 12px',
+                  padding: '5px 8px',
                   borderRadius: '6px',
+                  fontSize: '0.75rem',
                   fontWeight: 600,
-                  fontSize: '0.85rem'
+                  cursor: 'pointer'
                 }}
               >
-                <FolderPlus size={16} />
-                <span>+ New Folder</span>
+                <FolderPlus size={14} />
+                <span>Folder</span>
               </button>
-            )}
+            </div>
+          </div>
 
+          {/* Folder Filter Chips */}
+          <div style={{
+            padding: '10px 16px',
+            borderBottom: '1px solid var(--border-color)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            overflowX: 'auto',
+            whiteSpace: 'nowrap'
+          }}>
             <button
-              onClick={() => {
-                setNewFolderId(selectedFolderId);
-                setShowCreateModal(true);
-              }}
+              onClick={() => setSelectedFolderId(null)}
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                backgroundColor: 'var(--primary)',
-                color: '#fff',
-                padding: '8px 14px',
-                borderRadius: '6px',
+                fontSize: '0.75rem',
+                padding: '3px 8px',
+                borderRadius: '4px',
+                border: 'none',
+                cursor: 'pointer',
                 fontWeight: 600,
-                fontSize: '0.85rem'
+                backgroundColor: selectedFolderId === null ? 'var(--primary)' : 'var(--bg-dark)',
+                color: selectedFolderId === null ? '#fff' : 'var(--text-muted)'
               }}
             >
-              <Plus size={16} />
-              <span>New {tracker.name.slice(0, -1)}</span>
+              All ({objects.length})
             </button>
+            {folders.map(f => {
+              const fCount = objects.filter(o => o.folder_id === f.id).length;
+              return (
+                <button
+                  key={f.id}
+                  onClick={() => setSelectedFolderId(f.id)}
+                  style={{
+                    fontSize: '0.75rem',
+                    padding: '3px 8px',
+                    borderRadius: '4px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    backgroundColor: selectedFolderId === f.id ? 'var(--primary)' : 'var(--bg-dark)',
+                    color: selectedFolderId === f.id ? '#fff' : 'var(--text-muted)'
+                  }}
+                >
+                  {f.name} ({fCount})
+                </button>
+              );
+            })}
           </div>
-        </div>
 
-        {/* Table */}
-        <div style={{ flex: 1, overflowY: 'auto' }}>
-          {filteredObjects.length > 0 ? (
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-              <thead>
-                <tr style={{ backgroundColor: 'var(--bg-sidebar)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>KEY</th>
-                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>TITLE & DESCRIPTION</th>
-                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>ATTACHMENTS</th>
-                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>FOLDER</th>
-                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>REQ TYPE</th>
-                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>SAFETY LEVEL</th>
-                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>STATUS</th>
-                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>PRIORITY</th>
-                  <th style={{ padding: '12px 14px', fontWeight: 600 }}>CREATED BY</th>
-                  <th style={{ padding: '12px 14px', fontWeight: 600, textAlign: 'right' }}>ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody>
+          {/* Requirements Scrollable List */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: '12px' }}>
+            {filteredObjects.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px 16px', color: 'var(--text-muted)' }}>
+                <p style={{ fontSize: '0.85rem', marginBottom: '12px' }}>No requirements found.</p>
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  style={{
+                    backgroundColor: 'var(--primary)',
+                    color: '#fff',
+                    border: 'none',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  + Add Requirement
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {filteredObjects.map((obj) => {
-                  const objectFiles = artifacts.filter(a => a.object_id === obj.id);
-                  const isExpanded = expandedObjIds.includes(obj.id);
-
+                  const isSelected = selectedObjectId === obj.id;
                   return (
-                    <tr
+                    <div
                       key={obj.id}
                       onClick={() => setSelectedObjectId(obj.id)}
                       style={{
-                        borderBottom: '1px solid var(--border-color)',
-                        backgroundColor: selectedObjectId === obj.id ? 'var(--bg-hover)' : 'transparent',
+                        padding: '12px 14px',
+                        borderRadius: '8px',
+                        backgroundColor: isSelected ? 'rgba(56, 189, 248, 0.12)' : 'var(--bg-card)',
+                        border: isSelected ? '1px solid var(--accent-cyan)' : '1px solid var(--border-color)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        boxShadow: isSelected ? '0 0 10px rgba(56, 189, 248, 0.15)' : 'none'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isSelected) e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isSelected) e.currentTarget.style.borderColor = 'var(--border-color)';
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                        <span className="mono" style={{
+                          fontSize: '0.75rem',
+                          fontWeight: 800,
+                          color: 'var(--accent-cyan)',
+                          backgroundColor: 'var(--bg-dark)',
+                          padding: '2px 6px',
+                          borderRadius: '4px'
+                        }}>
+                          {obj.object_key}
+                        </span>
+                        <span style={{
+                          fontSize: '0.65rem',
+                          fontWeight: 700,
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          backgroundColor:
+                            obj.status === 'APPROVED' ? 'rgba(16, 185, 129, 0.15)' :
+                            obj.status === 'REVIEW' ? 'rgba(245, 158, 11, 0.15)' :
+                            'rgba(148, 163, 184, 0.15)',
+                          color:
+                            obj.status === 'APPROVED' ? 'var(--accent-emerald)' :
+                            obj.status === 'REVIEW' ? 'var(--accent-amber)' :
+                            'var(--text-muted)'
+                        }}>
+                          {obj.status}
+                        </span>
+                      </div>
+
+                      <div style={{
+                        fontSize: '0.85rem',
+                        fontWeight: 600,
+                        color: 'var(--text-main)',
+                        lineHeight: '1.3',
+                        marginBottom: '4px'
+                      }}>
+                        {obj.title}
+                      </div>
+
+                      <div style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--text-muted)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        marginTop: '6px'
+                      }}>
+                        <span>👤 {obj.owner_name || 'Zewd'}</span>
+                        <span style={{
+                          fontSize: '0.65rem',
+                          padding: '1px 5px',
+                          borderRadius: '3px',
+                          backgroundColor: obj.priority === 'CRITICAL' ? 'rgba(239, 68, 68, 0.15)' : 'var(--bg-dark)',
+                          color: obj.priority === 'CRITICAL' ? 'var(--accent-rose)' : 'var(--text-muted)'
+                        }}>
+                          {obj.priority}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ══════════════════════════════════════════════════════════════════
+            MIDDLE PANEL: Requirement Descriptive Specifications & Pre/Post Actions
+            ══════════════════════════════════════════════════════════════════ */}
+        <div style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '28px 32px',
+          backgroundColor: 'var(--bg-dark)',
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
+          {!activeObject ? (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: '100%',
+              color: 'var(--text-muted)'
+            }}>
+              <FileText size={48} style={{ opacity: 0.3, marginBottom: '16px' }} />
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>
+                No Requirement Selected
+              </h3>
+              <p style={{ fontSize: '0.9rem', maxWidth: '400px', textAlign: 'center', marginBottom: '20px' }}>
+                Select an engineering object from the left panel or create a new requirement to inspect and edit its specifications.
+              </p>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                style={{
+                  backgroundColor: 'var(--primary)',
+                  color: '#fff',
+                  border: 'none',
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  fontWeight: 700,
+                  fontSize: '0.9rem',
+                  cursor: 'pointer'
+                }}
+              >
+                + Create Requirement
+              </button>
+            </div>
+          ) : (
+            <div style={{ maxWidth: '820px', width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+              {/* 1. Object Key & Status Bar */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                backgroundColor: 'var(--bg-card)',
+                border: '1px solid var(--border-color)',
+                padding: '12px 18px',
+                borderRadius: '10px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span className="mono" style={{
+                    fontSize: '1rem',
+                    fontWeight: 800,
+                    color: 'var(--accent-cyan)',
+                    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                    border: '1px solid rgba(56, 189, 248, 0.3)',
+                    padding: '4px 10px',
+                    borderRadius: '6px'
+                  }}>
+                    [{activeObject.object_key}]
+                  </span>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                    {tracker.name} • Version v{activeObject.version}.0
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <select
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
+                    style={{
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      padding: '5px 10px',
+                      backgroundColor: 'var(--bg-dark)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '6px',
+                      color:
+                        status === 'APPROVED' ? 'var(--accent-emerald)' :
+                        status === 'REVIEW' ? 'var(--accent-amber)' :
+                        'var(--text-main)'
+                    }}
+                  >
+                    <option value="DRAFT">DRAFT</option>
+                    <option value="REVIEW">REVIEW</option>
+                    <option value="APPROVED">APPROVED</option>
+                    <option value="VERIFIED">VERIFIED</option>
+                  </select>
+
+                  <select
+                    value={safetyLevel}
+                    onChange={(e) => setSafetyLevel(e.target.value as SafetyLevel)}
+                    style={{
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      padding: '5px 10px',
+                      backgroundColor: 'var(--bg-dark)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '6px',
+                      color: 'var(--accent-cyan)'
+                    }}
+                  >
+                    <option value="ASIL-D">ASIL-D</option>
+                    <option value="ASIL-C">ASIL-C</option>
+                    <option value="ASIL-B">ASIL-B</option>
+                    <option value="ASIL-A">ASIL-A</option>
+                    <option value="SIL-3">SIL-3</option>
+                    <option value="SIL-2">SIL-2</option>
+                    <option value="Standard / Non-Safety">Standard / Non-Safety</option>
+                  </select>
+
+                  {onDeleteObject && (
+                    <button
+                      onClick={() => {
+                        if (confirm(`Delete requirement ${activeObject.object_key} (${activeObject.title})?`)) {
+                          onDeleteObject(activeObject.id);
+                        }
+                      }}
+                      title="Delete Object"
+                      style={{
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        borderRadius: '6px',
+                        padding: '6px 8px',
+                        color: 'var(--accent-rose)',
                         cursor: 'pointer'
                       }}
                     >
-                      <td style={{ padding: '12px 14px', fontWeight: 700, color: 'var(--accent-cyan)' }} className="mono">
-                        {obj.object_key}
-                      </td>
-                      <td style={{ padding: '12px 14px', maxWidth: '420px' }}>
-                        <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '0.9rem' }}>{obj.title}</div>
-                        
-                        {isExpanded ? (
-                          <div style={{
-                            marginTop: '8px',
-                            padding: '10px 12px',
-                            backgroundColor: 'var(--bg-dark)',
-                            borderLeft: '3px solid var(--accent-cyan)',
-                            borderRadius: '4px',
-                            fontSize: '0.85rem',
-                            color: 'var(--text-main)',
-                            lineHeight: '1.4',
-                            whiteSpace: 'pre-wrap'
-                          }}>
-                            {obj.description}
-                          </div>
-                        ) : (
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '380px', marginTop: '2px' }}>
-                            {obj.description}
-                          </div>
-                        )}
-
-                        <button
-                          onClick={(e) => toggleExpand(e, obj.id)}
-                          style={{
-                            fontSize: '0.7rem',
-                            color: 'var(--accent-cyan)',
-                            background: 'transparent',
-                            fontWeight: 700,
-                            marginTop: '4px',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            cursor: 'pointer',
-                            padding: '2px 0'
-                          }}
-                        >
-                          {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                          <span>{isExpanded ? 'Hide Full Description' : 'Show Full Description'}</span>
-                        </button>
-                      </td>
-                      <td style={{ padding: '12px 14px' }}>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedObjectId(obj.id);
-                          }}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            backgroundColor: objectFiles.length > 0 ? 'rgba(56, 189, 248, 0.15)' : 'var(--bg-dark)',
-                            color: objectFiles.length > 0 ? 'var(--accent-cyan)' : 'var(--text-muted)',
-                            border: '1px solid var(--border-color)',
-                            padding: '4px 8px',
-                            borderRadius: '4px',
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            cursor: 'pointer'
-                          }}
-                        >
-                          <Paperclip size={12} />
-                          <span>{objectFiles.length > 0 ? `${objectFiles.length} Files` : '+ Add File'}</span>
-                        </button>
-                      </td>
-                      <td style={{ padding: '12px 14px', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                        {obj.folder_name || 'Root'}
-                      </td>
-                      <td style={{ padding: '12px 14px' }}>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', backgroundColor: 'rgba(56, 189, 248, 0.1)', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
-                          {obj.requirement_type || 'Functional Requirement'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px 14px' }}>{getSafetyBadge(obj.safety_level)}</td>
-                      <td style={{ padding: '12px 14px' }}>{getStatusBadge(obj.status)}</td>
-                      <td style={{ padding: '12px 14px' }}>{getPriorityBadge(obj.priority)}</td>
-                      <td style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--accent-cyan)' }}>
-                        {obj.created_by_name || obj.owner_name || 'Zewd'}
-                      </td>
-                      <td style={{ padding: '12px 14px', textAlign: 'right' }}>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (window.confirm(`Are you sure you want to delete ${obj.object_key} "${obj.title}"? This will also remove associated test steps, traceability links, and attached files.`)) {
-                              if (onDeleteObject) onDeleteObject(obj.id);
-                              if (selectedObjectId === obj.id) setSelectedObjectId(null);
-                            }
-                          }}
-                          title={`Delete ${obj.object_key}`}
-                          style={{
-                            backgroundColor: 'rgba(239, 68, 68, 0.12)',
-                            color: 'var(--accent-rose)',
-                            border: '1px solid rgba(239, 68, 68, 0.3)',
-                            padding: '4px 8px',
-                            borderRadius: '4px',
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}
-                        >
-                          <Trash2 size={12} />
-                          <span>Delete</span>
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          ) : (
-            <div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
-              <div style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '8px' }}>
-                No items found in {selectedFolderObj ? `folder "${selectedFolderObj.name}"` : tracker.name}
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
               </div>
-              <p style={{ fontSize: '0.85rem', marginBottom: '16px' }}>Click below to create a record in this folder.</p>
-              <button
-                onClick={() => {
-                  setNewFolderId(selectedFolderId);
-                  setShowCreateModal(true);
-                }}
-                style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 600, fontSize: '0.85rem' }}
-              >
-                + Create {tracker.name.slice(0, -1)} {selectedFolderObj ? `in ${selectedFolderObj.name}` : ''}
-              </button>
+
+              {/* 2. Title (Editable) */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase' }}>
+                  Requirement Title *
+                </label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  style={{
+                    width: '100%',
+                    fontSize: '1.25rem',
+                    fontWeight: 700,
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    backgroundColor: 'var(--bg-card)',
+                    border: '1px solid var(--border-color)',
+                    color: 'var(--text-main)'
+                  }}
+                  placeholder="e.g. Dynamic Collision Avoidance Trajectory Computation"
+                />
+              </div>
+
+              {/* 3. ⚡ Pre-Action (Initial / Preconditions) */}
+              <div style={{
+                backgroundColor: 'rgba(245, 158, 11, 0.04)',
+                border: '1px solid rgba(245, 158, 11, 0.3)',
+                borderRadius: '10px',
+                padding: '16px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                  <span style={{
+                    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+                    color: 'var(--accent-amber)',
+                    padding: '3px 8px',
+                    borderRadius: '4px',
+                    fontSize: '0.75rem',
+                    fontWeight: 800,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}>
+                    ⚡ PRE-ACTION
+                  </span>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                    Initial System State, Hardware Preconditions & Entry Criteria
+                  </span>
+                </div>
+                <textarea
+                  rows={3}
+                  value={preAction}
+                  onChange={(e) => setPreAction(e.target.value)}
+                  placeholder="Describe starting system state, sensor calibration, battery thresholds, environmental setup, or prerequisites before executing this requirement/test..."
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    fontSize: '0.85rem',
+                    borderRadius: '6px',
+                    backgroundColor: 'var(--bg-dark)',
+                    border: '1px solid rgba(245, 158, 11, 0.25)',
+                    color: 'var(--text-main)',
+                    resize: 'vertical',
+                    lineHeight: '1.4'
+                  }}
+                />
+              </div>
+
+              {/* 4. Description (Full rich text specification) */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase' }}>
+                  Detailed Specification & Description
+                </label>
+                <textarea
+                  rows={5}
+                  value={desc}
+                  onChange={(e) => setDesc(e.target.value)}
+                  placeholder="Full engineering specification text, functional requirements, architectural interfaces, or validation acceptance criteria..."
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    fontSize: '0.9rem',
+                    borderRadius: '8px',
+                    backgroundColor: 'var(--bg-card)',
+                    border: '1px solid var(--border-color)',
+                    color: 'var(--text-main)',
+                    resize: 'vertical',
+                    lineHeight: '1.5'
+                  }}
+                />
+              </div>
+
+              {/* 5. 👤 Owner Name: Zewd */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                backgroundColor: 'var(--bg-card)',
+                border: '1px solid var(--border-color)',
+                padding: '12px 16px',
+                borderRadius: '8px'
+              }}>
+                <div style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  backgroundColor: 'var(--accent-amber)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 800,
+                  color: '#000',
+                  fontSize: '0.85rem'
+                }}>
+                  Z
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                    ASSIGNED OWNER / LEAD ENGINEER
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
+                    <input
+                      type="text"
+                      value={ownerName}
+                      onChange={(e) => setOwnerName(e.target.value)}
+                      style={{
+                        padding: '4px 8px',
+                        fontSize: '0.85rem',
+                        fontWeight: 700,
+                        color: 'var(--accent-amber)',
+                        backgroundColor: 'var(--bg-dark)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '4px',
+                        width: '200px'
+                      }}
+                    />
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      👑 Project Owner
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 6. 🧪 Test Steps (if Test Case tracker) */}
+              {isTestCaseTracker && (
+                <div style={{
+                  backgroundColor: 'var(--bg-card)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '10px',
+                  padding: '18px'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <ListOrdered size={18} color="var(--accent-cyan)" />
+                      <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                        Test Execution Steps ({activeSteps.length})
+                      </h4>
+                    </div>
+                  </div>
+
+                  {activeSteps.length === 0 ? (
+                    <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', backgroundColor: 'var(--bg-dark)', borderRadius: '6px' }}>
+                      No test steps recorded yet. Add sequential verification procedures below.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
+                      {activeSteps.map((step, idx) => (
+                        <div key={step.id} style={{
+                          display: 'grid',
+                          gridTemplateColumns: '36px 1fr 1fr 36px',
+                          gap: '12px',
+                          alignItems: 'center',
+                          backgroundColor: 'var(--bg-dark)',
+                          border: '1px solid var(--border-color)',
+                          padding: '10px 12px',
+                          borderRadius: '6px'
+                        }}>
+                          <span style={{ fontWeight: 800, color: 'var(--accent-cyan)', textAlign: 'center', fontSize: '0.85rem' }}>
+                            #{idx + 1}
+                          </span>
+                          <div style={{ fontSize: '0.8rem' }}>
+                            <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem', fontWeight: 600 }}>ACTION</div>
+                            <div>{step.action}</div>
+                          </div>
+                          <div style={{ fontSize: '0.8rem' }}>
+                            <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem', fontWeight: 600 }}>EXPECTED RESULT</div>
+                            <div style={{ color: 'var(--accent-emerald)' }}>{step.expected_result}</div>
+                          </div>
+                          {onDeleteTestStep && (
+                            <button
+                              onClick={() => onDeleteTestStep(step.id)}
+                              style={{
+                                backgroundColor: 'transparent',
+                                border: 'none',
+                                color: 'var(--accent-rose)',
+                                cursor: 'pointer',
+                                padding: '4px'
+                              }}
+                              title="Delete Step"
+                            >
+                              <X size={16} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Add Step Inline Form */}
+                  <form onSubmit={handleAddTestStepInline} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '10px', marginTop: '12px' }}>
+                    <input
+                      type="text"
+                      placeholder="Step action (e.g. Trigger optical obstacle)..."
+                      value={newStepAction}
+                      onChange={(e) => setNewStepAction(e.target.value)}
+                      style={{ fontSize: '0.8rem', padding: '8px 10px' }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Expected outcome (e.g. Robot stops <0.35m)..."
+                      value={newStepExpected}
+                      onChange={(e) => setNewStepExpected(e.target.value)}
+                      style={{ fontSize: '0.8rem', padding: '8px 10px' }}
+                    />
+                    <button
+                      type="submit"
+                      style={{
+                        padding: '8px 14px',
+                        backgroundColor: 'var(--primary)',
+                        color: '#fff',
+                        borderRadius: '6px',
+                        border: 'none',
+                        fontWeight: 700,
+                        fontSize: '0.8rem',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      + Add Step
+                    </button>
+                  </form>
+                </div>
+              )}
+
+              {/* If Test Set tracker: Included Test Cases */}
+              {isTestSetTracker && (
+                <div style={{
+                  backgroundColor: 'var(--bg-card)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '10px',
+                  padding: '18px'
+                }}>
+                  <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '12px' }}>
+                    Included Test Cases in this Suite ({includedTestCases.length})
+                  </h4>
+
+                  {includedTestCases.length === 0 ? (
+                    <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', backgroundColor: 'var(--bg-dark)', borderRadius: '6px' }}>
+                      No test cases assigned to this test set yet.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>
+                      {includedTestCases.map(item => (
+                        <div key={item.relId} style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          backgroundColor: 'var(--bg-dark)',
+                          border: '1px solid var(--border-color)',
+                          padding: '8px 12px',
+                          borderRadius: '6px'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span className="mono" style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--accent-cyan)' }}>
+                              [{item.tcObj?.object_key}]
+                            </span>
+                            <span style={{ fontSize: '0.85rem', color: 'var(--text-main)' }}>
+                              {item.tcObj?.title}
+                            </span>
+                          </div>
+                          {onDeleteRelationship && (
+                            <button
+                              onClick={() => onDeleteRelationship(item.relId)}
+                              style={{ border: 'none', background: 'transparent', color: 'var(--accent-rose)', cursor: 'pointer' }}
+                            >
+                              <X size={14} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Add Test Case to Set Form */}
+                  {availableTestCases.length > 0 && (
+                    <form onSubmit={handleAddTestCaseToSet} style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                      <select
+                        value={addTestCaseId || ''}
+                        onChange={(e) => setAddTestCaseId(Number(e.target.value) || null)}
+                        style={{ flex: 1, fontSize: '0.8rem' }}
+                      >
+                        <option value="">Select a test case to include...</option>
+                        {availableTestCases.map(tc => (
+                          <option key={tc.id} value={tc.id}>
+                            [{tc.object_key}] {tc.title}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="submit"
+                        disabled={!addTestCaseId}
+                        style={{
+                          padding: '8px 14px',
+                          backgroundColor: 'var(--primary)',
+                          color: '#fff',
+                          borderRadius: '6px',
+                          border: 'none',
+                          fontWeight: 700,
+                          fontSize: '0.8rem',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Include Test Case
+                      </button>
+                    </form>
+                  )}
+                </div>
+              )}
+
+              {/* 7. 🎯 Post-Action (Exit / Postconditions) */}
+              <div style={{
+                backgroundColor: 'rgba(16, 185, 129, 0.04)',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                borderRadius: '10px',
+                padding: '16px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                  <span style={{
+                    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                    color: 'var(--accent-emerald)',
+                    padding: '3px 8px',
+                    borderRadius: '4px',
+                    fontSize: '0.75rem',
+                    fontWeight: 800,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}>
+                    🎯 POST-ACTION
+                  </span>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                    Final Exit State, Postconditions, Safety Hold & Verification Output
+                  </span>
+                </div>
+                <textarea
+                  rows={3}
+                  value={postAction}
+                  onChange={(e) => setPostAction(e.target.value)}
+                  placeholder="Describe final system state upon completion, telemetry broadcast, mechanical brake engagement, audit confirmation, or expected postconditions..."
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    fontSize: '0.85rem',
+                    borderRadius: '6px',
+                    backgroundColor: 'var(--bg-dark)',
+                    border: '1px solid rgba(16, 185, 129, 0.25)',
+                    color: 'var(--text-main)',
+                    resize: 'vertical',
+                    lineHeight: '1.4'
+                  }}
+                />
+              </div>
+
+              {/* 8. [Save Changes] Button */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
+                <div>
+                  {saveSuccessMsg && (
+                    <span style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      color: 'var(--accent-emerald)',
+                      fontSize: '0.85rem',
+                      fontWeight: 700
+                    }}>
+                      <CheckCircle2 size={16} />
+                      <span>Changes saved successfully to workspace!</span>
+                    </span>
+                  )}
+                </div>
+
+                <button
+                  onClick={handleSaveMiddlePanel}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    backgroundColor: 'var(--primary)',
+                    color: '#fff',
+                    border: 'none',
+                    padding: '10px 24px',
+                    borderRadius: '8px',
+                    fontWeight: 700,
+                    fontSize: '0.95rem',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 14px rgba(2, 132, 199, 0.4)',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <Save size={18} />
+                  <span>Save Changes</span>
+                </button>
+              </div>
+
             </div>
           )}
         </div>
+
+        {/* ══════════════════════════════════════════════════════════════════
+            RIGHT PANEL: Features, Traceability & Artifacts
+            ══════════════════════════════════════════════════════════════════ */}
+        <div style={{
+          width: '380px',
+          flexShrink: 0,
+          borderLeft: '1px solid var(--border-color)',
+          backgroundColor: 'var(--bg-card)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflowY: 'auto',
+          padding: '24px'
+        }}>
+          {!activeObject ? (
+            <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
+              <Layers size={36} style={{ opacity: 0.3, marginBottom: '12px' }} />
+              <p style={{ fontSize: '0.85rem' }}>Features inspector will appear when an engineering object is selected.</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
+              {/* Section 1: Traceability & Relationships */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <LinkIcon size={16} color="var(--accent-cyan)" />
+                    <span>Traceability & Links ({outgoingLinks.length + incomingLinks.length})</span>
+                  </h3>
+                  <button
+                    onClick={() => setShowLinkModal(true)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                      border: '1px solid rgba(56, 189, 248, 0.3)',
+                      color: 'var(--accent-cyan)',
+                      padding: '4px 8px',
+                      borderRadius: '5px',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Plus size={12} />
+                    <span>+ Link</span>
+                  </button>
+                </div>
+
+                {outgoingLinks.length === 0 && incomingLinks.length === 0 ? (
+                  <div style={{ padding: '14px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem', backgroundColor: 'var(--bg-dark)', borderRadius: '6px' }}>
+                    No traceability links established yet. Click "+ Link" to allocate architecture, verify with test cases, or mitigate hazards.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {/* Outgoing Links */}
+                    {outgoingLinks.map(rel => {
+                      const targetObj = allObjects.find(o => o.id === rel.target_id);
+                      return (
+                        <div key={rel.id} style={{
+                          backgroundColor: 'var(--bg-dark)',
+                          border: '1px solid var(--border-color)',
+                          padding: '8px 10px',
+                          borderRadius: '6px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '4px'
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{
+                              fontSize: '0.65rem',
+                              fontWeight: 800,
+                              color: 'var(--accent-cyan)',
+                              backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                              padding: '2px 6px',
+                              borderRadius: '3px'
+                            }}>
+                              ➔ {rel.relationship_type.replace(/_/g, ' ')}
+                            </span>
+                            <button
+                              onClick={() => onDeleteRelationship(rel.id)}
+                              style={{ border: 'none', background: 'transparent', color: 'var(--accent-rose)', cursor: 'pointer', padding: '2px' }}
+                              title="Delete Link"
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-main)', fontWeight: 600 }}>
+                            <span className="mono" style={{ color: 'var(--accent-cyan)', marginRight: '6px' }}>[{targetObj?.object_key || 'OBJ'}]</span>
+                            {targetObj?.title || 'Linked Object'}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {/* Incoming Links */}
+                    {incomingLinks.map(rel => {
+                      const sourceObj = allObjects.find(o => o.id === rel.source_id);
+                      return (
+                        <div key={rel.id} style={{
+                          backgroundColor: 'var(--bg-dark)',
+                          border: '1px solid var(--border-color)',
+                          padding: '8px 10px',
+                          borderRadius: '6px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '4px'
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{
+                              fontSize: '0.65rem',
+                              fontWeight: 800,
+                              color: 'var(--accent-amber)',
+                              backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                              padding: '2px 6px',
+                              borderRadius: '3px'
+                            }}>
+                              ⬅ {rel.relationship_type.replace(/_/g, ' ')} by
+                            </span>
+                            <button
+                              onClick={() => onDeleteRelationship(rel.id)}
+                              style={{ border: 'none', background: 'transparent', color: 'var(--accent-rose)', cursor: 'pointer', padding: '2px' }}
+                              title="Delete Link"
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-main)', fontWeight: 600 }}>
+                            <span className="mono" style={{ color: 'var(--accent-amber)', marginRight: '6px' }}>[{sourceObj?.object_key || 'OBJ'}]</span>
+                            {sourceObj?.title || 'Source Object'}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Section 2: Attached CAD / PDFs / Logs */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Paperclip size={16} color="var(--accent-purple)" />
+                    <span>Attached Files ({activeObjectFiles.length})</span>
+                  </h3>
+                  <button
+                    onClick={() => setShowFileModal(true)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      backgroundColor: 'rgba(168, 85, 247, 0.12)',
+                      border: '1px solid rgba(168, 85, 247, 0.3)',
+                      color: 'var(--accent-purple)',
+                      padding: '4px 8px',
+                      borderRadius: '5px',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Plus size={12} />
+                    <span>+ File</span>
+                  </button>
+                </div>
+
+                {activeObjectFiles.length === 0 ? (
+                  <div style={{ padding: '14px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem', backgroundColor: 'var(--bg-dark)', borderRadius: '6px' }}>
+                    No CAD, specification PDFs, or logs attached to this item.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {activeObjectFiles.map(file => (
+                      <div key={file.id} style={{
+                        backgroundColor: 'var(--bg-dark)',
+                        border: '1px solid var(--border-color)',
+                        padding: '10px 12px',
+                        borderRadius: '6px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}>
+                        <div style={{ overflow: 'hidden' }}>
+                          <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {file.filename}
+                          </div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                            {file.category} • {(file.file_size / 1024 / 1024).toFixed(1)} MB
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          {onDeleteArtifact && (
+                            <button
+                              onClick={() => onDeleteArtifact(file.id)}
+                              style={{ border: 'none', background: 'transparent', color: 'var(--accent-rose)', cursor: 'pointer' }}
+                              title="Remove File"
+                            >
+                              <X size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Section 3: Version History & Audit Trail */}
+              <div style={{
+                backgroundColor: 'var(--bg-dark)',
+                border: '1px solid var(--border-color)',
+                padding: '14px',
+                borderRadius: '8px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>
+                  <Clock size={14} />
+                  <span>Version & Governance Trail</span>
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div><strong>Current Revision:</strong> <span className="mono">v{activeObject.version}.0</span></div>
+                  <div><strong>Created:</strong> {new Date(activeObject.created_at).toLocaleDateString()}</div>
+                  <div><strong>Author:</strong> 👑 Zewd (Owner)</div>
+                  <div><strong>Safety Integrity:</strong> {activeObject.safety_level}</div>
+                </div>
+              </div>
+
+              {/* Section 4: Quick Impact Analysis Link */}
+              {onSelectObjectForImpact && (
+                <button
+                  onClick={() => onSelectObjectForImpact(activeObject.id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    backgroundColor: 'rgba(2, 132, 199, 0.1)',
+                    border: '1px solid rgba(2, 132, 199, 0.3)',
+                    color: 'var(--accent-cyan)',
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    fontWeight: 700,
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <Activity size={16} />
+                  <span>Run Traceability Impact Analysis →</span>
+                </button>
+              )}
+
+            </div>
+          )}
+        </div>
+
       </div>
 
-      {/* Inspector with Test Steps & File Attachments */}
-      {selectedObjectId && (
-        <ObjectDetailPane
-          objectId={selectedObjectId}
-          object={allObjects.find(o => o.id === selectedObjectId)}
-          tracker={tracker}
-          allObjects={allObjects}
-          folders={folders}
-          relationships={relationships}
-          testSteps={testSteps}
-          artifacts={artifacts}
-          onClose={() => setSelectedObjectId(null)}
-          onUpdateObject={onUpdateObject}
-          onDeleteObject={onDeleteObject}
-          onAddRelationship={onAddRelationship}
-          onDeleteRelationship={onDeleteRelationship}
-          onAddTestStep={onAddTestStep}
-          onDeleteTestStep={onDeleteTestStep}
-          onAddArtifact={onAddArtifact}
-          onDeleteArtifact={onDeleteArtifact}
-          onSelectForImpact={onSelectObjectForImpact}
-        />
+      {/* ══════════════════════════════════════════════════════════════════
+          MODALS: Create Object, Folder, Link, File
+          ══════════════════════════════════════════════════════════════════ */}
+
+      {/* 1. Create Requirement Modal */}
+      {showCreateModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.75)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'var(--bg-card)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '12px',
+            width: '540px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            padding: '24px',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.6)'
+          }}>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--accent-cyan)', marginBottom: '14px' }}>
+              Create New {tracker.name.replace(/s$/, '')}
+            </h3>
+
+            <form onSubmit={handleCreateObjectSubmit}>
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                  Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={modalTitle}
+                  onChange={(e) => setModalTitle(e.target.value)}
+                  style={{ width: '100%' }}
+                  placeholder="e.g. Dynamic Table Rerouting Latency"
+                />
+              </div>
+
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px', color: 'var(--accent-amber)' }}>
+                  ⚡ Pre-Action (Initial System State & Preconditions)
+                </label>
+                <textarea
+                  rows={2}
+                  value={modalPreAction}
+                  onChange={(e) => setModalPreAction(e.target.value)}
+                  style={{ width: '100%', resize: 'none' }}
+                  placeholder="Starting state, sensor thresholds, battery status before trigger..."
+                />
+              </div>
+
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                  Specification / Description
+                </label>
+                <textarea
+                  rows={3}
+                  value={modalDesc}
+                  onChange={(e) => setModalDesc(e.target.value)}
+                  style={{ width: '100%', resize: 'none' }}
+                  placeholder="Full functional requirements description..."
+                />
+              </div>
+
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px', color: 'var(--accent-emerald)' }}>
+                  🎯 Post-Action (Exit State & Postconditions)
+                </label>
+                <textarea
+                  rows={2}
+                  value={modalPostAction}
+                  onChange={(e) => setModalPostAction(e.target.value)}
+                  style={{ width: '100%', resize: 'none' }}
+                  placeholder="Final safe state, telemetry feedback, mechanical brake lock..."
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '18px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                    Safety Classification
+                  </label>
+                  <select
+                    value={modalSafetyLevel}
+                    onChange={(e) => setModalSafetyLevel(e.target.value as SafetyLevel)}
+                    style={{ width: '100%' }}
+                  >
+                    <option value="ASIL-D">ASIL-D</option>
+                    <option value="ASIL-C">ASIL-C</option>
+                    <option value="ASIL-B">ASIL-B</option>
+                    <option value="ASIL-A">ASIL-A</option>
+                    <option value="SIL-3">SIL-3</option>
+                    <option value="SIL-2">SIL-2</option>
+                    <option value="Standard / Non-Safety">Standard / Non-Safety</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                    Priority
+                  </label>
+                  <select
+                    value={modalPriority}
+                    onChange={(e) => setModalPriority(e.target.value as any)}
+                    style={{ width: '100%' }}
+                  >
+                    <option value="CRITICAL">CRITICAL</option>
+                    <option value="HIGH">HIGH</option>
+                    <option value="MEDIUM">MEDIUM</option>
+                    <option value="LOW">LOW</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--bg-dark)', color: 'var(--text-main)', border: 'none', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{ padding: '8px 18px', borderRadius: '6px', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700, border: 'none', cursor: 'pointer' }}
+                >
+                  Create
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
-      {/* Create New Folder Modal */}
+      {/* 2. Create Folder Modal */}
       {showFolderModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.75)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'var(--bg-card)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '12px',
+            width: '400px',
+            padding: '24px'
+          }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '14px', color: 'var(--accent-cyan)' }}>
+              Create New Folder
+            </h3>
+            <form onSubmit={handleCreateFolderSubmit}>
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                  Folder Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  style={{ width: '100%' }}
+                  placeholder="e.g. Navigation Subsystem Specs"
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowFolderModal(false)}
+                  style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--bg-dark)', color: 'var(--text-main)', border: 'none', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{ padding: '8px 18px', borderRadius: '6px', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700, border: 'none', cursor: 'pointer' }}
+                >
+                  Create Folder
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 3. Link Relationship Modal (Right Panel) */}
+      {showLinkModal && activeObject && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.75)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'var(--bg-card)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '12px',
+            width: '480px',
+            padding: '24px'
+          }}>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--accent-cyan)', marginBottom: '8px' }}>
+              Link Traceability Relationship
+            </h3>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
+              Connect <strong>[{activeObject.object_key}]</strong> to upstream architecture, verification test cases, or safety hazards.
+            </p>
+
+            <form onSubmit={handleCreateLinkSubmit}>
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                  Relationship Type
+                </label>
+                <select
+                  value={relType}
+                  onChange={(e) => setRelType(e.target.value)}
+                  style={{ width: '100%' }}
+                >
+                  <option value="VERIFIED_BY">VERIFIED_BY (Test Cases)</option>
+                  <option value="ALLOCATED_TO">ALLOCATED_TO (Architecture)</option>
+                  <option value="MITIGATED_BY">MITIGATED_BY (Risk / Safety)</option>
+                  <option value="DERIVED_TO">DERIVED_TO (Subsystem Reqs)</option>
+                  <option value="DEPENDS_ON">DEPENDS_ON (General Dependency)</option>
+                </select>
+              </div>
+
+              <div style={{ marginBottom: '18px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                  Target Engineering Object *
+                </label>
+                <select
+                  required
+                  value={targetObjId || ''}
+                  onChange={(e) => setTargetObjId(Number(e.target.value) || null)}
+                  style={{ width: '100%' }}
+                >
+                  <option value="">Select target object to trace...</option>
+                  {allObjects.filter(o => o.id !== activeObject.id).map(o => (
+                    <option key={o.id} value={o.id}>
+                      [{o.object_key}] {o.title} ({o.type})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowLinkModal(false)}
+                  style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--bg-dark)', color: 'var(--text-main)', border: 'none', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!targetObjId}
+                  style={{ padding: '8px 18px', borderRadius: '6px', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 700, border: 'none', cursor: 'pointer' }}
+                >
+                  Establish Link
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 4. Attach File Modal (Right Panel) */}
+      {showFileModal && activeObject && (
         <div style={{
           position: 'fixed',
           top: 0, left: 0, right: 0, bottom: 0,
@@ -586,39 +1713,58 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
             width: '440px',
             padding: '24px'
           }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '14px' }}>
-              Create New Folder in {tracker.name}
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--accent-purple)', marginBottom: '8px' }}>
+              Attach File to [{activeObject.object_key}]
             </h3>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
+              Upload CAD models (.step), test logs, or technical specification PDFs.
+            </p>
 
-            <form onSubmit={handleCreateFolderSubmit}>
-              <div style={{ marginBottom: '20px' }}>
+            <form onSubmit={handleFileUploadSubmit}>
+              <div style={{ marginBottom: '14px' }}>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
-                  Folder / Sub-system Name *
+                  Filename *
                 </label>
                 <input
                   type="text"
                   required
-                  autoFocus
-                  value={newFolderName}
-                  onChange={(e) => setNewFolderName(e.target.value)}
+                  value={newFilename}
+                  onChange={(e) => setNewFilename(e.target.value)}
                   style={{ width: '100%' }}
-                  placeholder="e.g. Sensor Fusion & Vision"
+                  placeholder="e.g. Nav2_LocalPlanner_Bench_Results.pdf"
                 />
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <div style={{ marginBottom: '18px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>
+                  Category
+                </label>
+                <select
+                  value={newFileCategory}
+                  onChange={(e) => setNewFileCategory(e.target.value as any)}
+                  style={{ width: '100%' }}
+                >
+                  <option value="PDF">PDF Specification</option>
+                  <option value="CAD">CAD / STEP Assembly</option>
+                  <option value="CSV">CSV / Excel Telemetry</option>
+                  <option value="OTHER">Other Technical Attachment</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
                 <button
                   type="button"
-                  onClick={() => setShowFolderModal(false)}
-                  style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--bg-dark)', color: 'var(--text-main)' }}
+                  onClick={() => setShowFileModal(false)}
+                  style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--bg-dark)', color: 'var(--text-main)', border: 'none', cursor: 'pointer' }}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 600 }}
+                  disabled={!newFilename.trim()}
+                  style={{ padding: '8px 18px', borderRadius: '6px', backgroundColor: 'var(--accent-purple)', color: '#fff', fontWeight: 700, border: 'none', cursor: 'pointer' }}
                 >
-                  Create Folder Now
+                  Attach File
                 </button>
               </div>
             </form>
@@ -626,279 +1772,6 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
         </div>
       )}
 
-      {/* Object Creation Modal */}
-      {showCreateModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.75)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            backgroundColor: 'var(--bg-card)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '12px',
-            width: '580px',
-            padding: '24px',
-            maxHeight: '90vh',
-            overflowY: 'auto'
-          }}>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '16px' }}>
-              Create New {tracker.name.slice(0, -1)}
-              {selectedFolderObj ? ` in "${selectedFolderObj.name}"` : ''}
-            </h3>
-
-            <form onSubmit={handleCreate}>
-              <div style={{ marginBottom: '14px' }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>Title *</label>
-                <input
-                  type="text"
-                  required
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  style={{ width: '100%' }}
-                  placeholder={isTestSetTracker ? "e.g. ISO 13482 Release 2.4 Qualification Set" : "e.g. LiDAR Occlusion Field of View Limit"}
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>Requirement Type</label>
-                  <select
-                    value={newReqType}
-                    onChange={(e) => setNewReqType(e.target.value as any)}
-                    style={{ width: '100%' }}
-                  >
-                    <option value="Functional Requirement">Functional Requirement</option>
-                    <option value="Non-Functional Requirement">Non-Functional Requirement</option>
-                    <option value="Variable">Variable</option>
-                    <option value="Parameter">Parameter</option>
-                    <option value="Folder">Folder</option>
-                  </select>
-                </div>
-
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                    <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>Target Folder</label>
-                    <button
-                      type="button"
-                      onClick={() => setInlineFolderInput(!inlineFolderInput)}
-                      style={{ fontSize: '0.7rem', color: 'var(--accent-cyan)', background: 'transparent', fontWeight: 700, padding: 0 }}
-                    >
-                      + Add New Folder
-                    </button>
-                  </div>
-
-                  {inlineFolderInput ? (
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                      <input
-                        type="text"
-                        placeholder="Folder Name..."
-                        value={inlineFolderName}
-                        onChange={(e) => setInlineFolderName(e.target.value)}
-                        style={{ flex: 1, fontSize: '0.8rem' }}
-                      />
-                      <button
-                        type="button"
-                        onClick={handleInlineCreateFolder}
-                        style={{ padding: '4px 8px', borderRadius: '4px', backgroundColor: 'var(--primary)', color: '#fff', fontSize: '0.75rem', fontWeight: 600 }}
-                      >
-                        Save
-                      </button>
-                    </div>
-                  ) : (
-                    <select
-                      value={newFolderId || ''}
-                      onChange={(e) => setNewFolderId(e.target.value ? Number(e.target.value) : null)}
-                      style={{ width: '100%', fontWeight: 600, color: 'var(--accent-cyan)' }}
-                    >
-                      <option value="">No Parent Folder (Root)</option>
-                      {folders.map(f => (
-                        <option key={f.id} value={f.id}>{f.name}</option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>Safety Level (SIL / ASIL)</label>
-                  <select
-                    value={newSafetyLevel}
-                    onChange={(e) => setNewSafetyLevel(e.target.value as any)}
-                    style={{ width: '100%' }}
-                  >
-                    <option value="ASIL-D">ASIL-D (Highest Safety)</option>
-                    <option value="ASIL-C">ASIL-C</option>
-                    <option value="ASIL-B">ASIL-B</option>
-                    <option value="ASIL-A">ASIL-A</option>
-                    <option value="SIL-3">SIL-3</option>
-                    <option value="SIL-2">SIL-2</option>
-                    <option value="SIL-1">SIL-1</option>
-                    <option value="Standard / Non-Safety">Standard / Non-Safety</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>Test-Sub Process</label>
-                  <select
-                    value={newTestProcess}
-                    onChange={(e) => setNewTestProcess(e.target.value as any)}
-                    style={{ width: '100%' }}
-                  >
-                    <option value="System Testing">System Testing</option>
-                    <option value="Integration Testing">Integration Testing</option>
-                    <option value="SW Testing">SW Testing</option>
-                    <option value="Unit Testing">Unit Testing</option>
-                    <option value="HIL Testing">HIL (Hardware-in-Loop)</option>
-                    <option value="Black-Box Testing">Black-Box Testing</option>
-                    <option value="Grey-Box Testing">Grey-Box Testing</option>
-                    <option value="White-Box Testing">White-Box Testing</option>
-                    <option value="Field Testing">Field Testing</option>
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>Priority</label>
-                  <select
-                    value={newPriority}
-                    onChange={(e) => setNewPriority(e.target.value as any)}
-                    style={{ width: '100%' }}
-                  >
-                    <option value="LOW">LOW</option>
-                    <option value="MEDIUM">MEDIUM</option>
-                    <option value="HIGH">HIGH</option>
-                    <option value="CRITICAL">CRITICAL</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>Created By</label>
-                  <input
-                    type="text"
-                    disabled
-                    value="Zewd"
-                    style={{ width: '100%', backgroundColor: 'var(--bg-dark)', color: 'var(--accent-cyan)', fontWeight: 700 }}
-                  />
-                </div>
-              </div>
-
-              {/* Initial Test Step Section (ONLY for Test Case trackers) */}
-              {isTestCaseTracker && (
-                <div style={{ backgroundColor: 'var(--bg-dark)', border: '1px solid var(--accent-cyan)', borderRadius: '8px', padding: '14px', marginBottom: '14px' }}>
-                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--accent-cyan)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <ListOrdered size={16} />
-                    <span>Initial Test Step #1 (Procedure Step)</span>
-                  </div>
-
-                  <div style={{ marginBottom: '8px' }}>
-                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
-                      Step 1: Action / Instruction
-                    </label>
-                    <input
-                      type="text"
-                      value={newStepAction}
-                      onChange={(e) => setNewStepAction(e.target.value)}
-                      style={{ width: '100%', fontSize: '0.85rem' }}
-                      placeholder="e.g. Accelerate base to 1.5 m/s and hit wireless e-stop button..."
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>
-                      Step 1: Expected Result
-                    </label>
-                    <input
-                      type="text"
-                      value={newStepExpected}
-                      onChange={(e) => setNewStepExpected(e.target.value)}
-                      style={{ width: '100%', fontSize: '0.85rem' }}
-                      placeholder="e.g. Mechanical brakes engage and stop robot within <= 0.35m."
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Select Included Test Cases (ONLY for Test Set trackers) */}
-              {isTestSetTracker && (
-                <div style={{ backgroundColor: 'var(--bg-dark)', border: '1px solid var(--accent-cyan)', borderRadius: '8px', padding: '14px', marginBottom: '14px' }}>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-cyan)', marginBottom: '6px' }}>
-                    Select Test Cases to Include in this Test Set
-                  </div>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '10px' }}>
-                    Check all System Test Cases (`SYS-TST-`) that belong to this suite.
-                  </p>
-
-                  <div style={{ maxHeight: '160px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {availableTestCases.map(tc => {
-                      const isSelected = selectedTestCaseIds.includes(tc.id);
-                      return (
-                        <div
-                          key={tc.id}
-                          onClick={() => toggleTestCaseSelection(tc.id)}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            padding: '8px 12px',
-                            borderRadius: '6px',
-                            backgroundColor: isSelected ? 'rgba(56, 189, 248, 0.15)' : 'var(--bg-card)',
-                            border: `1px solid ${isSelected ? 'var(--accent-cyan)' : 'var(--border-color)'}`,
-                            cursor: 'pointer'
-                          }}
-                        >
-                          {isSelected ? <CheckSquare size={16} color="var(--accent-cyan)" /> : <Square size={16} color="var(--text-muted)" />}
-                          <div>
-                            <span className="mono" style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--accent-cyan)', marginRight: '8px' }}>
-                              {tc.object_key}
-                            </span>
-                            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)' }}>
-                              {tc.title}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '6px' }}>Description & Rationale</label>
-                <textarea
-                  rows={3}
-                  value={newDesc}
-                  onChange={(e) => setNewDesc(e.target.value)}
-                  style={{ width: '100%' }}
-                  placeholder="Detailed engineering specification..."
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--bg-dark)', color: 'var(--text-main)' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 600 }}
-                >
-                  Create Record (Author: Zewd)
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
