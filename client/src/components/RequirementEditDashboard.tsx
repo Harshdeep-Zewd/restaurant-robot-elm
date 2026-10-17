@@ -1000,39 +1000,6 @@ export const RequirementEditDashboard: React.FC<RequirementEditDashboardProps> =
 
         {/* ── Custom Columns BELOW Description / ABOVE Test Steps ── */}
         {renderCustomColumns('DESCRIPTION', 'BELOW')}
-
-        {/* ── Single Add Section / Column Trigger (Kept once) ── */}
-        {!isHistorical && (
-          <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0' }}>
-            <button
-              type="button"
-              onClick={() => {
-                setColModalTarget('DESCRIPTION');
-                setColModalPlacement('BELOW');
-                setShowAddColumnModal(true);
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                backgroundColor: 'rgba(168, 85, 247, 0.08)',
-                border: '1px dashed rgba(168, 85, 247, 0.45)',
-                color: 'var(--accent-purple)',
-                padding: '8px 24px',
-                borderRadius: '24px',
-                fontSize: '0.82rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease'
-              }}
-              title="Add a custom section / column and set its order by selecting Reference Section and Relative Placement"
-            >
-              <Plus size={15} />
-              <span>+ Add Section / Column Below Description</span>
-            </button>
-          </div>
-        )}
-
         {renderCustomColumns('TEST_STEPS', 'ABOVE')}
 
         {/* ═══ 4. 🧪 TEST CASE VERIFICATION STEPS ═══ */}
