@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Plus, Folder, FolderPlus, ChevronRight, ListOrdered, Paperclip,
-  CheckSquare, Trash2, Search, Save, ArrowRight, Link as LinkIcon,
+  Plus, Folder, FolderPlus, ChevronRight, ChevronDown, ListOrdered, Paperclip,
+  CheckSquare, Trash2, Search, Save, ArrowRight, ArrowLeft, Link as LinkIcon,
   ShieldAlert, Activity, FileText, Download, CheckCircle2, AlertTriangle,
-  Layers, UploadCloud, ExternalLink, X, Clock, User
+  Layers, UploadCloud, ExternalLink, X, Clock, User, ChevronUp
 } from 'lucide-react';
 import {
   Tracker, Folder as FolderType, EngineeringObject, RequirementType,
@@ -44,6 +44,7 @@ interface TrackerTableViewProps {
   onAddArtifact?: (data: { object_id?: number; filename: string; category: any; file_size?: number; stored_path?: string }) => void;
   onDeleteArtifact?: (id: number) => void;
   onSelectObjectForImpact?: (objId: number) => void;
+  onBackToDashboard?: () => void;
 }
 
 export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
@@ -64,7 +65,8 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
   onDeleteTestStep,
   onAddArtifact,
   onDeleteArtifact,
-  onSelectObjectForImpact
+  onSelectObjectForImpact,
+  onBackToDashboard
 }) => {
   // Navigation & Filter state
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
@@ -72,25 +74,27 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
-  // Middle Panel Active Form State
-  const [title, setTitle] = useState('');
-  const [preAction, setPreAction] = useState('');
-  const [desc, setDesc] = useState('');
-  const [ownerName, setOwnerName] = useState('Zewd');
-  const [postAction, setPostAction] = useState('');
-  const [status, setStatus] = useState('DRAFT');
-  const [priority, setPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>('MEDIUM');
-  const [safetyLevel, setSafetyLevel] = useState<SafetyLevel>('ASIL-D');
-  const [reqType, setReqType] = useState<RequirementType>('Functional Requirement');
-  const [testProcess, setTestProcess] = useState<TestSubProcess>('System Testing');
-  const [saveSuccessMsg, setSaveSuccessMsg] = useState(false);
+  // Folder Expansion State (Left Panel - Vertical series of folders with dropdowns)
+  const [expandedFolderIds, setExpandedFolderIds] = useState<number[]>(() => {
+    return folders.map(f => f.id);
+  });
+  const [isAllItemsExpanded, setIsAllItemsExpanded] = useState(true);
 
-  // Test Steps state (inside Middle Panel)
-  const [newStepAction, setNewStepAction] = useState('');
-  const [newStepExpected, setNewStepExpected] = useState('');
+  // Requirement Dropdowns State (Middle Panel - Each requirement has its own dropdown)
+  const [expandedReqIds, setExpandedReqIds] = useState<number[]>(() => {
+    return objects.length > 0 ? [objects[0].id] : [];
+  });
 
-  // Test Sets: Include Test Case state
-  const [addTestCaseId, setAddTestCaseId] = useState<number | null>(null);
+  // Local editing drafts for each expanded requirement
+  const [drafts, setDrafts] = useState<Record<number, Partial<EngineeringObject>>>({});
+  const [saveStatusMap, setSaveStatusMap] = useState<Record<number, boolean>>({});
+
+  // Inline Test Steps state
+  const [stepActionMap, setStepActionMap] = useState<Record<number, string>>({});
+  const [stepExpectedMap, setStepExpectedMap] = useState<Record<number, string>>({});
+
+  // Inline Test Set inclusion state
+  const [addTestCaseIdMap, setAddTestCaseIdMap] = useState<Record<number, number | null>>({});
 
   // Create Object Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -115,12 +119,11 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
   const [showFileModal, setShowFileModal] = useState(false);
   const [newFilename, setNewFilename] = useState('');
   const [newFileCategory, setNewFileCategory] = useState<'PDF' | 'CAD' | 'CSV' | 'OTHER'>('PDF');
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const isTestCaseTracker = tracker.enable_test_steps ?? (tracker.type === 'TEST_CASE' || tracker.key === 'SYS-TST' || tracker.prefix.includes('TST-'));
   const isTestSetTracker = tracker.type === 'TEST_SET' || tracker.key === 'TST-SET' || tracker.prefix.includes('SET-');
 
-  // Filter items in Left Panel
+  // Filter items in Left Panel and Middle Panel
   let filteredObjects = objects;
   if (selectedFolderId !== null) {
     filteredObjects = filteredObjects.filter(o => o.folder_id === selectedFolderId);
@@ -139,7 +142,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
     );
   }
 
-  // Automatically select the first object if none is selected
+  // Ensure an active object is selected
   useEffect(() => {
     if (filteredObjects.length > 0) {
       if (!selectedObjectId || !filteredObjects.some(o => o.id === selectedObjectId)) {
@@ -150,67 +153,101 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
     }
   }, [filteredObjects, tracker.id]);
 
-  // Sync active object into form fields
-  const activeObject = allObjects.find(o => o.id === selectedObjectId);
-
+  // Keep folder expansions updated if new folders are added
   useEffect(() => {
-    if (activeObject) {
-      setTitle(activeObject.title || '');
-      setPreAction(activeObject.pre_action || '');
-      setDesc(activeObject.description || '');
-      setOwnerName(activeObject.owner_name || 'Zewd');
-      setPostAction(activeObject.post_action || '');
-      setStatus(activeObject.status || 'DRAFT');
-      setPriority(activeObject.priority || 'MEDIUM');
-      setSafetyLevel(activeObject.safety_level || 'ASIL-D');
-      setReqType(activeObject.requirement_type || 'Functional Requirement');
-      setTestProcess(activeObject.test_subprocess || 'System Testing');
-      setSaveSuccessMsg(false);
-    }
-  }, [activeObject?.id]);
+    setExpandedFolderIds(prev => {
+      const allIds = folders.map(f => f.id);
+      return Array.from(new Set([...prev, ...allIds]));
+    });
+  }, [folders.length]);
 
-  // Save handler for Middle Panel
-  const handleSaveMiddlePanel = () => {
-    if (!activeObject) return;
+  const toggleFolderDropdown = (folderId: number) => {
+    setExpandedFolderIds(prev =>
+      prev.includes(folderId) ? prev.filter(id => id !== folderId) : [...prev, folderId]
+    );
+  };
 
-    onUpdateObject(activeObject.id, {
-      title: title.trim(),
-      pre_action: preAction.trim(),
-      description: desc.trim(),
-      owner_name: ownerName.trim(),
-      post_action: postAction.trim(),
-      status,
-      priority,
-      safety_level: safetyLevel,
-      requirement_type: reqType,
-      test_subprocess: testProcess
+  const toggleRequirementDropdown = (objId: number) => {
+    setSelectedObjectId(objId);
+    setExpandedReqIds(prev =>
+      prev.includes(objId) ? prev.filter(id => id !== objId) : [...prev, objId]
+    );
+  };
+
+  const expandAllRequirements = () => {
+    setExpandedReqIds(filteredObjects.map(o => o.id));
+  };
+
+  const collapseAllRequirements = () => {
+    setExpandedReqIds([]);
+  };
+
+  // Get current draft or fallback to object state
+  const getDraft = (obj: EngineeringObject) => {
+    return {
+      title: drafts[obj.id]?.title ?? obj.title,
+      pre_action: drafts[obj.id]?.pre_action ?? (obj.pre_action || ''),
+      description: drafts[obj.id]?.description ?? (obj.description || ''),
+      owner_name: drafts[obj.id]?.owner_name ?? (obj.owner_name || 'Zewd'),
+      post_action: drafts[obj.id]?.post_action ?? (obj.post_action || ''),
+      status: drafts[obj.id]?.status ?? obj.status,
+      safety_level: drafts[obj.id]?.safety_level ?? (obj.safety_level || 'ASIL-D'),
+      priority: drafts[obj.id]?.priority ?? (obj.priority || 'MEDIUM'),
+      requirement_type: drafts[obj.id]?.requirement_type ?? (obj.requirement_type || 'Functional Requirement'),
+      test_subprocess: drafts[obj.id]?.test_subprocess ?? (obj.test_subprocess || 'System Testing')
+    };
+  };
+
+  const updateDraft = (objId: number, field: string, value: any) => {
+    setDrafts(prev => ({
+      ...prev,
+      [objId]: {
+        ...prev[objId],
+        [field]: value
+      }
+    }));
+  };
+
+  const handleSaveRequirement = (obj: EngineeringObject) => {
+    const draft = getDraft(obj);
+    onUpdateObject(obj.id, {
+      title: draft.title?.trim(),
+      pre_action: draft.pre_action?.trim(),
+      description: draft.description?.trim(),
+      owner_name: draft.owner_name?.trim(),
+      post_action: draft.post_action?.trim(),
+      status: draft.status,
+      safety_level: draft.safety_level,
+      priority: draft.priority,
+      requirement_type: draft.requirement_type,
+      test_subprocess: draft.test_subprocess
     });
 
-    setSaveSuccessMsg(true);
-    setTimeout(() => setSaveSuccessMsg(false), 3000);
+    setSaveStatusMap(prev => ({ ...prev, [obj.id]: true }));
+    setTimeout(() => {
+      setSaveStatusMap(prev => ({ ...prev, [obj.id]: false }));
+    }, 2500);
   };
 
   // Add Step for Test Cases
-  const handleAddTestStepInline = (e: React.FormEvent) => {
+  const handleAddTestStepForObj = (objId: number, e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeObject || !newStepAction.trim() || !onAddTestStep) return;
+    const action = stepActionMap[objId]?.trim();
+    const expected = stepExpectedMap[objId]?.trim() || 'Verified output complies with requirements specification.';
+    if (!action || !onAddTestStep) return;
 
-    onAddTestStep(
-      activeObject.id,
-      newStepAction.trim(),
-      newStepExpected.trim() || 'Verified system output complies with requirements.'
-    );
-
-    setNewStepAction('');
-    setNewStepExpected('');
+    onAddTestStep(objId, action, expected);
+    setStepActionMap(prev => ({ ...prev, [objId]: '' }));
+    setStepExpectedMap(prev => ({ ...prev, [objId]: '' }));
   };
 
   // Add Test Case to Test Set
-  const handleAddTestCaseToSet = (e: React.FormEvent) => {
+  const handleAddTestCaseToSetForObj = (setId: number, e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeObject || !addTestCaseId || !onAddRelationship) return;
-    onAddRelationship(addTestCaseId, activeObject.id, 'INCLUDED_IN');
-    setAddTestCaseId(null);
+    const tcId = addTestCaseIdMap[setId];
+    if (!tcId || !onAddRelationship) return;
+    onAddRelationship(tcId, setId, 'INCLUDED_IN');
+    setAddTestCaseIdMap(prev => ({ ...prev, [setId]: null }));
   };
 
   // Create Object Submit
@@ -227,8 +264,8 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
       post_action: modalPostAction.trim(),
       safety_level: modalSafetyLevel,
       priority: modalPriority,
-      requirement_type: reqType,
-      test_subprocess: testProcess
+      requirement_type: 'Functional Requirement',
+      test_subprocess: 'System Testing'
     });
 
     setShowCreateModal(false);
@@ -245,10 +282,17 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
     const createdId = onCreateFolder(tracker.id, newFolderName.trim());
     if (typeof createdId === 'number') {
       setSelectedFolderId(createdId);
+      setExpandedFolderIds(prev => [...prev, createdId]);
     }
     setNewFolderName('');
     setShowFolderModal(false);
   };
+
+  // Right Panel: Active Object Data
+  const activeObject = allObjects.find(o => o.id === selectedObjectId);
+  const outgoingLinks = activeObject ? relationships.filter(r => r.source_id === activeObject.id) : [];
+  const incomingLinks = activeObject ? relationships.filter(r => r.target_id === activeObject.id) : [];
+  const activeObjectFiles = activeObject ? artifacts.filter(a => a.object_id === activeObject.id) : [];
 
   // Create Link Submit (Right Panel)
   const handleCreateLinkSubmit = (e: React.FormEvent) => {
@@ -276,28 +320,11 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
     setShowFileModal(false);
   };
 
-  // Right Panel Links & Files
-  const outgoingLinks = activeObject ? relationships.filter(r => r.source_id === activeObject.id) : [];
-  const incomingLinks = activeObject ? relationships.filter(r => r.target_id === activeObject.id) : [];
-  const activeObjectFiles = activeObject ? artifacts.filter(a => a.object_id === activeObject.id) : [];
-
-  // Included test cases in Test Set
-  const includedTestCaseRels = activeObject ? relationships.filter(r => r.target_id === activeObject.id && r.relationship_type === 'INCLUDED_IN') : [];
-  const includedTestCases = includedTestCaseRels.map(r => {
-    const tcObj = allObjects.find(o => o.id === r.source_id);
-    return { relId: r.id, tcObj };
-  }).filter(item => item.tcObj !== undefined);
-
-  const availableTestCases = allObjects.filter(o =>
-    (o.type === 'TEST_CASE' || o.object_key.startsWith('SYS-TST')) &&
-    !includedTestCaseRels.some(r => r.source_id === o.id)
-  );
-
-  const activeSteps = activeObject ? testSteps.filter(s => s.test_case_id === activeObject.id) : [];
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 60px)', overflow: 'hidden', backgroundColor: 'var(--bg-dark)' }}>
-      {/* Top Tracker Sub-Navbar */}
+      {/* ══════════════════════════════════════════════════════════════════
+          TOP NAV BAR: Back to Dashboard & Tracker Identity
+          ══════════════════════════════════════════════════════════════════ */}
       <div style={{
         height: '52px',
         borderBottom: '1px solid var(--border-color)',
@@ -308,32 +335,59 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
         padding: '0 24px',
         flexShrink: 0
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span className="mono" style={{
-            fontSize: '0.85rem',
-            fontWeight: 800,
-            color: 'var(--accent-cyan)',
-            backgroundColor: 'rgba(56, 189, 248, 0.12)',
-            border: '1px solid rgba(56, 189, 248, 0.3)',
-            padding: '3px 8px',
-            borderRadius: '5px'
-          }}>
-            {tracker.prefix || tracker.key}
-          </span>
-          <h1 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
-            {tracker.name} Dashboard
-          </h1>
-          <span style={{
-            fontSize: '0.75rem',
-            backgroundColor: 'var(--bg-dark)',
-            color: 'var(--text-muted)',
-            border: '1px solid var(--border-color)',
-            padding: '2px 8px',
-            borderRadius: '12px',
-            fontWeight: 600
-          }}>
-            {objects.length} Total Objects
-          </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          {/* Back Button to Dashboard (Point 1) */}
+          {onBackToDashboard && (
+            <button
+              onClick={onBackToDashboard}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                border: '1px solid rgba(56, 189, 248, 0.3)',
+                color: 'var(--accent-cyan)',
+                padding: '6px 12px',
+                borderRadius: '6px',
+                fontSize: '0.82rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+              title="Return to Project Dashboard"
+            >
+              <ArrowLeft size={15} />
+              <span>← Back to Dashboard</span>
+            </button>
+          )}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span className="mono" style={{
+              fontSize: '0.85rem',
+              fontWeight: 800,
+              color: 'var(--accent-cyan)',
+              backgroundColor: 'rgba(56, 189, 248, 0.12)',
+              border: '1px solid rgba(56, 189, 248, 0.3)',
+              padding: '3px 8px',
+              borderRadius: '5px'
+            }}>
+              {tracker.prefix || tracker.key}
+            </span>
+            <h1 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
+              {tracker.name} Dashboard
+            </h1>
+            <span style={{
+              fontSize: '0.75rem',
+              backgroundColor: 'var(--bg-dark)',
+              color: 'var(--text-muted)',
+              border: '1px solid var(--border-color)',
+              padding: '2px 8px',
+              borderRadius: '12px',
+              fontWeight: 600
+            }}>
+              {objects.length} Total Objects
+            </span>
+          </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -360,12 +414,14 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
         </div>
       </div>
 
-      {/* 3-Panel Split Workspace */}
+      {/* ══════════════════════════════════════════════════════════════════
+          3-PANEL SPLIT WORKSPACE
+          ══════════════════════════════════════════════════════════════════ */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
-        {/* ══════════════════════════════════════════════════════════════════
-            LEFT PANEL: Inventory List & Folder Navigation
-            ══════════════════════════════════════════════════════════════════ */}
+        {/* ──────────────────────────────────────────────────────────────────
+            LEFT PANEL: Folders in Series (Top to Down) with Dropdowns (Point 2)
+            ────────────────────────────────────────────────────────────────── */}
         <div style={{
           width: '320px',
           flexShrink: 0,
@@ -375,7 +431,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
           flexDirection: 'column',
           overflow: 'hidden'
         }}>
-          {/* Search & Status Filter */}
+          {/* Search Bar & Add Folder Header */}
           <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div style={{ position: 'relative' }}>
               <Search size={14} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--text-muted)' }} />
@@ -399,12 +455,13 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
               />
             </div>
 
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
                 style={{
                   flex: 1,
+                  marginRight: '8px',
                   fontSize: '0.75rem',
                   padding: '5px 8px',
                   backgroundColor: 'var(--bg-dark)',
@@ -422,7 +479,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
 
               <button
                 onClick={() => setShowFolderModal(true)}
-                title="New Folder"
+                title="Create Folder"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -438,119 +495,359 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                 }}
               >
                 <FolderPlus size={14} />
-                <span>Folder</span>
+                <span>+ Folder</span>
               </button>
             </div>
           </div>
 
-          {/* Folder Filter Chips */}
-          <div style={{
-            padding: '10px 16px',
-            borderBottom: '1px solid var(--border-color)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            overflowX: 'auto',
-            whiteSpace: 'nowrap'
-          }}>
-            <button
-              onClick={() => setSelectedFolderId(null)}
-              style={{
-                fontSize: '0.75rem',
-                padding: '3px 8px',
-                borderRadius: '4px',
-                border: 'none',
-                cursor: 'pointer',
-                fontWeight: 600,
-                backgroundColor: selectedFolderId === null ? 'var(--primary)' : 'var(--bg-dark)',
-                color: selectedFolderId === null ? '#fff' : 'var(--text-muted)'
-              }}
-            >
-              All ({objects.length})
-            </button>
-            {folders.map(f => {
-              const fCount = objects.filter(o => o.folder_id === f.id).length;
-              return (
-                <button
-                  key={f.id}
-                  onClick={() => setSelectedFolderId(f.id)}
-                  style={{
-                    fontSize: '0.75rem',
-                    padding: '3px 8px',
-                    borderRadius: '4px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontWeight: 600,
-                    backgroundColor: selectedFolderId === f.id ? 'var(--primary)' : 'var(--bg-dark)',
-                    color: selectedFolderId === f.id ? '#fff' : 'var(--text-muted)'
-                  }}
-                >
-                  {f.name} ({fCount})
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Requirements Scrollable List */}
+          {/* Vertical Folder Tree with Dropdown Contents (Point 2) */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '12px' }}>
-            {filteredObjects.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px 16px', color: 'var(--text-muted)' }}>
-                <p style={{ fontSize: '0.85rem', marginBottom: '12px' }}>No requirements found.</p>
-                <button
-                  onClick={() => setShowCreateModal(true)}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+
+              {/* All Items Option */}
+              <div style={{
+                borderRadius: '6px',
+                border: '1px solid var(--border-color)',
+                backgroundColor: selectedFolderId === null ? 'rgba(56, 189, 248, 0.08)' : 'var(--bg-card)',
+                overflow: 'hidden'
+              }}>
+                <div
+                  onClick={() => {
+                    setSelectedFolderId(null);
+                    setIsAllItemsExpanded(prev => !prev);
+                  }}
                   style={{
-                    backgroundColor: 'var(--primary)',
-                    color: '#fff',
-                    border: 'none',
-                    padding: '6px 12px',
-                    borderRadius: '6px',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    cursor: 'pointer'
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '9px 12px',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    color: selectedFolderId === null ? 'var(--accent-cyan)' : 'var(--text-main)'
                   }}
                 >
-                  + Add Requirement
-                </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {isAllItemsExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    <Folder size={16} color="var(--accent-cyan)" />
+                    <span>All Items ({objects.length})</span>
+                  </div>
+                </div>
+
+                {isAllItemsExpanded && selectedFolderId === null && (
+                  <div style={{ padding: '4px 8px 8px 24px', display: 'flex', flexDirection: 'column', gap: '4px', borderTop: '1px solid var(--border-color)' }}>
+                    {filteredObjects.map(obj => {
+                      const isSelected = selectedObjectId === obj.id;
+                      return (
+                        <div
+                          key={obj.id}
+                          onClick={() => {
+                            setSelectedObjectId(obj.id);
+                            if (!expandedReqIds.includes(obj.id)) {
+                              setExpandedReqIds(prev => [...prev, obj.id]);
+                            }
+                          }}
+                          style={{
+                            padding: '6px 8px',
+                            borderRadius: '4px',
+                            backgroundColor: isSelected ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
+                            color: isSelected ? 'var(--accent-cyan)' : 'var(--text-main)',
+                            fontSize: '0.78rem',
+                            fontWeight: isSelected ? 700 : 500,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                          }}
+                        >
+                          <span className="mono" style={{ fontSize: '0.72rem', opacity: 0.8 }}>[{obj.object_key}]</span>
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{obj.title}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {filteredObjects.map((obj) => {
-                  const isSelected = selectedObjectId === obj.id;
-                  return (
+
+              {/* Folders List in Series (Top to Down) */}
+              {folders.map(folder => {
+                const folderObjects = objects.filter(o => o.folder_id === folder.id);
+                const isExpanded = expandedFolderIds.includes(folder.id);
+                const isFolderActive = selectedFolderId === folder.id;
+
+                return (
+                  <div
+                    key={folder.id}
+                    style={{
+                      borderRadius: '6px',
+                      border: isFolderActive ? '1px solid var(--accent-cyan)' : '1px solid var(--border-color)',
+                      backgroundColor: isFolderActive ? 'rgba(56, 189, 248, 0.06)' : 'var(--bg-card)',
+                      overflow: 'hidden'
+                    }}
+                  >
+                    {/* Folder Header - Click toggles dropdown */}
                     <div
-                      key={obj.id}
-                      onClick={() => setSelectedObjectId(obj.id)}
+                      onClick={() => {
+                        setSelectedFolderId(folder.id);
+                        toggleFolderDropdown(folder.id);
+                      }}
                       style={{
-                        padding: '12px 14px',
-                        borderRadius: '8px',
-                        backgroundColor: isSelected ? 'rgba(56, 189, 248, 0.12)' : 'var(--bg-card)',
-                        border: isSelected ? '1px solid var(--accent-cyan)' : '1px solid var(--border-color)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '9px 12px',
                         cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                        boxShadow: isSelected ? '0 0 10px rgba(56, 189, 248, 0.15)' : 'none'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isSelected) e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.4)';
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isSelected) e.currentTarget.style.borderColor = 'var(--border-color)';
+                        fontSize: '0.85rem',
+                        fontWeight: 700,
+                        color: isFolderActive ? 'var(--accent-cyan)' : 'var(--text-main)'
                       }}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                        <Folder size={16} color={isFolderActive ? 'var(--accent-cyan)' : 'var(--accent-amber)'} />
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '170px' }}>
+                          {folder.name}
+                        </span>
+                      </div>
+
+                      <span style={{
+                        fontSize: '0.7rem',
+                        backgroundColor: 'var(--bg-dark)',
+                        padding: '2px 7px',
+                        borderRadius: '10px',
+                        color: 'var(--text-muted)'
+                      }}>
+                        {folderObjects.length}
+                      </span>
+                    </div>
+
+                    {/* Folder Dropdown: Requirements List */}
+                    {isExpanded && (
+                      <div style={{
+                        padding: '6px 8px 8px 24px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px',
+                        borderTop: '1px solid var(--border-color)',
+                        backgroundColor: 'var(--bg-dark)'
+                      }}>
+                        {folderObjects.length === 0 ? (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '6px 0' }}>
+                            Empty folder
+                          </div>
+                        ) : (
+                          folderObjects.map(obj => {
+                            const isSelected = selectedObjectId === obj.id;
+                            return (
+                              <div
+                                key={obj.id}
+                                onClick={() => {
+                                  setSelectedObjectId(obj.id);
+                                  if (!expandedReqIds.includes(obj.id)) {
+                                    setExpandedReqIds(prev => [...prev, obj.id]);
+                                  }
+                                }}
+                                style={{
+                                  padding: '6px 8px',
+                                  borderRadius: '4px',
+                                  backgroundColor: isSelected ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
+                                  color: isSelected ? 'var(--accent-cyan)' : 'var(--text-main)',
+                                  fontSize: '0.78rem',
+                                  fontWeight: isSelected ? 700 : 500,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '6px'
+                                }}
+                              >
+                                <span className="mono" style={{ fontSize: '0.72rem', opacity: 0.8 }}>[{obj.object_key}]</span>
+                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{obj.title}</span>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+            </div>
+          </div>
+        </div>
+
+        {/* ──────────────────────────────────────────────────────────────────
+            MIDDLE PANEL: Sequential Requirements with Dropdowns (Point 3)
+            ────────────────────────────────────────────────────────────────── */}
+        <div style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '24px 28px',
+          backgroundColor: 'var(--bg-dark)',
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
+          {/* Top Control Bar for Requirements Sequence */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '18px',
+            paddingBottom: '12px',
+            borderBottom: '1px solid var(--border-color)'
+          }}>
+            <div>
+              <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
+                {selectedFolderId !== null
+                  ? `Requirements in Folder: ${folders.find(f => f.id === selectedFolderId)?.name || 'Folder'}`
+                  : `All Requirements in ${tracker.name}`}
+              </h2>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                Showing {filteredObjects.length} requirements in sequential order • Click any requirement card to toggle its specification dropdown
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={expandAllRequirements}
+                style={{
+                  fontSize: '0.75rem',
+                  padding: '5px 10px',
+                  borderRadius: '5px',
+                  backgroundColor: 'var(--bg-card)',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--text-main)',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Expand All
+              </button>
+              <button
+                onClick={collapseAllRequirements}
+                style={{
+                  fontSize: '0.75rem',
+                  padding: '5px 10px',
+                  borderRadius: '5px',
+                  backgroundColor: 'var(--bg-card)',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--text-main)',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Collapse All
+              </button>
+            </div>
+          </div>
+
+          {/* Sequential List of Requirements (Each with its own Dropdown) */}
+          {filteredObjects.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
+              <FileText size={42} style={{ opacity: 0.3, marginBottom: '14px' }} />
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>
+                No Requirements Found
+              </h3>
+              <p style={{ fontSize: '0.85rem', marginBottom: '16px' }}>Click below to create a new requirement in this tracker.</p>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                style={{
+                  backgroundColor: 'var(--primary)',
+                  color: '#fff',
+                  border: 'none',
+                  padding: '8px 18px',
+                  borderRadius: '6px',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer'
+                }}
+              >
+                + Add Requirement
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {filteredObjects.map(obj => {
+                const isExpanded = expandedReqIds.includes(obj.id);
+                const isSelected = selectedObjectId === obj.id;
+                const draft = getDraft(obj);
+                const objSteps = testSteps.filter(s => s.test_case_id === obj.id);
+
+                // Included test cases if test set
+                const incRels = relationships.filter(r => r.target_id === obj.id && r.relationship_type === 'INCLUDED_IN');
+                const incCases = incRels.map(r => ({ relId: r.id, tc: allObjects.find(o => o.id === r.source_id) })).filter(i => i.tc);
+                const availCases = allObjects.filter(o =>
+                  (o.type === 'TEST_CASE' || o.object_key.startsWith('SYS-TST')) &&
+                  !incRels.some(r => r.source_id === o.id)
+                );
+
+                return (
+                  <div
+                    key={obj.id}
+                    id={`req-card-${obj.id}`}
+                    style={{
+                      borderRadius: '10px',
+                      border: isSelected ? '1px solid var(--accent-cyan)' : '1px solid var(--border-color)',
+                      backgroundColor: 'var(--bg-card)',
+                      overflow: 'hidden',
+                      boxShadow: isSelected ? '0 0 12px rgba(56, 189, 248, 0.12)' : 'none',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {/* ═══ Header Bar (The card in the Green Box) - Click toggles Dropdown ═══ */}
+                    <div
+                      onClick={() => toggleRequirementDropdown(obj.id)}
+                      style={{
+                        padding: '12px 18px',
+                        backgroundColor: isSelected ? 'rgba(56, 189, 248, 0.08)' : 'var(--bg-card)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        borderBottom: isExpanded ? '1px solid var(--border-color)' : 'none'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, overflow: 'hidden' }}>
+                        {isExpanded ? (
+                          <ChevronDown size={18} color="var(--accent-cyan)" />
+                        ) : (
+                          <ChevronRight size={18} color="var(--text-muted)" />
+                        )}
+
                         <span className="mono" style={{
-                          fontSize: '0.75rem',
+                          fontSize: '0.85rem',
                           fontWeight: 800,
                           color: 'var(--accent-cyan)',
-                          backgroundColor: 'var(--bg-dark)',
-                          padding: '2px 6px',
-                          borderRadius: '4px'
+                          backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                          border: '1px solid rgba(56, 189, 248, 0.3)',
+                          padding: '3px 8px',
+                          borderRadius: '5px'
                         }}>
-                          {obj.object_key}
+                          [{obj.object_key}]
                         </span>
+
                         <span style={{
-                          fontSize: '0.65rem',
+                          fontSize: '0.95rem',
                           fontWeight: 700,
-                          padding: '2px 6px',
+                          color: 'var(--text-main)',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          {obj.title}
+                        </span>
+
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                          v{obj.version}.0
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {/* Status Badge */}
+                        <span style={{
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          padding: '3px 8px',
                           borderRadius: '4px',
                           backgroundColor:
                             obj.status === 'APPROVED' ? 'rgba(16, 185, 129, 0.15)' :
@@ -563,605 +860,428 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                         }}>
                           {obj.status}
                         </span>
-                      </div>
 
-                      <div style={{
-                        fontSize: '0.85rem',
-                        fontWeight: 600,
-                        color: 'var(--text-main)',
-                        lineHeight: '1.3',
-                        marginBottom: '4px'
-                      }}>
-                        {obj.title}
-                      </div>
-
-                      <div style={{
-                        fontSize: '0.75rem',
-                        color: 'var(--text-muted)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        marginTop: '6px'
-                      }}>
-                        <span>👤 {obj.owner_name || 'Zewd'}</span>
+                        {/* Safety Level */}
                         <span style={{
-                          fontSize: '0.65rem',
-                          padding: '1px 5px',
-                          borderRadius: '3px',
-                          backgroundColor: obj.priority === 'CRITICAL' ? 'rgba(239, 68, 68, 0.15)' : 'var(--bg-dark)',
-                          color: obj.priority === 'CRITICAL' ? 'var(--accent-rose)' : 'var(--text-muted)'
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          padding: '3px 8px',
+                          borderRadius: '4px',
+                          backgroundColor: 'var(--bg-dark)',
+                          border: '1px solid var(--border-color)',
+                          color: 'var(--accent-cyan)'
                         }}>
-                          {obj.priority}
+                          {obj.safety_level || 'ASIL-D'}
                         </span>
+
+                        {/* Owner Badge */}
+                        <span style={{
+                          fontSize: '0.7rem',
+                          fontWeight: 600,
+                          color: 'var(--accent-amber)',
+                          backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                          padding: '3px 8px',
+                          borderRadius: '4px'
+                        }}>
+                          👤 {obj.owner_name || 'Zewd'}
+                        </span>
+
+                        {/* Delete Button */}
+                        {onDeleteObject && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm(`Delete requirement ${obj.object_key}?`)) {
+                                onDeleteObject(obj.id);
+                              }
+                            }}
+                            title="Delete"
+                            style={{
+                              backgroundColor: 'transparent',
+                              border: 'none',
+                              color: 'var(--accent-rose)',
+                              cursor: 'pointer',
+                              padding: '4px'
+                            }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
 
-        {/* ══════════════════════════════════════════════════════════════════
-            MIDDLE PANEL: Requirement Descriptive Specifications & Pre/Post Actions
-            ══════════════════════════════════════════════════════════════════ */}
-        <div style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: '28px 32px',
-          backgroundColor: 'var(--bg-dark)',
-          display: 'flex',
-          flexDirection: 'column'
-        }}>
-          {!activeObject ? (
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              height: '100%',
-              color: 'var(--text-muted)'
-            }}>
-              <FileText size={48} style={{ opacity: 0.3, marginBottom: '16px' }} />
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>
-                No Requirement Selected
-              </h3>
-              <p style={{ fontSize: '0.9rem', maxWidth: '400px', textAlign: 'center', marginBottom: '20px' }}>
-                Select an engineering object from the left panel or create a new requirement to inspect and edit its specifications.
-              </p>
-              <button
-                onClick={() => setShowCreateModal(true)}
-                style={{
-                  backgroundColor: 'var(--primary)',
-                  color: '#fff',
-                  border: 'none',
-                  padding: '10px 20px',
-                  borderRadius: '8px',
-                  fontWeight: 700,
-                  fontSize: '0.9rem',
-                  cursor: 'pointer'
-                }}
-              >
-                + Create Requirement
-              </button>
-            </div>
-          ) : (
-            <div style={{ maxWidth: '820px', width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    {/* ═══ Dropdown Contents (Reveals when clicked / expanded) ═══ */}
+                    {isExpanded && (
+                      <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: '16px', backgroundColor: 'var(--bg-dark)' }}>
 
-              {/* 1. Object Key & Status Bar */}
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                backgroundColor: 'var(--bg-card)',
-                border: '1px solid var(--border-color)',
-                padding: '12px 18px',
-                borderRadius: '10px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span className="mono" style={{
-                    fontSize: '1rem',
-                    fontWeight: 800,
-                    color: 'var(--accent-cyan)',
-                    backgroundColor: 'rgba(56, 189, 248, 0.12)',
-                    border: '1px solid rgba(56, 189, 248, 0.3)',
-                    padding: '4px 10px',
-                    borderRadius: '6px'
-                  }}>
-                    [{activeObject.object_key}]
-                  </span>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                    {tracker.name} • Version v{activeObject.version}.0
-                  </span>
-                </div>
+                        {/* 1. Title Input */}
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '5px', textTransform: 'uppercase' }}>
+                            Requirement Title *
+                          </label>
+                          <input
+                            type="text"
+                            value={draft.title}
+                            onChange={(e) => updateDraft(obj.id, 'title', e.target.value)}
+                            style={{
+                              width: '100%',
+                              fontSize: '1.1rem',
+                              fontWeight: 700,
+                              padding: '8px 12px',
+                              borderRadius: '6px',
+                              backgroundColor: 'var(--bg-card)',
+                              border: '1px solid var(--border-color)',
+                              color: 'var(--text-main)'
+                            }}
+                          />
+                        </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <select
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value)}
-                    style={{
-                      fontSize: '0.8rem',
-                      fontWeight: 700,
-                      padding: '5px 10px',
-                      backgroundColor: 'var(--bg-dark)',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: '6px',
-                      color:
-                        status === 'APPROVED' ? 'var(--accent-emerald)' :
-                        status === 'REVIEW' ? 'var(--accent-amber)' :
-                        'var(--text-main)'
-                    }}
-                  >
-                    <option value="DRAFT">DRAFT</option>
-                    <option value="REVIEW">REVIEW</option>
-                    <option value="APPROVED">APPROVED</option>
-                    <option value="VERIFIED">VERIFIED</option>
-                  </select>
-
-                  <select
-                    value={safetyLevel}
-                    onChange={(e) => setSafetyLevel(e.target.value as SafetyLevel)}
-                    style={{
-                      fontSize: '0.8rem',
-                      fontWeight: 700,
-                      padding: '5px 10px',
-                      backgroundColor: 'var(--bg-dark)',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: '6px',
-                      color: 'var(--accent-cyan)'
-                    }}
-                  >
-                    <option value="ASIL-D">ASIL-D</option>
-                    <option value="ASIL-C">ASIL-C</option>
-                    <option value="ASIL-B">ASIL-B</option>
-                    <option value="ASIL-A">ASIL-A</option>
-                    <option value="SIL-3">SIL-3</option>
-                    <option value="SIL-2">SIL-2</option>
-                    <option value="Standard / Non-Safety">Standard / Non-Safety</option>
-                  </select>
-
-                  {onDeleteObject && (
-                    <button
-                      onClick={() => {
-                        if (confirm(`Delete requirement ${activeObject.object_key} (${activeObject.title})?`)) {
-                          onDeleteObject(activeObject.id);
-                        }
-                      }}
-                      title="Delete Object"
-                      style={{
-                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                        borderRadius: '6px',
-                        padding: '6px 8px',
-                        color: 'var(--accent-rose)',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* 2. Title (Editable) */}
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase' }}>
-                  Requirement Title *
-                </label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  style={{
-                    width: '100%',
-                    fontSize: '1.25rem',
-                    fontWeight: 700,
-                    padding: '10px 14px',
-                    borderRadius: '8px',
-                    backgroundColor: 'var(--bg-card)',
-                    border: '1px solid var(--border-color)',
-                    color: 'var(--text-main)'
-                  }}
-                  placeholder="e.g. Dynamic Collision Avoidance Trajectory Computation"
-                />
-              </div>
-
-              {/* 3. ⚡ Pre-Action (Initial / Preconditions) */}
-              <div style={{
-                backgroundColor: 'rgba(245, 158, 11, 0.04)',
-                border: '1px solid rgba(245, 158, 11, 0.3)',
-                borderRadius: '10px',
-                padding: '16px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                  <span style={{
-                    backgroundColor: 'rgba(245, 158, 11, 0.2)',
-                    color: 'var(--accent-amber)',
-                    padding: '3px 8px',
-                    borderRadius: '4px',
-                    fontSize: '0.75rem',
-                    fontWeight: 800,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}>
-                    ⚡ PRE-ACTION
-                  </span>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                    Initial System State, Hardware Preconditions & Entry Criteria
-                  </span>
-                </div>
-                <textarea
-                  rows={3}
-                  value={preAction}
-                  onChange={(e) => setPreAction(e.target.value)}
-                  placeholder="Describe starting system state, sensor calibration, battery thresholds, environmental setup, or prerequisites before executing this requirement/test..."
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    fontSize: '0.85rem',
-                    borderRadius: '6px',
-                    backgroundColor: 'var(--bg-dark)',
-                    border: '1px solid rgba(245, 158, 11, 0.25)',
-                    color: 'var(--text-main)',
-                    resize: 'vertical',
-                    lineHeight: '1.4'
-                  }}
-                />
-              </div>
-
-              {/* 4. Description (Full rich text specification) */}
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase' }}>
-                  Detailed Specification & Description
-                </label>
-                <textarea
-                  rows={5}
-                  value={desc}
-                  onChange={(e) => setDesc(e.target.value)}
-                  placeholder="Full engineering specification text, functional requirements, architectural interfaces, or validation acceptance criteria..."
-                  style={{
-                    width: '100%',
-                    padding: '12px 14px',
-                    fontSize: '0.9rem',
-                    borderRadius: '8px',
-                    backgroundColor: 'var(--bg-card)',
-                    border: '1px solid var(--border-color)',
-                    color: 'var(--text-main)',
-                    resize: 'vertical',
-                    lineHeight: '1.5'
-                  }}
-                />
-              </div>
-
-              {/* 5. 👤 Owner Name: Zewd */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                backgroundColor: 'var(--bg-card)',
-                border: '1px solid var(--border-color)',
-                padding: '12px 16px',
-                borderRadius: '8px'
-              }}>
-                <div style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '50%',
-                  backgroundColor: 'var(--accent-amber)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 800,
-                  color: '#000',
-                  fontSize: '0.85rem'
-                }}>
-                  Z
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                    ASSIGNED OWNER / LEAD ENGINEER
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
-                    <input
-                      type="text"
-                      value={ownerName}
-                      onChange={(e) => setOwnerName(e.target.value)}
-                      style={{
-                        padding: '4px 8px',
-                        fontSize: '0.85rem',
-                        fontWeight: 700,
-                        color: 'var(--accent-amber)',
-                        backgroundColor: 'var(--bg-dark)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: '4px',
-                        width: '200px'
-                      }}
-                    />
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      👑 Project Owner
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 6. 🧪 Test Steps (if Test Case tracker) */}
-              {isTestCaseTracker && (
-                <div style={{
-                  backgroundColor: 'var(--bg-card)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '10px',
-                  padding: '18px'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <ListOrdered size={18} color="var(--accent-cyan)" />
-                      <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>
-                        Test Execution Steps ({activeSteps.length})
-                      </h4>
-                    </div>
-                  </div>
-
-                  {activeSteps.length === 0 ? (
-                    <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', backgroundColor: 'var(--bg-dark)', borderRadius: '6px' }}>
-                      No test steps recorded yet. Add sequential verification procedures below.
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
-                      {activeSteps.map((step, idx) => (
-                        <div key={step.id} style={{
-                          display: 'grid',
-                          gridTemplateColumns: '36px 1fr 1fr 36px',
-                          gap: '12px',
-                          alignItems: 'center',
-                          backgroundColor: 'var(--bg-dark)',
-                          border: '1px solid var(--border-color)',
-                          padding: '10px 12px',
-                          borderRadius: '6px'
+                        {/* 2. ⚡ Pre-Action (Initial / Preconditions) */}
+                        <div style={{
+                          backgroundColor: 'rgba(245, 158, 11, 0.04)',
+                          border: '1px solid rgba(245, 158, 11, 0.3)',
+                          borderRadius: '8px',
+                          padding: '14px'
                         }}>
-                          <span style={{ fontWeight: 800, color: 'var(--accent-cyan)', textAlign: 'center', fontSize: '0.85rem' }}>
-                            #{idx + 1}
-                          </span>
-                          <div style={{ fontSize: '0.8rem' }}>
-                            <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem', fontWeight: 600 }}>ACTION</div>
-                            <div>{step.action}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                            <span style={{
+                              backgroundColor: 'rgba(245, 158, 11, 0.2)',
+                              color: 'var(--accent-amber)',
+                              padding: '2px 7px',
+                              borderRadius: '4px',
+                              fontSize: '0.7rem',
+                              fontWeight: 800
+                            }}>
+                              ⚡ PRE-ACTION
+                            </span>
+                            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                              Initial System State, Hardware Preconditions & Entry Criteria
+                            </span>
                           </div>
-                          <div style={{ fontSize: '0.8rem' }}>
-                            <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem', fontWeight: 600 }}>EXPECTED RESULT</div>
-                            <div style={{ color: 'var(--accent-emerald)' }}>{step.expected_result}</div>
-                          </div>
-                          {onDeleteTestStep && (
-                            <button
-                              onClick={() => onDeleteTestStep(step.id)}
+                          <textarea
+                            rows={3}
+                            value={draft.pre_action}
+                            onChange={(e) => updateDraft(obj.id, 'pre_action', e.target.value)}
+                            placeholder="Specify starting system state, sensor calibration, battery thresholds, environmental constraints..."
+                            style={{
+                              width: '100%',
+                              padding: '8px 10px',
+                              fontSize: '0.85rem',
+                              borderRadius: '6px',
+                              backgroundColor: 'var(--bg-card)',
+                              border: '1px solid rgba(245, 158, 11, 0.2)',
+                              color: 'var(--text-main)',
+                              resize: 'vertical',
+                              lineHeight: '1.4'
+                            }}
+                          />
+                        </div>
+
+                        {/* 3. Description (Full rich text) */}
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '5px', textTransform: 'uppercase' }}>
+                            Detailed Specification & Description
+                          </label>
+                          <textarea
+                            rows={4}
+                            value={draft.description}
+                            onChange={(e) => updateDraft(obj.id, 'description', e.target.value)}
+                            placeholder="Full engineering specification description..."
+                            style={{
+                              width: '100%',
+                              padding: '10px 12px',
+                              fontSize: '0.85rem',
+                              borderRadius: '6px',
+                              backgroundColor: 'var(--bg-card)',
+                              border: '1px solid var(--border-color)',
+                              color: 'var(--text-main)',
+                              resize: 'vertical',
+                              lineHeight: '1.4'
+                            }}
+                          />
+                        </div>
+
+                        {/* 4. 👤 Owner Name: Zewd */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div style={{ flex: 1 }}>
+                            <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '4px', textTransform: 'uppercase' }}>
+                              👤 Assigned Owner
+                            </label>
+                            <input
+                              type="text"
+                              value={draft.owner_name}
+                              onChange={(e) => updateDraft(obj.id, 'owner_name', e.target.value)}
                               style={{
-                                backgroundColor: 'transparent',
-                                border: 'none',
-                                color: 'var(--accent-rose)',
-                                cursor: 'pointer',
-                                padding: '4px'
+                                width: '220px',
+                                padding: '6px 10px',
+                                fontSize: '0.85rem',
+                                fontWeight: 700,
+                                color: 'var(--accent-amber)',
+                                backgroundColor: 'var(--bg-card)',
+                                border: '1px solid var(--border-color)',
+                                borderRadius: '6px'
                               }}
-                              title="Delete Step"
+                            />
+                          </div>
+
+                          <div style={{ width: '160px' }}>
+                            <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '4px', textTransform: 'uppercase' }}>
+                              Status
+                            </label>
+                            <select
+                              value={draft.status}
+                              onChange={(e) => updateDraft(obj.id, 'status', e.target.value)}
+                              style={{ width: '100%', fontSize: '0.8rem', padding: '6px 8px' }}
                             >
-                              <X size={16} />
-                            </button>
-                          )}
+                              <option value="DRAFT">DRAFT</option>
+                              <option value="REVIEW">REVIEW</option>
+                              <option value="APPROVED">APPROVED</option>
+                              <option value="VERIFIED">VERIFIED</option>
+                            </select>
+                          </div>
+
+                          <div style={{ width: '160px' }}>
+                            <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '4px', textTransform: 'uppercase' }}>
+                              Safety Level
+                            </label>
+                            <select
+                              value={draft.safety_level}
+                              onChange={(e) => updateDraft(obj.id, 'safety_level', e.target.value as SafetyLevel)}
+                              style={{ width: '100%', fontSize: '0.8rem', padding: '6px 8px' }}
+                            >
+                              <option value="ASIL-D">ASIL-D</option>
+                              <option value="ASIL-C">ASIL-C</option>
+                              <option value="ASIL-B">ASIL-B</option>
+                              <option value="ASIL-A">ASIL-A</option>
+                              <option value="SIL-3">SIL-3</option>
+                              <option value="SIL-2">SIL-2</option>
+                              <option value="Standard / Non-Safety">Standard / Non-Safety</option>
+                            </select>
+                          </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
 
-                  {/* Add Step Inline Form */}
-                  <form onSubmit={handleAddTestStepInline} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '10px', marginTop: '12px' }}>
-                    <input
-                      type="text"
-                      placeholder="Step action (e.g. Trigger optical obstacle)..."
-                      value={newStepAction}
-                      onChange={(e) => setNewStepAction(e.target.value)}
-                      style={{ fontSize: '0.8rem', padding: '8px 10px' }}
-                    />
-                    <input
-                      type="text"
-                      placeholder="Expected outcome (e.g. Robot stops <0.35m)..."
-                      value={newStepExpected}
-                      onChange={(e) => setNewStepExpected(e.target.value)}
-                      style={{ fontSize: '0.8rem', padding: '8px 10px' }}
-                    />
-                    <button
-                      type="submit"
-                      style={{
-                        padding: '8px 14px',
-                        backgroundColor: 'var(--primary)',
-                        color: '#fff',
-                        borderRadius: '6px',
-                        border: 'none',
-                        fontWeight: 700,
-                        fontSize: '0.8rem',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      + Add Step
-                    </button>
-                  </form>
-                </div>
-              )}
+                        {/* 5. 🧪 Test Steps (if Test Case tracker) */}
+                        {isTestCaseTracker && (
+                          <div style={{
+                            backgroundColor: 'var(--bg-card)',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: '8px',
+                            padding: '14px'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                              <ListOrdered size={16} color="var(--accent-cyan)" />
+                              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                                Test Steps ({objSteps.length})
+                              </span>
+                            </div>
 
-              {/* If Test Set tracker: Included Test Cases */}
-              {isTestSetTracker && (
-                <div style={{
-                  backgroundColor: 'var(--bg-card)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '10px',
-                  padding: '18px'
-                }}>
-                  <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '12px' }}>
-                    Included Test Cases in this Suite ({includedTestCases.length})
-                  </h4>
+                            {objSteps.length > 0 && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '10px' }}>
+                                {objSteps.map((step, idx) => (
+                                  <div key={step.id} style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: '30px 1fr 1fr 30px',
+                                    gap: '10px',
+                                    alignItems: 'center',
+                                    backgroundColor: 'var(--bg-dark)',
+                                    border: '1px solid var(--border-color)',
+                                    padding: '8px 10px',
+                                    borderRadius: '5px',
+                                    fontSize: '0.8rem'
+                                  }}>
+                                    <span style={{ fontWeight: 800, color: 'var(--accent-cyan)', textAlign: 'center' }}>#{idx + 1}</span>
+                                    <div>{step.action}</div>
+                                    <div style={{ color: 'var(--accent-emerald)' }}>{step.expected_result}</div>
+                                    {onDeleteTestStep && (
+                                      <button
+                                        onClick={() => onDeleteTestStep(step.id)}
+                                        style={{ border: 'none', background: 'transparent', color: 'var(--accent-rose)', cursor: 'pointer' }}
+                                      >
+                                        <X size={14} />
+                                      </button>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
 
-                  {includedTestCases.length === 0 ? (
-                    <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', backgroundColor: 'var(--bg-dark)', borderRadius: '6px' }}>
-                      No test cases assigned to this test set yet.
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>
-                      {includedTestCases.map(item => (
-                        <div key={item.relId} style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          backgroundColor: 'var(--bg-dark)',
-                          border: '1px solid var(--border-color)',
-                          padding: '8px 12px',
-                          borderRadius: '6px'
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span className="mono" style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--accent-cyan)' }}>
-                              [{item.tcObj?.object_key}]
+                            {/* Add Step Form */}
+                            <form onSubmit={(e) => handleAddTestStepForObj(obj.id, e)} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '8px' }}>
+                              <input
+                                type="text"
+                                placeholder="Step action..."
+                                value={stepActionMap[obj.id] || ''}
+                                onChange={(e) => setStepActionMap(prev => ({ ...prev, [obj.id]: e.target.value }))}
+                                style={{ fontSize: '0.78rem', padding: '6px 8px' }}
+                              />
+                              <input
+                                type="text"
+                                placeholder="Expected result..."
+                                value={stepExpectedMap[obj.id] || ''}
+                                onChange={(e) => setStepExpectedMap(prev => ({ ...prev, [obj.id]: e.target.value }))}
+                                style={{ fontSize: '0.78rem', padding: '6px 8px' }}
+                              />
+                              <button
+                                type="submit"
+                                style={{
+                                  padding: '6px 12px',
+                                  backgroundColor: 'var(--primary)',
+                                  color: '#fff',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  fontSize: '0.78rem',
+                                  fontWeight: 700,
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                + Step
+                              </button>
+                            </form>
+                          </div>
+                        )}
+
+                        {/* If Test Set tracker: Included Test Cases */}
+                        {isTestSetTracker && (
+                          <div style={{
+                            backgroundColor: 'var(--bg-card)',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: '8px',
+                            padding: '14px'
+                          }}>
+                            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)', display: 'block', marginBottom: '8px' }}>
+                              Included Test Cases ({incCases.length})
                             </span>
-                            <span style={{ fontSize: '0.85rem', color: 'var(--text-main)' }}>
-                              {item.tcObj?.title}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px' }}>
+                              {incCases.map(item => (
+                                <div key={item.relId} style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  backgroundColor: 'var(--bg-dark)',
+                                  padding: '6px 10px',
+                                  borderRadius: '4px',
+                                  fontSize: '0.8rem'
+                                }}>
+                                  <span><span className="mono" style={{ color: 'var(--accent-cyan)' }}>[{item.tc?.object_key}]</span> {item.tc?.title}</span>
+                                  {onDeleteRelationship && (
+                                    <button onClick={() => onDeleteRelationship(item.relId)} style={{ border: 'none', background: 'transparent', color: 'var(--accent-rose)', cursor: 'pointer' }}>
+                                      <X size={12} />
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+
+                            {availCases.length > 0 && (
+                              <form onSubmit={(e) => handleAddTestCaseToSetForObj(obj.id, e)} style={{ display: 'flex', gap: '8px' }}>
+                                <select
+                                  value={addTestCaseIdMap[obj.id] || ''}
+                                  onChange={(e) => setAddTestCaseIdMap(prev => ({ ...prev, [obj.id]: Number(e.target.value) || null }))}
+                                  style={{ flex: 1, fontSize: '0.78rem' }}
+                                >
+                                  <option value="">Select test case to include...</option>
+                                  {availCases.map(tc => (
+                                    <option key={tc.id} value={tc.id}>[{tc.object_key}] {tc.title}</option>
+                                  ))}
+                                </select>
+                                <button
+                                  type="submit"
+                                  disabled={!addTestCaseIdMap[obj.id]}
+                                  style={{ padding: '6px 12px', backgroundColor: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}
+                                >
+                                  Include
+                                </button>
+                              </form>
+                            )}
+                          </div>
+                        )}
+
+                        {/* 6. 🎯 Post-Action (Exit / Postconditions) */}
+                        <div style={{
+                          backgroundColor: 'rgba(16, 185, 129, 0.04)',
+                          border: '1px solid rgba(16, 185, 129, 0.3)',
+                          borderRadius: '8px',
+                          padding: '14px'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                            <span style={{
+                              backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                              color: 'var(--accent-emerald)',
+                              padding: '2px 7px',
+                              borderRadius: '4px',
+                              fontSize: '0.7rem',
+                              fontWeight: 800
+                            }}>
+                              🎯 POST-ACTION
+                            </span>
+                            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                              Final Exit State, Postconditions, Safety Hold & Verification Output
                             </span>
                           </div>
-                          {onDeleteRelationship && (
-                            <button
-                              onClick={() => onDeleteRelationship(item.relId)}
-                              style={{ border: 'none', background: 'transparent', color: 'var(--accent-rose)', cursor: 'pointer' }}
-                            >
-                              <X size={14} />
-                            </button>
-                          )}
+                          <textarea
+                            rows={3}
+                            value={draft.post_action}
+                            onChange={(e) => updateDraft(obj.id, 'post_action', e.target.value)}
+                            placeholder="Describe final exit system state, telemetry dispatch, mechanical brake holding, postcondition verification..."
+                            style={{
+                              width: '100%',
+                              padding: '8px 10px',
+                              fontSize: '0.85rem',
+                              borderRadius: '6px',
+                              backgroundColor: 'var(--bg-card)',
+                              border: '1px solid rgba(16, 185, 129, 0.2)',
+                              color: 'var(--text-main)',
+                              resize: 'vertical',
+                              lineHeight: '1.4'
+                            }}
+                          />
                         </div>
-                      ))}
-                    </div>
-                  )}
 
-                  {/* Add Test Case to Set Form */}
-                  {availableTestCases.length > 0 && (
-                    <form onSubmit={handleAddTestCaseToSet} style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                      <select
-                        value={addTestCaseId || ''}
-                        onChange={(e) => setAddTestCaseId(Number(e.target.value) || null)}
-                        style={{ flex: 1, fontSize: '0.8rem' }}
-                      >
-                        <option value="">Select a test case to include...</option>
-                        {availableTestCases.map(tc => (
-                          <option key={tc.id} value={tc.id}>
-                            [{tc.object_key}] {tc.title}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="submit"
-                        disabled={!addTestCaseId}
-                        style={{
-                          padding: '8px 14px',
-                          backgroundColor: 'var(--primary)',
-                          color: '#fff',
-                          borderRadius: '6px',
-                          border: 'none',
-                          fontWeight: 700,
-                          fontSize: '0.8rem',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Include Test Case
-                      </button>
-                    </form>
-                  )}
-                </div>
-              )}
+                        {/* 7. Save Changes Button for this requirement */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid var(--border-color)' }}>
+                          <div>
+                            {saveStatusMap[obj.id] && (
+                              <span style={{ color: 'var(--accent-emerald)', fontSize: '0.8rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <CheckCircle2 size={14} />
+                                <span>Changes saved to workspace!</span>
+                              </span>
+                            )}
+                          </div>
 
-              {/* 7. 🎯 Post-Action (Exit / Postconditions) */}
-              <div style={{
-                backgroundColor: 'rgba(16, 185, 129, 0.04)',
-                border: '1px solid rgba(16, 185, 129, 0.3)',
-                borderRadius: '10px',
-                padding: '16px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                  <span style={{
-                    backgroundColor: 'rgba(16, 185, 129, 0.2)',
-                    color: 'var(--accent-emerald)',
-                    padding: '3px 8px',
-                    borderRadius: '4px',
-                    fontSize: '0.75rem',
-                    fontWeight: 800,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}>
-                    🎯 POST-ACTION
-                  </span>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                    Final Exit State, Postconditions, Safety Hold & Verification Output
-                  </span>
-                </div>
-                <textarea
-                  rows={3}
-                  value={postAction}
-                  onChange={(e) => setPostAction(e.target.value)}
-                  placeholder="Describe final system state upon completion, telemetry broadcast, mechanical brake engagement, audit confirmation, or expected postconditions..."
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    fontSize: '0.85rem',
-                    borderRadius: '6px',
-                    backgroundColor: 'var(--bg-dark)',
-                    border: '1px solid rgba(16, 185, 129, 0.25)',
-                    color: 'var(--text-main)',
-                    resize: 'vertical',
-                    lineHeight: '1.4'
-                  }}
-                />
-              </div>
+                          <button
+                            onClick={() => handleSaveRequirement(obj)}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              backgroundColor: 'var(--primary)',
+                              color: '#fff',
+                              border: 'none',
+                              padding: '8px 18px',
+                              borderRadius: '6px',
+                              fontWeight: 700,
+                              fontSize: '0.85rem',
+                              cursor: 'pointer',
+                              boxShadow: '0 2px 8px rgba(2, 132, 199, 0.35)'
+                            }}
+                          >
+                            <Save size={15} />
+                            <span>Save Changes</span>
+                          </button>
+                        </div>
 
-              {/* 8. [Save Changes] Button */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
-                <div>
-                  {saveSuccessMsg && (
-                    <span style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      color: 'var(--accent-emerald)',
-                      fontSize: '0.85rem',
-                      fontWeight: 700
-                    }}>
-                      <CheckCircle2 size={16} />
-                      <span>Changes saved successfully to workspace!</span>
-                    </span>
-                  )}
-                </div>
-
-                <button
-                  onClick={handleSaveMiddlePanel}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    backgroundColor: 'var(--primary)',
-                    color: '#fff',
-                    border: 'none',
-                    padding: '10px 24px',
-                    borderRadius: '8px',
-                    fontWeight: 700,
-                    fontSize: '0.95rem',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 14px rgba(2, 132, 199, 0.4)',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  <Save size={18} />
-                  <span>Save Changes</span>
-                </button>
-              </div>
-
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
 
-        {/* ══════════════════════════════════════════════════════════════════
+        {/* ──────────────────────────────────────────────────────────────────
             RIGHT PANEL: Features, Traceability & Artifacts
-            ══════════════════════════════════════════════════════════════════ */}
+            ────────────────────────────────────────────────────────────────── */}
         <div style={{
           width: '380px',
           flexShrink: 0,
@@ -1170,21 +1290,37 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
           display: 'flex',
           flexDirection: 'column',
           overflowY: 'auto',
-          padding: '24px'
+          padding: '22px'
         }}>
           {!activeObject ? (
             <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
               <Layers size={36} style={{ opacity: 0.3, marginBottom: '12px' }} />
-              <p style={{ fontSize: '0.85rem' }}>Features inspector will appear when an engineering object is selected.</p>
+              <p style={{ fontSize: '0.85rem' }}>Select or expand a requirement to view its traceability and features.</p>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
+
+              {/* Requirement Badge Header */}
+              <div style={{
+                backgroundColor: 'var(--bg-dark)',
+                border: '1px solid var(--border-color)',
+                padding: '12px 14px',
+                borderRadius: '8px'
+              }}>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
+                  ACTIVE INSPECTION ITEM
+                </div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)', marginTop: '4px' }}>
+                  <span className="mono" style={{ color: 'var(--accent-cyan)', marginRight: '6px' }}>[{activeObject.object_key}]</span>
+                  {activeObject.title}
+                </div>
+              </div>
 
               {/* Section 1: Traceability & Relationships */}
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <LinkIcon size={16} color="var(--accent-cyan)" />
+                  <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <LinkIcon size={15} color="var(--accent-cyan)" />
                     <span>Traceability & Links ({outgoingLinks.length + incomingLinks.length})</span>
                   </h3>
                   <button
@@ -1198,7 +1334,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                       color: 'var(--accent-cyan)',
                       padding: '4px 8px',
                       borderRadius: '5px',
-                      fontSize: '0.75rem',
+                      fontSize: '0.72rem',
                       fontWeight: 700,
                       cursor: 'pointer'
                     }}
@@ -1209,12 +1345,11 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                 </div>
 
                 {outgoingLinks.length === 0 && incomingLinks.length === 0 ? (
-                  <div style={{ padding: '14px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem', backgroundColor: 'var(--bg-dark)', borderRadius: '6px' }}>
-                    No traceability links established yet. Click "+ Link" to allocate architecture, verify with test cases, or mitigate hazards.
+                  <div style={{ padding: '12px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem', backgroundColor: 'var(--bg-dark)', borderRadius: '6px' }}>
+                    No traceability links established. Click "+ Link" to allocate architecture, verify with test cases, or mitigate hazards.
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {/* Outgoing Links */}
                     {outgoingLinks.map(rel => {
                       const targetObj = allObjects.find(o => o.id === rel.target_id);
                       return (
@@ -1240,21 +1375,20 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                             </span>
                             <button
                               onClick={() => onDeleteRelationship(rel.id)}
-                              style={{ border: 'none', background: 'transparent', color: 'var(--accent-rose)', cursor: 'pointer', padding: '2px' }}
+                              style={{ border: 'none', background: 'transparent', color: 'var(--accent-rose)', cursor: 'pointer' }}
                               title="Delete Link"
                             >
                               <X size={12} />
                             </button>
                           </div>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--text-main)', fontWeight: 600 }}>
+                          <div style={{ fontSize: '0.78rem', color: 'var(--text-main)', fontWeight: 600 }}>
                             <span className="mono" style={{ color: 'var(--accent-cyan)', marginRight: '6px' }}>[{targetObj?.object_key || 'OBJ'}]</span>
-                            {targetObj?.title || 'Linked Object'}
+                            {targetObj?.title || 'Linked Target'}
                           </div>
                         </div>
                       );
                     })}
 
-                    {/* Incoming Links */}
                     {incomingLinks.map(rel => {
                       const sourceObj = allObjects.find(o => o.id === rel.source_id);
                       return (
@@ -1280,13 +1414,13 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                             </span>
                             <button
                               onClick={() => onDeleteRelationship(rel.id)}
-                              style={{ border: 'none', background: 'transparent', color: 'var(--accent-rose)', cursor: 'pointer', padding: '2px' }}
+                              style={{ border: 'none', background: 'transparent', color: 'var(--accent-rose)', cursor: 'pointer' }}
                               title="Delete Link"
                             >
                               <X size={12} />
                             </button>
                           </div>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--text-main)', fontWeight: 600 }}>
+                          <div style={{ fontSize: '0.78rem', color: 'var(--text-main)', fontWeight: 600 }}>
                             <span className="mono" style={{ color: 'var(--accent-amber)', marginRight: '6px' }}>[{sourceObj?.object_key || 'OBJ'}]</span>
                             {sourceObj?.title || 'Source Object'}
                           </div>
@@ -1300,8 +1434,8 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
               {/* Section 2: Attached CAD / PDFs / Logs */}
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Paperclip size={16} color="var(--accent-purple)" />
+                  <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Paperclip size={15} color="var(--accent-purple)" />
                     <span>Attached Files ({activeObjectFiles.length})</span>
                   </h3>
                   <button
@@ -1315,7 +1449,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                       color: 'var(--accent-purple)',
                       padding: '4px 8px',
                       borderRadius: '5px',
-                      fontSize: '0.75rem',
+                      fontSize: '0.72rem',
                       fontWeight: 700,
                       cursor: 'pointer'
                     }}
@@ -1326,63 +1460,61 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                 </div>
 
                 {activeObjectFiles.length === 0 ? (
-                  <div style={{ padding: '14px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem', backgroundColor: 'var(--bg-dark)', borderRadius: '6px' }}>
-                    No CAD, specification PDFs, or logs attached to this item.
+                  <div style={{ padding: '12px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem', backgroundColor: 'var(--bg-dark)', borderRadius: '6px' }}>
+                    No files attached to this requirement.
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {activeObjectFiles.map(file => (
                       <div key={file.id} style={{
                         backgroundColor: 'var(--bg-dark)',
                         border: '1px solid var(--border-color)',
-                        padding: '10px 12px',
+                        padding: '8px 10px',
                         borderRadius: '6px',
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center'
                       }}>
                         <div style={{ overflow: 'hidden' }}>
-                          <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {file.filename}
                           </div>
-                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
                             {file.category} • {(file.file_size / 1024 / 1024).toFixed(1)} MB
                           </div>
                         </div>
 
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          {onDeleteArtifact && (
-                            <button
-                              onClick={() => onDeleteArtifact(file.id)}
-                              style={{ border: 'none', background: 'transparent', color: 'var(--accent-rose)', cursor: 'pointer' }}
-                              title="Remove File"
-                            >
-                              <X size={14} />
-                            </button>
-                          )}
-                        </div>
+                        {onDeleteArtifact && (
+                          <button
+                            onClick={() => onDeleteArtifact(file.id)}
+                            style={{ border: 'none', background: 'transparent', color: 'var(--accent-rose)', cursor: 'pointer' }}
+                            title="Remove"
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
                 )}
               </div>
 
-              {/* Section 3: Version History & Audit Trail */}
+              {/* Section 3: Version & Governance Trail */}
               <div style={{
                 backgroundColor: 'var(--bg-dark)',
                 border: '1px solid var(--border-color)',
-                padding: '14px',
+                padding: '12px',
                 borderRadius: '8px'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase' }}>
-                  <Clock size={14} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase' }}>
+                  <Clock size={13} />
                   <span>Version & Governance Trail</span>
                 </div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '5px' }}>
                   <div><strong>Current Revision:</strong> <span className="mono">v{activeObject.version}.0</span></div>
                   <div><strong>Created:</strong> {new Date(activeObject.created_at).toLocaleDateString()}</div>
                   <div><strong>Author:</strong> 👑 Zewd (Owner)</div>
-                  <div><strong>Safety Integrity:</strong> {activeObject.safety_level}</div>
+                  <div><strong>Safety Classification:</strong> {activeObject.safety_level}</div>
                 </div>
               </div>
 
@@ -1398,15 +1530,14 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                     backgroundColor: 'rgba(2, 132, 199, 0.1)',
                     border: '1px solid rgba(2, 132, 199, 0.3)',
                     color: 'var(--accent-cyan)',
-                    padding: '10px 14px',
-                    borderRadius: '8px',
+                    padding: '9px 12px',
+                    borderRadius: '7px',
                     fontWeight: 700,
-                    fontSize: '0.85rem',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease'
+                    fontSize: '0.82rem',
+                    cursor: 'pointer'
                   }}
                 >
-                  <Activity size={16} />
+                  <Activity size={15} />
                   <span>Run Traceability Impact Analysis →</span>
                 </button>
               )}

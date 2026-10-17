@@ -895,18 +895,20 @@ export const App: React.FC = () => {
       />
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        <Sidebar
-          trackers={currentTrackers}
-          activeView={activeView}
-          setActiveView={setActiveView}
-          selectedTracker={selectedTracker}
-          setSelectedTracker={(t) => setSelectedTrackerId(t?.id || null)}
-          currentUser={currentUser}
-          activeProjectId={activeProject.id}
-          activeProjectName={activeProject.name}
-          onCreateTracker={handleCreateTracker}
-          onDeleteTracker={handleDeleteTracker}
-        />
+        {activeView !== 'TRACKER' && (
+          <Sidebar
+            trackers={currentTrackers}
+            activeView={activeView}
+            setActiveView={setActiveView}
+            selectedTracker={selectedTracker}
+            setSelectedTracker={(t) => setSelectedTrackerId(t?.id || null)}
+            currentUser={currentUser}
+            activeProjectId={activeProject.id}
+            activeProjectName={activeProject.name}
+            onCreateTracker={handleCreateTracker}
+            onDeleteTracker={handleDeleteTracker}
+          />
+        )}
 
         <main style={{ flex: 1, overflow: 'hidden' }}>
           {activeView === 'DASHBOARD' && (
@@ -939,6 +941,7 @@ export const App: React.FC = () => {
               onAddArtifact={handleAddArtifact}
               onDeleteArtifact={handleDeleteArtifact}
               onSelectObjectForImpact={handleSelectObjectForImpact}
+              onBackToDashboard={() => setActiveView('DASHBOARD')}
             />
           )}
 
