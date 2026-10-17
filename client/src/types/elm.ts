@@ -228,6 +228,7 @@ export interface BaselineItem {
 
 export interface Artifact {
   id: number;
+  project_id?: number;
   object_id?: number;
   filename: string;
   stored_path: string;

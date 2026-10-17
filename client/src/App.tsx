@@ -177,22 +177,22 @@ const INITIAL_TEST_STEPS: TestStep[] = [
 
 const INITIAL_ARTIFACTS: Artifact[] = [
   {
-    id: 1, object_id: 5, object_key: 'ARCH-001', object_title: 'RoboServ-X1 Main Cyber-Physical System',
+    id: 1, project_id: 1, object_id: 5, object_key: 'ARCH-001', object_title: 'RoboServ-X1 Main Cyber-Physical System',
     filename: 'RoboServ_X1_CyberPhysical_Architecture_v2.pdf', stored_path: '/artifacts/RoboServ_X1_CyberPhysical_Architecture_v2.pdf',
     file_size: 4200100, mime_type: 'application/pdf', category: 'PDF', uploader_name: 'Zewd', created_at: new Date().toISOString()
   },
   {
-    id: 2, object_id: 5, object_key: 'ARCH-001', object_title: 'RoboServ-X1 Main Cyber-Physical System',
+    id: 2, project_id: 1, object_id: 5, object_key: 'ARCH-001', object_title: 'RoboServ-X1 Main Cyber-Physical System',
     filename: 'Mobility_Base_CAD_Assembly_v1.step', stored_path: '/artifacts/Mobility_Base_CAD_Assembly_v1.step',
     file_size: 14500100, mime_type: 'application/octet-stream', category: 'CAD', uploader_name: 'Zewd', created_at: new Date().toISOString()
   },
   {
-    id: 3, object_id: 5, object_key: 'ARCH-001', object_title: 'RoboServ-X1 Main Cyber-Physical System',
+    id: 3, project_id: 1, object_id: 5, object_key: 'ARCH-001', object_title: 'RoboServ-X1 Main Cyber-Physical System',
     filename: 'Power_Budget_and_Thermal_Calculations.xlsx', stored_path: '/artifacts/Power_Budget_and_Thermal_Calculations.xlsx',
     file_size: 850200, mime_type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', category: 'CSV', uploader_name: 'Zewd', created_at: new Date().toISOString()
   },
   {
-    id: 4, object_id: 5, object_key: 'ARCH-001', object_title: 'RoboServ-X1 Main Cyber-Physical System',
+    id: 4, project_id: 1, object_id: 5, object_key: 'ARCH-001', object_title: 'RoboServ-X1 Main Cyber-Physical System',
     filename: 'ISO_13482_Safety_Architecture_Spec.docx', stored_path: '/artifacts/ISO_13482_Safety_Architecture_Spec.docx',
     file_size: 1250100, mime_type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', category: 'OTHER', uploader_name: 'Zewd', created_at: new Date().toISOString()
   }
@@ -459,6 +459,15 @@ export const App: React.FC = () => {
       ...t,
       object_count: allObjects.filter(o => o.tracker_id === t.id).length
     }));
+
+  const currentProjectTrackerIds = currentTrackers.map(t => t.id);
+  const currentProjectObjects = allObjects.filter(o => currentProjectTrackerIds.includes(o.tracker_id));
+  const currentProjectObjectIds = currentProjectObjects.map(o => o.id);
+  const currentProjectArtifacts = artifacts.filter(a => {
+    if (a.project_id && a.project_id !== activeProject.id) return false;
+    if (a.object_id && !currentProjectObjectIds.includes(a.object_id)) return false;
+    return true;
+  });
 
   const selectedTracker = currentTrackers.find(t => t.id === selectedTrackerId) || currentTrackers[0] || null;
 
@@ -752,13 +761,15 @@ export const App: React.FC = () => {
   };
 
   // Artifact & File Attachment Handlers
-  const handleAddArtifact = (data: { object_id?: number; filename: string; category: any; file_size?: number; stored_path?: string }) => {
+  const handleAddArtifact = (data: { object_id?: number; project_id?: number; filename: string; category: any; file_size?: number; stored_path?: string }) => {
     const obj = data.object_id ? allObjects.find(o => o.id === data.object_id) : undefined;
+    const projId = data.project_id || activeProject.id;
     const newArt: Artifact = {
       id: Date.now(),
+      project_id: projId,
       object_id: data.object_id,
-      object_key: obj?.object_key || 'DOC',
-      object_title: obj?.title || 'Global Artifact Repository',
+      object_key: obj?.object_key || `${activeProject.key}-DOC`,
+      object_title: obj?.title || `${activeProject.name} Artifact Repository`,
       filename: data.filename.trim(),
       stored_path: data.stored_path || `/artifacts/${data.filename.trim()}`,
       file_size: data.file_size || Math.floor(Math.random() * 5000000) + 500000,
@@ -872,7 +883,7 @@ export const App: React.FC = () => {
               project={activeProject}
               onNavigate={handleNavigate}
               trackers={currentTrackers}
-              allObjects={allObjects}
+              allObjects={currentProjectObjects}
               testRuns={testRuns}
             />
           )}
@@ -881,11 +892,11 @@ export const App: React.FC = () => {
             <TrackerTableView
               tracker={selectedTracker}
               objects={allObjects.filter(o => o.tracker_id === selectedTracker.id)}
-              allObjects={allObjects}
+              allObjects={currentProjectObjects}
               folders={allFolders.filter(f => f.tracker_id === selectedTracker.id)}
               relationships={relationships}
               testSteps={testSteps}
-              artifacts={artifacts}
+              artifacts={currentProjectArtifacts}
               onCreateFolder={handleCreateFolder}
               onCreateObject={handleCreateObject}
               onUpdateObject={handleUpdateObject}
@@ -903,7 +914,7 @@ export const App: React.FC = () => {
           {activeView === 'TRACEABILITY' && (
             <TraceabilityMatrixView
               trackers={currentTrackers}
-              allObjects={allObjects}
+              allObjects={currentProjectObjects}
               relationships={relationships}
               onAddRelationship={handleAddRelationship}
               onDeleteRelationship={handleDeleteRelationship}
@@ -919,7 +930,7 @@ export const App: React.FC = () => {
               currentUser={currentUser}
               activeProject={activeProject}
               currentTrackers={currentTrackers}
-              allObjects={allObjects}
+              allObjects={currentProjectObjects}
               testSteps={testSteps}
               relationships={relationships}
               testRuns={testRuns}
@@ -933,7 +944,7 @@ export const App: React.FC = () => {
             <RisksMatrixView
               activeProject={activeProject}
               currentTrackers={currentTrackers}
-              allObjects={allObjects}
+              allObjects={currentProjectObjects}
             />
           )}
 
@@ -943,7 +954,7 @@ export const App: React.FC = () => {
 
           {activeView === 'ARTIFACTS' && (
             <ArtifactsView
-              artifacts={artifacts}
+              artifacts={currentProjectArtifacts}
               onAddArtifact={handleAddArtifact}
               onDeleteArtifact={handleDeleteArtifact}
             />
