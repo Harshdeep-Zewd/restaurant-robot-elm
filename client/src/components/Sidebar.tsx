@@ -13,7 +13,13 @@ import {
   Plus,
   Trash2,
   FolderPlus,
-  ListOrdered
+  ListOrdered,
+  Search,
+  Download,
+  CheckSquare,
+  AlertTriangle,
+  X,
+  Filter
 } from 'lucide-react';
 import { Tracker, User } from '../types/elm';
 import { authService } from '../api/auth';
@@ -89,14 +95,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [reqProjDesc, setReqProjDesc] = useState('');
   const [reqProjReason, setReqProjReason] = useState('');
 
+  const [trackerSearch, setTrackerSearch] = useState('');
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('ALL');
+
   const getTrackerIcon = (type: string) => {
     switch (type) {
-      case 'REQUIREMENT': return <FileText size={16} />;
-      case 'ARCHITECTURE': return <Boxes size={16} />;
-      case 'RISK': return <ShieldAlert size={16} />;
-      case 'TEST_CASE':
-      case 'TEST_SET': return <FlaskConical size={16} />;
-      default: return <FileText size={16} />;
+      case 'REQUIREMENT': return <FileText size={15} color="var(--accent-cyan)" />;
+      case 'ARCHITECTURE': return <Boxes size={15} color="var(--accent-amber)" />;
+      case 'RISK': return <ShieldAlert size={15} color="var(--accent-rose)" />;
+      case 'TEST_CASE': return <FlaskConical size={15} color="var(--accent-emerald)" />;
+      case 'TEST_SET': return <FlaskConical size={15} color="var(--accent-purple)" />;
+      case 'TASK': return <CheckSquare size={15} color="#38bdf8" />;
+      case 'DEFECT': return <AlertTriangle size={15} color="#f43f5e" />;
+      case 'RELEASE': return <GitBranch size={15} color="#a855f7" />;
+      case 'DOCUMENT': return <FileText size={15} color="#94a3b8" />;
+      default: return <FileText size={15} color="var(--accent-cyan)" />;
     }
   };
 
@@ -292,7 +305,118 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
       </div>
 
-      {trackers.map((t) => (
+      {/* Word File Download Button */}
+      <a
+        href="/All_104_Engineering_Trackers_Inventory.docx"
+        download="All_104_Engineering_Trackers_Inventory.docx"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '6px',
+          padding: '6px 10px',
+          margin: '2px 8px 10px 8px',
+          borderRadius: '6px',
+          backgroundColor: 'rgba(14, 165, 233, 0.12)',
+          border: '1px solid rgba(14, 165, 233, 0.35)',
+          color: 'var(--accent-cyan)',
+          fontSize: '0.74rem',
+          fontWeight: 700,
+          textDecoration: 'none',
+          cursor: 'pointer'
+        }}
+        title="Download Complete 104 Trackers Inventory as Microsoft Word (.docx)"
+      >
+        <Download size={13} />
+        <span>Download 104 Trackers (.docx)</span>
+      </a>
+
+      {/* Tracker Search & Category Filter */}
+      <div style={{ padding: '0 8px 10px 8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+          <Search size={13} style={{ position: 'absolute', left: '8px', color: 'var(--text-muted)' }} />
+          <input
+            type="text"
+            placeholder={`Search ${trackers.length} trackers...`}
+            value={trackerSearch}
+            onChange={(e) => setTrackerSearch(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '6px 24px 6px 26px',
+              fontSize: '0.75rem',
+              borderRadius: '5px',
+              backgroundColor: 'var(--bg-dark)',
+              border: '1px solid var(--border-color)',
+              color: 'var(--text-main)',
+              outline: 'none'
+            }}
+          />
+          {trackerSearch && (
+            <button
+              onClick={() => setTrackerSearch('')}
+              style={{ position: 'absolute', right: '6px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px' }}
+            >
+              <X size={12} />
+            </button>
+          )}
+        </div>
+
+        <select
+          value={selectedCategoryFilter}
+          onChange={(e) => setSelectedCategoryFilter(e.target.value)}
+          style={{
+            fontSize: '0.72rem',
+            padding: '5px 8px',
+            borderRadius: '5px',
+            backgroundColor: 'var(--bg-dark)',
+            border: '1px solid var(--border-color)',
+            color: 'var(--text-main)',
+            cursor: 'pointer'
+          }}
+        >
+          <option value="ALL">All Categories ({trackers.length})</option>
+          <option value="REQ">Requirements &amp; Verification</option>
+          <option value="ARCH">Architecture &amp; Hardware</option>
+          <option value="TEST">Testing, Sets &amp; Runs</option>
+          <option value="RISK">Safety &amp; Risks</option>
+          <option value="DEFECT">Defects &amp; Problems</option>
+          <option value="TASK">Tasks &amp; Epics</option>
+          <option value="RELEASE">Changes &amp; Releases</option>
+          <option value="DOC">Documents &amp; Governance</option>
+        </select>
+      </div>
+
+      {(() => {
+        const filteredTrackers = trackers.filter(t => {
+          const q = trackerSearch.trim().toLowerCase();
+          const matchesSearch = !q ||
+            t.name.toLowerCase().includes(q) ||
+            t.key.toLowerCase().includes(q) ||
+            (t.prefix && t.prefix.toLowerCase().includes(q)) ||
+            (t.description && t.description.toLowerCase().includes(q));
+
+          if (!matchesSearch) return false;
+          if (selectedCategoryFilter === 'ALL') return true;
+          if (selectedCategoryFilter === 'REQ') return t.type === 'REQUIREMENT';
+          if (selectedCategoryFilter === 'ARCH') return t.type === 'ARCHITECTURE';
+          if (selectedCategoryFilter === 'TEST') return t.type.includes('TEST') || t.key.includes('TST');
+          if (selectedCategoryFilter === 'RISK') return t.type === 'RISK' || t.name.toLowerCase().includes('risk') || t.name.toLowerCase().includes('safety');
+          if (selectedCategoryFilter === 'TASK') return t.type === 'TASK' || t.name.toLowerCase().includes('task') || t.name.toLowerCase().includes('epic');
+          if (selectedCategoryFilter === 'DEFECT') return t.type === 'DEFECT' || t.name.toLowerCase().includes('bug') || t.name.toLowerCase().includes('fail') || t.name.toLowerCase().includes('problem');
+          if (selectedCategoryFilter === 'RELEASE') return t.type === 'RELEASE' || t.name.toLowerCase().includes('release') || t.name.toLowerCase().includes('change') || t.name.toLowerCase().includes('component');
+          if (selectedCategoryFilter === 'DOC') return t.type === 'DOCUMENT' || t.name.toLowerCase().includes('document') || t.name.toLowerCase().includes('meeting') || t.name.toLowerCase().includes('contact') || t.name.toLowerCase().includes('team');
+          return true;
+        });
+
+        if (filteredTrackers.length === 0) {
+          return (
+            <div style={{ padding: '12px 10px', fontSize: '0.78rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+              No trackers match current filter.
+            </div>
+          );
+        }
+
+        return filteredTrackers.map((t) => (
         <div
           key={t.id}
           style={{
@@ -346,7 +470,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}
           </div>
         </div>
-      ))}
+        ));
+      })()}
 
       <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginTop: '16px', marginBottom: '8px', paddingLeft: '8px' }}>
         LIFECYCLE & ANALYTICS

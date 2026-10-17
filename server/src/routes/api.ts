@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { store } from '../db/store';
+import { createProjectTrackers } from '../db/canonicalTrackers';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -39,20 +40,12 @@ router.post('/projects', (req, res) => {
 
   store.projects.unshift(newProject);
 
-  // Auto-initialize standard engineering trackers for new project
+  // Auto-initialize all 104 standard engineering trackers for new project
   const pId = newProject.id;
-  const trackerTypes = [
-    { key: 'SYS-REQ', name: 'System Requirements', type: 'REQUIREMENT', prefix: `${upperKey}-SYS-` },
-    { key: 'SW-REQ', name: 'Software Requirements', type: 'REQUIREMENT', prefix: `${upperKey}-SW-` },
-    { key: 'ARCH', name: 'System Architecture', type: 'ARCHITECTURE', prefix: `${upperKey}-ARCH-` },
-    { key: 'RISK', name: 'Risks & Hazards', type: 'RISK', prefix: `${upperKey}-RISK-` },
-    { key: 'SYS-TST', name: 'System Test Cases', type: 'TEST_CASE', prefix: `${upperKey}-TST-` },
-    { key: 'TST-SET', name: 'Test Sets', type: 'TEST_SET', prefix: `${upperKey}-SET-` }
-  ];
-
-  for (const tt of trackerTypes) {
+  const projectTrackers = createProjectTrackers(pId, upperKey);
+  for (const tt of projectTrackers) {
     store.trackers.push({
-      id: store.trackers.length + 1,
+      id: tt.id,
       project_id: pId,
       key: tt.key,
       name: tt.name,

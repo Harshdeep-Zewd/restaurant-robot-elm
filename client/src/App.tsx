@@ -15,6 +15,7 @@ import { AdminConsoleView } from './components/AdminConsoleView';
 import { ProjectsPortalView } from './components/ProjectsPortalView';
 import { Project, Tracker, EngineeringObject, Folder, RequirementType, SafetyLevel, TestSubProcess, Relationship, TestStep, Artifact, User, TestRun } from './types/elm';
 import { authService } from './api/auth';
+import { CANONICAL_TRACKERS, createProjectTrackers } from './data/canonicalTrackers';
 
 
 const INITIAL_PROJECTS: Project[] = [
@@ -23,16 +24,46 @@ const INITIAL_PROJECTS: Project[] = [
     key: 'ROBO',
     name: 'RoboServ-X1 Autonomous Delivery Robot',
     description: 'Systems Engineering Lifecycle Management & ISO 13482 Safety Compliance Workspace.'
+  },
+  {
+    id: 2,
+    key: 'AERO',
+    name: 'AeroDrone-V2 Heavy Cargo Delivery',
+    description: 'DO-178C Level A flight avionics and cargo delivery UAV platform.'
   }
 ];
 
+function buildProject1Trackers(): Tracker[] {
+  // Preserve initial 6 tracker IDs (1..6) for backward compatibility with initial objects
+  const coreTrackers: Tracker[] = [
+    { id: 1, project_id: 1, key: 'SYS-REQ', name: '031_System Requirement Specification', type: 'REQUIREMENT', prefix: 'ROBO-SYS-REQ-', object_count: 3, enable_test_steps: false, enable_folders: true, description: 'Master system functional and non-functional requirements governing the complete robot platform.' },
+    { id: 2, project_id: 1, key: 'SW-REQ', name: '071_SW Requirements Specification', type: 'REQUIREMENT', prefix: 'ROBO-SW-REQ-', object_count: 1, enable_test_steps: false, enable_folders: true, description: 'Detailed software requirement specifications, dynamic obstacle avoidance logic, and DWB local planner specs.' },
+    { id: 3, project_id: 1, key: 'ARCH', name: '032_System Architectural Design', type: 'ARCHITECTURE', prefix: 'ROBO-ARCH-', object_count: 2, enable_test_steps: false, enable_folders: true, description: 'Physical, mechanical, and electrical decomposition into Mobility, Payload, Sensors, and Compute subsystems.' },
+    { id: 4, project_id: 1, key: 'RISK', name: 'Risks_SWRS', type: 'RISK', prefix: 'ROBO-RISK-', object_count: 2, enable_test_steps: false, enable_folders: true, description: 'Software safety risks, ASIL hazard ratings, kinetic collision hazards, and fail-safe mitigations.' },
+    { id: 5, project_id: 1, key: 'SYS-TST', name: 'Test Cases', type: 'TEST_CASE', prefix: 'ROBO-SYS-TST-', object_count: 2, enable_test_steps: true, enable_folders: true, description: 'Universal test case library supporting step-by-step action sequences, expected outcomes, and parameters.' },
+    { id: 6, project_id: 1, key: 'TST-SET', name: '128_System Qualification Test Sets', type: 'TEST_SET', prefix: 'ROBO-TST-SET-', object_count: 1, enable_test_steps: false, enable_folders: true, description: 'System-level test suites mapped directly to ISO 13482 safety requirements and customer PRDs.' }
+  ];
+
+  // Map remaining 98 canonical trackers for project 1
+  const remaining = CANONICAL_TRACKERS.slice(6).map((ct, idx) => ({
+    id: 7 + idx,
+    project_id: 1,
+    key: ct.key,
+    name: ct.name,
+    type: ct.type,
+    prefix: `ROBO-${ct.prefix}`,
+    object_count: 0,
+    enable_test_steps: ct.enable_test_steps || false,
+    enable_folders: true,
+    description: ct.desc
+  }));
+
+  return [...coreTrackers, ...remaining];
+}
+
 const INITIAL_TRACKERS: Tracker[] = [
-  { id: 1, project_id: 1, key: 'SYS-REQ', name: 'System Requirements', type: 'REQUIREMENT', prefix: 'SYS-REQ-', object_count: 3, enable_test_steps: false, enable_folders: true },
-  { id: 2, project_id: 1, key: 'SW-REQ', name: 'Software Requirements', type: 'REQUIREMENT', prefix: 'SW-REQ-', object_count: 1, enable_test_steps: false, enable_folders: true },
-  { id: 3, project_id: 1, key: 'ARCH', name: 'System Architecture', type: 'ARCHITECTURE', prefix: 'ARCH-', object_count: 2, enable_test_steps: false, enable_folders: true },
-  { id: 4, project_id: 1, key: 'RISK', name: 'Risks & Hazards', type: 'RISK', prefix: 'RISK-', object_count: 2, enable_test_steps: false, enable_folders: true },
-  { id: 5, project_id: 1, key: 'SYS-TST', name: 'System Test Cases', type: 'TEST_CASE', prefix: 'SYS-TST-', object_count: 2, enable_test_steps: true, enable_folders: true },
-  { id: 6, project_id: 1, key: 'TST-SET', name: 'Test Sets', type: 'TEST_SET', prefix: 'TST-SET-', object_count: 1, enable_test_steps: false, enable_folders: true }
+  ...buildProject1Trackers(),
+  ...createProjectTrackers(2, 'AERO')
 ];
 
 const INITIAL_FOLDERS: Folder[] = [
@@ -485,7 +516,28 @@ export const App: React.FC = () => {
   });
 
   const [allTrackers, setAllTrackers] = useState<Tracker[]>(() => {
-    return getInitialData('trackers', INITIAL_TRACKERS);
+    const rawTrackers = getInitialData<Tracker[]>('trackers', INITIAL_TRACKERS);
+    const loadedProjects = getInitialData<Project[]>('projects', INITIAL_PROJECTS);
+
+    // Ensure every project has all 104 independent trackers
+    const merged = [...rawTrackers];
+    for (const proj of loadedProjects) {
+      const projTrackers = merged.filter(t => t.project_id === proj.id);
+      if (projTrackers.length < CANONICAL_TRACKERS.length) {
+        const canonicalForProj = proj.id === 1 ? buildProject1Trackers() : createProjectTrackers(proj.id, proj.key);
+        for (const ct of canonicalForProj) {
+          const alreadyExists = projTrackers.some(
+            t => t.id === ct.id ||
+                 t.key.toLowerCase() === ct.key.toLowerCase() ||
+                 t.name.toLowerCase() === ct.name.toLowerCase()
+          );
+          if (!alreadyExists) {
+            merged.push(ct);
+          }
+        }
+      }
+    }
+    return merged;
   });
   
   const [selectedTrackerId, setSelectedTrackerId] = useState<number | null>(() => {
@@ -651,14 +703,7 @@ export const App: React.FC = () => {
       description: data.description || ''
     };
 
-    const newTrackers: Tracker[] = [
-      { id: newProjectId * 10 + 1, project_id: newProjectId, key: 'SYS-REQ', name: 'System Requirements', type: 'REQUIREMENT', prefix: `${upperKey}-SYS-`, object_count: 0, enable_test_steps: false, enable_folders: true },
-      { id: newProjectId * 10 + 2, project_id: newProjectId, key: 'SW-REQ', name: 'Software Requirements', type: 'REQUIREMENT', prefix: `${upperKey}-SW-`, object_count: 0, enable_test_steps: false, enable_folders: true },
-      { id: newProjectId * 10 + 3, project_id: newProjectId, key: 'ARCH', name: 'System Architecture', type: 'ARCHITECTURE', prefix: `${upperKey}-ARCH-`, object_count: 0, enable_test_steps: false, enable_folders: true },
-      { id: newProjectId * 10 + 4, project_id: newProjectId, key: 'RISK', name: 'Risks & Hazards', type: 'RISK', prefix: `${upperKey}-RISK-`, object_count: 0, enable_test_steps: false, enable_folders: true },
-      { id: newProjectId * 10 + 5, project_id: newProjectId, key: 'SYS-TST', name: 'System Test Cases', type: 'TEST_CASE', prefix: `${upperKey}-TST-`, object_count: 0, enable_test_steps: true, enable_folders: true },
-      { id: newProjectId * 10 + 6, project_id: newProjectId, key: 'TST-SET', name: 'Test Sets', type: 'TEST_SET', prefix: `${upperKey}-SET-`, object_count: 0, enable_test_steps: false, enable_folders: true }
-    ];
+    const newTrackers: Tracker[] = createProjectTrackers(newProjectId, upperKey);
 
     setProjects(prev => [newProject, ...prev]);
     setAllTrackers(prev => [...prev, ...newTrackers]);

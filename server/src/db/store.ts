@@ -1,4 +1,5 @@
 // Pure TypeScript In-Memory & Ephemeral Relational Store for Serverless Environments
+import { CANONICAL_TRACKERS, createProjectTrackers } from './canonicalTrackers';
 
 export interface User {
   id: number;
@@ -88,7 +89,7 @@ class MemoryStore {
       { id: 4, email: 'elena.rostova@roboserv.io', name: 'Elena Rostova', role: 'TESTER' }
     ];
 
-    // 2. Default Project
+    // 2. Default Projects
     this.projects = [
       {
         id: 1,
@@ -96,18 +97,44 @@ class MemoryStore {
         name: 'RoboServ-X1 Autonomous Delivery Robot',
         description: 'Full Systems Engineering Lifecycle Management for the next-gen autonomous indoor restaurant waiter & food delivery robot platform.',
         created_at: new Date().toISOString()
+      },
+      {
+        id: 2,
+        key: 'AERO',
+        name: 'AeroDrone-V2 Heavy Cargo Delivery',
+        description: 'DO-178C Level A flight avionics and cargo delivery UAV platform.',
+        created_at: new Date().toISOString()
       }
     ];
 
-    // 3. Trackers
-    this.trackers = [
-      { id: 1, project_id: 1, key: 'SYS-REQ', name: 'System Requirements', type: 'REQUIREMENT', prefix: 'SYS-REQ-' },
-      { id: 2, project_id: 1, key: 'SW-REQ', name: 'Software Requirements', type: 'REQUIREMENT', prefix: 'SW-REQ-' },
-      { id: 3, project_id: 1, key: 'ARCH', name: 'System Architecture', type: 'ARCHITECTURE', prefix: 'ARCH-' },
-      { id: 4, project_id: 1, key: 'RISK', name: 'Risks & Hazards', type: 'RISK', prefix: 'RISK-' },
-      { id: 5, project_id: 1, key: 'SYS-TST', name: 'System Test Cases', type: 'TEST_CASE', prefix: 'SYS-TST-' },
-      { id: 6, project_id: 1, key: 'TST-SET', name: 'Test Sets', type: 'TEST_SET', prefix: 'TST-SET-' }
+    // 3. Trackers (104 independent trackers per project)
+    const p1Trackers = [
+      { id: 1, project_id: 1, key: 'SYS-REQ', name: '031_System Requirement Specification', type: 'REQUIREMENT', prefix: 'ROBO-SYS-REQ-' },
+      { id: 2, project_id: 1, key: 'SW-REQ', name: '071_SW Requirements Specification', type: 'REQUIREMENT', prefix: 'ROBO-SW-REQ-' },
+      { id: 3, project_id: 1, key: 'ARCH', name: '032_System Architectural Design', type: 'ARCHITECTURE', prefix: 'ROBO-ARCH-' },
+      { id: 4, project_id: 1, key: 'RISK', name: 'Risks_SWRS', type: 'RISK', prefix: 'ROBO-RISK-' },
+      { id: 5, project_id: 1, key: 'SYS-TST', name: 'Test Cases', type: 'TEST_CASE', prefix: 'ROBO-SYS-TST-' },
+      { id: 6, project_id: 1, key: 'TST-SET', name: '128_System Qualification Test Sets', type: 'TEST_SET', prefix: 'ROBO-TST-SET-' },
+      ...CANONICAL_TRACKERS.slice(6).map((ct, idx) => ({
+        id: 7 + idx,
+        project_id: 1,
+        key: ct.key,
+        name: ct.name,
+        type: ct.type,
+        prefix: `ROBO-${ct.prefix}`
+      }))
     ];
+
+    const p2Trackers = createProjectTrackers(2, 'AERO').map(t => ({
+      id: t.id,
+      project_id: t.project_id,
+      key: t.key,
+      name: t.name,
+      type: t.type,
+      prefix: t.prefix
+    }));
+
+    this.trackers = [...p1Trackers, ...p2Trackers];
 
     // 4. Folders
     this.folders = [
