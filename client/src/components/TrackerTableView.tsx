@@ -9,6 +9,7 @@ import {
   Tracker, Folder as FolderType, EngineeringObject, RequirementType,
   SafetyLevel, TestSubProcess, Relationship, TestStep, Artifact, CustomColumn
 } from '../types/elm';
+import { cleanTrackerName } from '../data/canonicalTrackers';
 import { RequirementEditDashboard } from './RequirementEditDashboard';
 import { EnterpriseCreateModal } from './EnterpriseCreateModal';
 import { CustomColumnCard } from './CustomColumnCard';
@@ -413,7 +414,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
               {tracker.prefix || tracker.key}
             </span>
             <h1 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
-              {tracker.name} Dashboard
+              {cleanTrackerName(tracker.name)} Dashboard
             </h1>
             <span style={{
               fontSize: '0.75rem',
@@ -739,7 +740,7 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
               <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
                 {selectedFolderId !== null
                   ? `Requirements in Folder: ${folders.find(f => f.id === selectedFolderId)?.name || 'Folder'}`
-                  : `All Requirements in ${tracker.name}`}
+                  : `All Requirements in ${cleanTrackerName(tracker.name)}`}
               </h2>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                 Showing {filteredObjects.length} requirements in sequential order • Click any requirement card to toggle its specification dropdown

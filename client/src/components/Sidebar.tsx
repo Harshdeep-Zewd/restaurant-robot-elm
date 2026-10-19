@@ -15,7 +15,6 @@ import {
   FolderPlus,
   ListOrdered,
   Search,
-  Download,
   CheckSquare,
   AlertTriangle,
   X,
@@ -23,6 +22,7 @@ import {
 } from 'lucide-react';
 import { Tracker, User } from '../types/elm';
 import { authService } from '../api/auth';
+import { cleanTrackerName, getTrackerCategory, CANONICAL_CATEGORIES } from '../data/canonicalTrackers';
 
 export type ViewMode =
   | 'DASHBOARD'
@@ -305,32 +305,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
       </div>
 
-      {/* Word File Download Button */}
-      <a
-        href="/All_104_Engineering_Trackers_Inventory.docx"
-        download="All_104_Engineering_Trackers_Inventory.docx"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '6px',
-          padding: '6px 10px',
-          margin: '2px 8px 10px 8px',
-          borderRadius: '6px',
-          backgroundColor: 'rgba(14, 165, 233, 0.12)',
-          border: '1px solid rgba(14, 165, 233, 0.35)',
-          color: 'var(--accent-cyan)',
-          fontSize: '0.74rem',
-          fontWeight: 700,
-          textDecoration: 'none',
-          cursor: 'pointer'
-        }}
-        title="Download Complete 104 Trackers Inventory as Microsoft Word (.docx)"
-      >
-        <Download size={13} />
-        <span>Download 104 Trackers (.docx)</span>
-      </a>
-
       {/* Tracker Search & Category Filter */}
       <div style={{ padding: '0 8px 10px 8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -375,37 +349,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
           }}
         >
           <option value="ALL">All Categories ({trackers.length})</option>
-          <option value="REQ">Requirements &amp; Verification</option>
-          <option value="ARCH">Architecture &amp; Hardware</option>
-          <option value="TEST">Testing, Sets &amp; Runs</option>
-          <option value="RISK">Safety &amp; Risks</option>
-          <option value="DEFECT">Defects &amp; Problems</option>
-          <option value="TASK">Tasks &amp; Epics</option>
-          <option value="RELEASE">Changes &amp; Releases</option>
-          <option value="DOC">Documents &amp; Governance</option>
+          {CANONICAL_CATEGORIES.map(cat => (
+            <option key={cat} value={cat}>{cat}</option>
+          ))}
         </select>
       </div>
 
       {(() => {
         const filteredTrackers = trackers.filter(t => {
           const q = trackerSearch.trim().toLowerCase();
+          const cleanName = cleanTrackerName(t.name).toLowerCase();
+          const rawName = (t.name || '').toLowerCase();
+          const key = (t.key || '').toLowerCase();
+          const prefix = (t.prefix || '').toLowerCase();
+          const desc = (t.description || '').toLowerCase();
+
           const matchesSearch = !q ||
-            t.name.toLowerCase().includes(q) ||
-            t.key.toLowerCase().includes(q) ||
-            (t.prefix && t.prefix.toLowerCase().includes(q)) ||
-            (t.description && t.description.toLowerCase().includes(q));
+            cleanName.includes(q) ||
+            rawName.includes(q) ||
+            key.includes(q) ||
+            prefix.includes(q) ||
+            desc.includes(q);
 
           if (!matchesSearch) return false;
           if (selectedCategoryFilter === 'ALL') return true;
-          if (selectedCategoryFilter === 'REQ') return t.type === 'REQUIREMENT';
-          if (selectedCategoryFilter === 'ARCH') return t.type === 'ARCHITECTURE';
-          if (selectedCategoryFilter === 'TEST') return t.type.includes('TEST') || t.key.includes('TST');
-          if (selectedCategoryFilter === 'RISK') return t.type === 'RISK' || t.name.toLowerCase().includes('risk') || t.name.toLowerCase().includes('safety');
-          if (selectedCategoryFilter === 'TASK') return t.type === 'TASK' || t.name.toLowerCase().includes('task') || t.name.toLowerCase().includes('epic');
-          if (selectedCategoryFilter === 'DEFECT') return t.type === 'DEFECT' || t.name.toLowerCase().includes('bug') || t.name.toLowerCase().includes('fail') || t.name.toLowerCase().includes('problem');
-          if (selectedCategoryFilter === 'RELEASE') return t.type === 'RELEASE' || t.name.toLowerCase().includes('release') || t.name.toLowerCase().includes('change') || t.name.toLowerCase().includes('component');
-          if (selectedCategoryFilter === 'DOC') return t.type === 'DOCUMENT' || t.name.toLowerCase().includes('document') || t.name.toLowerCase().includes('meeting') || t.name.toLowerCase().includes('contact') || t.name.toLowerCase().includes('team');
-          return true;
+          return getTrackerCategory(t) === selectedCategoryFilter;
         });
 
         if (filteredTrackers.length === 0) {
@@ -416,39 +384,41 @@ export const Sidebar: React.FC<SidebarProps> = ({
           );
         }
 
-        return filteredTrackers.map((t) => (
-        <div
-          key={t.id}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            borderRadius: '6px',
-            backgroundColor: activeView === 'TRACKER' && selectedTracker?.id === t.id ? 'var(--bg-hover)' : 'transparent',
-            marginBottom: '2px'
-          }}
-        >
-          <button
-            onClick={() => {
-              setSelectedTracker(t);
-              setActiveView('TRACKER');
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 12px',
-              backgroundColor: 'transparent',
-              color: activeView === 'TRACKER' && selectedTracker?.id === t.id ? 'var(--accent-cyan)' : 'var(--text-main)',
-              fontSize: '0.85rem',
-              flex: 1,
-              textAlign: 'left',
-              overflow: 'hidden'
-            }}
-          >
-            {getTrackerIcon(t.type)}
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</span>
-          </button>
+        return filteredTrackers.map((t) => {
+          const cleanName = cleanTrackerName(t.name);
+          return (
+            <div
+              key={t.id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                borderRadius: '6px',
+                backgroundColor: activeView === 'TRACKER' && selectedTracker?.id === t.id ? 'var(--bg-hover)' : 'transparent',
+                marginBottom: '2px'
+              }}
+            >
+              <button
+                onClick={() => {
+                  setSelectedTracker(t);
+                  setActiveView('TRACKER');
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 12px',
+                  backgroundColor: 'transparent',
+                  color: activeView === 'TRACKER' && selectedTracker?.id === t.id ? 'var(--accent-cyan)' : 'var(--text-main)',
+                  fontSize: '0.85rem',
+                  flex: 1,
+                  textAlign: 'left',
+                  overflow: 'hidden'
+                }}
+              >
+                {getTrackerIcon(t.type)}
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cleanName}</span>
+              </button>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px', paddingRight: '8px' }}>
             <span style={{ fontSize: '0.7rem', backgroundColor: 'var(--bg-dark)', padding: '2px 6px', borderRadius: '10px', color: 'var(--text-muted)' }}>

@@ -1,10 +1,22 @@
-import { Tracker } from '../types/elm';
+export interface Tracker {
+  id: number;
+  project_id: number;
+  key: string;
+  name: string;
+  type: string;
+  prefix: string;
+  object_count?: number;
+  enable_test_steps?: boolean;
+  enable_folders?: boolean;
+  description?: string;
+  category?: string;
+}
 
 export interface TrackerTemplate {
   index: number;
   name: string;
   key: string;
-  category: string;
+  category: CanonicalCategory;
   type: string;
   prefix: string;
   source: string;
@@ -12,11 +24,103 @@ export interface TrackerTemplate {
   enable_test_steps?: boolean;
 }
 
+export const CANONICAL_CATEGORIES = [
+  'Requirements & Verification',
+  'Architecture & Hardware',
+  'Testing, Sets & Runs',
+  'Safety & Risks',
+  'Defects & Problems',
+  'Tasks & Epics',
+  'Changes & Releases',
+  'Documents & Governance'
+] as const;
+
+export type CanonicalCategory = typeof CANONICAL_CATEGORIES[number];
+
+/**
+ * Strips legacy serial numbers and prefixes (e.g., '028_', '031_', '054A_', '0741 ', '10_')
+ * and normalizes tracker names into clean engineering titles.
+ */
+export function cleanTrackerName(name: string): string {
+  if (!name) return '';
+  return name
+    .replace(/^\d+[A-Za-z]?_/, '')   // 028_, 054A_, 0311_, 0361_
+    .replace(/^\d+\s+/, '')           // 10 Quality Assurance, 0741 SW Epic
+    .replace(/_/g, ' ')               // Replace remaining underscores with spaces
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Resolves a tracker to one of the 8 canonical categories.
+ */
+export function getTrackerCategory(t: { category?: string; type?: string; name?: string; key?: string }): CanonicalCategory {
+  if (t.category && (CANONICAL_CATEGORIES as readonly string[]).includes(t.category)) {
+    return t.category as CanonicalCategory;
+  }
+
+  const name = (t.name || '').toLowerCase();
+  const type = (t.type || '').toUpperCase();
+  const key = (t.key || '').toUpperCase();
+
+  // 1. Safety & Risks
+  if (type === 'RISK' || name.includes('risk') || name.includes('safety') || name.includes('hazard') || name.includes('quality assurance')) {
+    return 'Safety & Risks';
+  }
+
+  // 2. Defects & Problems
+  if (type === 'DEFECT' || name.includes('bug') || name.includes('failure') || name.includes('problem') || name.includes('defect') || name.includes('fail')) {
+    return 'Defects & Problems';
+  }
+
+  // 3. Testing, Sets & Runs
+  if (
+    type === 'TEST_CASE' || type === 'TEST_SET' || type.includes('TEST') ||
+    name.includes('test') || name.includes('emc') || name.includes('emv') ||
+    name.includes('verification plan') || name.includes('validation plan') ||
+    key.includes('TST') || key.includes('TC') || key.includes('SET') || key.includes('TR')
+  ) {
+    return 'Testing, Sets & Runs';
+  }
+
+  // 4. Tasks & Epics
+  if (type === 'TASK' || name.includes('task') || name.includes('epic') || key.includes('TASK') || key.includes('EPIC')) {
+    return 'Tasks & Epics';
+  }
+
+  // 5. Changes & Releases
+  if (
+    type === 'RELEASE' || name.includes('release') || name.includes('change') ||
+    name.includes('component') || name.includes('ticket') || name.includes('platform') ||
+    name.includes('cm report')
+  ) {
+    return 'Changes & Releases';
+  }
+
+  // 6. Documents & Governance
+  if (
+    name.includes('document') || name.includes('meeting') || name.includes('mom') ||
+    name.includes('contact') || name.includes('team')
+  ) {
+    return 'Documents & Governance';
+  }
+
+  // 7. Requirements & Verification
+  if (type === 'REQUIREMENT' || name.includes('requirement') || name.includes('specification') || name.includes('parameter') || name.includes('crs')) {
+    return 'Requirements & Verification';
+  }
+
+  // 8. Architecture & Hardware (default fallback for architecture/hardware/interfaces)
+  return 'Architecture & Hardware';
+}
+
 export const CANONICAL_TRACKERS: TrackerTemplate[] = [
-  // 1. Requirements & Verification (11)
+  // ==========================================
+  // Group 1: Requirements & Verification (15)
+  // ==========================================
   {
     index: 1,
-    name: '020_IRS_Internal_Requirement_Specification',
+    name: 'IRS Internal Requirement Specification',
     key: 'IRS',
     category: 'Requirements & Verification',
     type: 'REQUIREMENT',
@@ -26,7 +130,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
   },
   {
     index: 2,
-    name: '022_Customer Quality Requirements',
+    name: 'Customer Quality Requirements',
     key: 'CQR',
     category: 'Requirements & Verification',
     type: 'REQUIREMENT',
@@ -36,7 +140,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
   },
   {
     index: 3,
-    name: '023_Customer Requirement Specification SW',
+    name: 'Customer Requirement Specification SW',
     key: 'CRSSW',
     category: 'Requirements & Verification',
     type: 'REQUIREMENT',
@@ -46,7 +150,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
   },
   {
     index: 4,
-    name: '024_Customer Requirement Specification EMC',
+    name: 'Customer Requirement Specification EMC',
     key: 'CRSEMC',
     category: 'Requirements & Verification',
     type: 'REQUIREMENT',
@@ -56,7 +160,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
   },
   {
     index: 5,
-    name: '025_Customer Requirement Specification Test',
+    name: 'Customer Requirement Specification Test',
     key: 'CRST',
     category: 'Requirements & Verification',
     type: 'REQUIREMENT',
@@ -66,7 +170,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
   },
   {
     index: 6,
-    name: '027_Customer Requirement Specification ENV',
+    name: 'Customer Requirement Specification ENV',
     key: 'CRSENV',
     category: 'Requirements & Verification',
     type: 'REQUIREMENT',
@@ -76,7 +180,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
   },
   {
     index: 7,
-    name: '028_CRS Referenced Documents',
+    name: 'CRS Referenced Documents',
     key: 'CRSREF',
     category: 'Requirements & Verification',
     type: 'DOCUMENT',
@@ -86,7 +190,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
   },
   {
     index: 8,
-    name: '031_System Requirement Specification',
+    name: 'System Requirement Specification',
     key: 'SRS',
     category: 'Requirements & Verification',
     type: 'REQUIREMENT',
@@ -96,7 +200,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
   },
   {
     index: 9,
-    name: '0311_Parameter_Specification',
+    name: 'Parameter Specification',
     key: 'PAR',
     category: 'Requirements & Verification',
     type: 'REQUIREMENT',
@@ -106,7 +210,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
   },
   {
     index: 10,
-    name: '036_System Requirement Verification',
+    name: 'System Requirement Verification',
     key: 'SRV',
     category: 'Requirements & Verification',
     type: 'REQUIREMENT',
@@ -116,7 +220,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
   },
   {
     index: 11,
-    name: '0361_System Requirement Verification_old',
+    name: 'System Requirement Verification (Old)',
     key: 'SRV_OLD',
     category: 'Requirements & Verification',
     type: 'REQUIREMENT',
@@ -124,45 +228,55 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     source: 'Image 2, Image 3',
     desc: 'Archived prior verification baselines, legacy qualification criteria, and traceability history.'
   },
-
-  // 2. Safety & Quality Assurance (3)
   {
-    index: 12,
-    name: 'Risks_SWRS',
-    key: 'RSWRS',
-    category: 'Safety & Quality Assurance',
-    type: 'RISK',
-    prefix: 'RSWRS-',
-    source: 'Image 1',
-    desc: 'Software safety risks, ASIL hazard ratings, kinetic collision hazards, and fail-safe mitigations.'
-  },
-  {
-    index: 13,
-    name: '10_Quality Assurance',
-    key: 'QA',
-    category: 'Safety & Quality Assurance',
+    index: 25,
+    name: 'HW Requirements Specification',
+    key: 'HWR',
+    category: 'Requirements & Verification',
     type: 'REQUIREMENT',
-    prefix: 'QA-',
-    source: 'Image 3, Image 4',
-    desc: 'Quality assurance gate checklists, ISO 9001 process audits, and peer inspection approvals.'
+    prefix: 'HWR-',
+    source: 'Image 2',
+    desc: 'Electronic hardware requirements, PCB power rails, micro-controller compute constraints, and pinouts.'
   },
   {
-    index: 14,
-    name: '011_Safetyplan',
-    key: 'SafeP',
-    category: 'Safety & Quality Assurance',
-    type: 'DOCUMENT',
-    prefix: 'SafeP-',
-    source: 'Image 3, Image 4',
-    desc: 'Functional safety management plan, safety lifecycle milestones, and ISO 13482 safety case roadmap.'
+    index: 35,
+    name: 'High Level SW Requirements',
+    key: 'HSWR',
+    category: 'Requirements & Verification',
+    type: 'REQUIREMENT',
+    prefix: 'HSWR-',
+    source: 'Image 2',
+    desc: 'Top-level software architecture capabilities, ROS2 orchestrator goals, and mission state machines.'
+  },
+  {
+    index: 36,
+    name: 'SW Requirements Specification',
+    key: 'SWR',
+    category: 'Requirements & Verification',
+    type: 'REQUIREMENT',
+    prefix: 'SWR-',
+    source: 'Image 2',
+    desc: 'Detailed software requirement specifications, dynamic obstacle avoidance logic, and DWB local planner specs.'
+  },
+  {
+    index: 37,
+    name: 'Software Customer Topic List',
+    key: 'SWCTL',
+    category: 'Requirements & Verification',
+    type: 'REQUIREMENT',
+    prefix: 'SWCTL-',
+    source: 'Image 2',
+    desc: 'Customer software enhancement backlog, feature requests, and field change topic requests.'
   },
 
-  // 3. System Architecture & Engineering (8)
+  // ==========================================
+  // Group 2: Architecture & Hardware (14)
+  // ==========================================
   {
     index: 15,
-    name: '030_Systems Engineering Strategie',
+    name: 'Systems Engineering Strategy',
     key: 'SYS_STRATEGY',
-    category: 'System Architecture & Engineering',
+    category: 'Architecture & Hardware',
     type: 'DOCUMENT',
     prefix: 'SYS-STRAT-',
     source: 'Image 3',
@@ -170,9 +284,9 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
   },
   {
     index: 16,
-    name: '0312_COM Matrix',
+    name: 'COM Matrix',
     key: 'COM',
-    category: 'System Architecture & Engineering',
+    category: 'Architecture & Hardware',
     type: 'ARCHITECTURE',
     prefix: 'COM-',
     source: 'Image 3',
@@ -180,9 +294,9 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
   },
   {
     index: 17,
-    name: '0313_Diagnostic_Services',
+    name: 'Diagnostic Services',
     key: 'DS',
-    category: 'System Architecture & Engineering',
+    category: 'Architecture & Hardware',
     type: 'ARCHITECTURE',
     prefix: 'DS-',
     source: 'Image 3',
@@ -190,9 +304,9 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
   },
   {
     index: 18,
-    name: '0314_FaultCodeList',
+    name: 'Fault Code List',
     key: 'FC',
-    category: 'System Architecture & Engineering',
+    category: 'Architecture & Hardware',
     type: 'ARCHITECTURE',
     prefix: 'FC-',
     source: 'Image 3',
@@ -200,9 +314,9 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
   },
   {
     index: 19,
-    name: '032_System Architectural Design',
+    name: 'System Architectural Design',
     key: 'SAD',
-    category: 'System Architecture & Engineering',
+    category: 'Architecture & Hardware',
     type: 'ARCHITECTURE',
     prefix: 'SAD-',
     source: 'Image 3',
@@ -210,9 +324,9 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
   },
   {
     index: 20,
-    name: '033_TCI',
+    name: 'TCI',
     key: 'TCI',
-    category: 'System Architecture & Engineering',
+    category: 'Architecture & Hardware',
     type: 'ARCHITECTURE',
     prefix: 'TCI-',
     source: 'Image 3',
@@ -220,9 +334,9 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
   },
   {
     index: 21,
-    name: '034_Hardware-Software-Interface',
+    name: 'Hardware-Software-Interface',
     key: 'HSI',
-    category: 'System Architecture & Engineering',
+    category: 'Architecture & Hardware',
     type: 'ARCHITECTURE',
     prefix: 'HSI-',
     source: 'Image 3',
@@ -230,701 +344,687 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
   },
   {
     index: 22,
-    name: '038_SYS Design',
+    name: 'SYS Design',
     key: 'SYSD',
-    category: 'System Architecture & Engineering',
+    category: 'Architecture & Hardware',
     type: 'ARCHITECTURE',
     prefix: 'SYSD-',
     source: 'Image 2',
     desc: 'High-level cyber-physical systems design specifications and multi-domain engineering blueprints.'
   },
-
-  // 4. Hardware & Electronics Engineering (12)
   {
     index: 23,
-    name: '04_Electrical (EM) Design',
+    name: 'Electrical (EM) Design',
     key: 'EMD',
-    category: 'Hardware & Electronics',
+    category: 'Architecture & Hardware',
     type: 'ARCHITECTURE',
     prefix: 'EMD-',
     source: 'Image 2',
-    desc: 'Power distribution unit (48V / 24V / 5V DC), battery management system, wiring harnesses, and fusing.'
+    desc: 'Electrical wiring harnesses, power distribution boards, battery management BMS schematics, and fusing.'
   },
   {
     index: 24,
-    name: '041_Mechanical Design',
-    key: 'MD',
-    category: 'Hardware & Electronics',
+    name: 'Mechanical Design',
+    key: 'MED',
+    category: 'Architecture & Hardware',
     type: 'ARCHITECTURE',
-    prefix: 'MD-',
+    prefix: 'MED-',
     source: 'Image 2',
-    desc: 'Mobile chassis, differential drive suspension, insulated food compartment, and structural enclosures.'
-  },
-  {
-    index: 25,
-    name: '051_HW Requirements Specification',
-    key: 'HWRS',
-    category: 'Hardware & Electronics',
-    type: 'REQUIREMENT',
-    prefix: 'HWRS-',
-    source: 'Image 2',
-    desc: 'Component-level hardware specifications, PCB operating temperatures, power dissipation, and load limits.'
+    desc: 'SolidWorks 3D chassis design, IP54 sealing gaskets, drive wheel suspension, and thermal heat sinks.'
   },
   {
     index: 26,
-    name: '052_HW Architectural Design',
+    name: 'HW Architectural Design',
     key: 'HWAD',
-    category: 'Hardware & Electronics',
+    category: 'Architecture & Hardware',
     type: 'ARCHITECTURE',
     prefix: 'HWAD-',
     source: 'Image 2',
-    desc: 'Microcontroller topology (STM32 / TI), safety microcontroller redundancy, and motor drive controllers.'
+    desc: 'High-level electronic block diagrams, bus topology, power domain isolation, and processor hierarchy.'
   },
   {
     index: 27,
-    name: '053_HW Detailed Design',
+    name: 'HW Detailed Design',
     key: 'HWDD',
-    category: 'Hardware & Electronics',
+    category: 'Architecture & Hardware',
     type: 'ARCHITECTURE',
     prefix: 'HWDD-',
     source: 'Image 2',
-    desc: 'Detailed electronic circuit schematics, bill of materials (BOM), Altium PCB layouts, and component pinouts.'
-  },
-  {
-    index: 28,
-    name: '054A_EMC Test Plan DV',
-    key: 'EMC_DV',
-    category: 'Hardware & Electronics',
-    type: 'TEST_SPEC',
-    prefix: 'EMC-DV-',
-    source: 'Image 2',
-    desc: 'Design Verification (DV) test protocol for conducted and radiated electromagnetic compatibility emissions.'
-  },
-  {
-    index: 29,
-    name: '054B_EMC Test Report DV',
-    key: 'EMC_RPT',
-    category: 'Hardware & Electronics',
-    type: 'TEST_SPEC',
-    prefix: 'EMC-RPT-',
-    source: 'Image 2',
-    desc: 'Design Verification (DV) test results, anechoic chamber plots, immunity thresholds, and corrective fixes.'
-  },
-  {
-    index: 30,
-    name: '054C_EMC Test Plan PV',
-    key: 'EMC_PV',
-    category: 'Hardware & Electronics',
-    type: 'TEST_SPEC',
-    prefix: 'EMC-PV-',
-    source: 'Image 2',
-    desc: 'Production Validation (PV) electromagnetic compatibility validation plan for mass production units.'
-  },
-  {
-    index: 31,
-    name: '054D_EMV Test Report PV',
-    key: 'EMV_RPT',
-    category: 'Hardware & Electronics',
-    type: 'TEST_SPEC',
-    prefix: 'EMV-RPT-',
-    source: 'Image 2',
-    desc: 'Production Validation (PV) certified EMC/EMV test reports and regulatory compliance certificates.'
-  },
-  {
-    index: 32,
-    name: '057_HW Design Verification',
-    key: 'HWDV',
-    category: 'Hardware & Electronics',
-    type: 'TEST_SPEC',
-    prefix: 'HWDV-',
-    source: 'Image 2',
-    desc: 'Hardware design review compliance matrix, derating analysis, and thermal simulation verification.'
-  },
-  {
-    index: 33,
-    name: '061_HW Test Plan',
-    key: 'HWTP',
-    category: 'Hardware & Electronics',
-    type: 'TEST_SPEC',
-    prefix: 'HWTP-',
-    source: 'Image 2',
-    desc: 'Comprehensive hardware bench, power cycling, overvoltage, short circuit, and stress test plan.'
-  },
-  {
-    index: 34,
-    name: '062_HW Test Report',
-    key: 'HWTR',
-    category: 'Hardware & Electronics',
-    type: 'TEST_SPEC',
-    prefix: 'HWTR-',
-    source: 'Image 2',
-    desc: 'Hardware bench test results, oscilloscope captures, thermal camera imaging, and engineer sign-offs.'
-  },
-
-  // 5. Software Engineering & Architecture (5)
-  {
-    index: 35,
-    name: '070_High level SW requirements',
-    key: 'HLSW',
-    category: 'Software Engineering & Architecture',
-    type: 'REQUIREMENT',
-    prefix: 'HLSW-',
-    source: 'Image 2',
-    desc: 'High-level software use cases, robot fleet coordination, table mapping, and mission planners.'
-  },
-  {
-    index: 36,
-    name: '071_SW Requirements Specification',
-    key: 'SWRS',
-    category: 'Software Engineering & Architecture',
-    type: 'REQUIREMENT',
-    prefix: 'SWRS-',
-    source: 'Image 2',
-    desc: 'Detailed software requirement specifications, dynamic obstacle avoidance logic, and DWB local planner specs.'
-  },
-  {
-    index: 37,
-    name: '0711_Software customer topic list',
-    key: 'SWCTL',
-    category: 'Software Engineering & Architecture',
-    type: 'REQUIREMENT',
-    prefix: 'SWCTL-',
-    source: 'Image 2',
-    desc: 'Client-requested software customization requests, kitchen POS system integration hooks, and feature wishlists.'
+    desc: 'Altium PCB layouts, component BOM, trace clearance calculations, and high-speed differential pairs.'
   },
   {
     index: 38,
-    name: '072_SW Architectural Design',
+    name: 'SW Architectural Design',
     key: 'SWAD',
-    category: 'Software Engineering & Architecture',
+    category: 'Architecture & Hardware',
     type: 'ARCHITECTURE',
     prefix: 'SWAD-',
     source: 'Image 2',
-    desc: 'ROS2 node graph, micro-ROS firmware architecture, sensor fusion pipeline, and DDS middleware layout.'
+    desc: 'Layered ROS2 software architecture, node graph, DDS domain ID allocation, and real-time thread priorities.'
   },
   {
     index: 39,
-    name: '073_SW Detailed Design',
+    name: 'SW Detailed Design',
     key: 'SWDD',
-    category: 'Software Engineering & Architecture',
+    category: 'Architecture & Hardware',
     type: 'ARCHITECTURE',
     prefix: 'SWDD-',
     source: 'Image 2',
-    desc: 'Software module class diagrams, state machine transitions, algorithm pseudocode, and thread models.'
+    desc: 'Module-level class diagrams, algorithm state flowcharts, function prototypes, and mutex locking rules.'
   },
 
-  // 6. Test Specifications & Strategy (7)
+  // ==========================================
+  // Group 3: Testing, Sets & Runs (44)
+  // ==========================================
+  {
+    index: 28,
+    name: 'EMC Test Plan DV',
+    key: 'EMCTP_DV',
+    category: 'Testing, Sets & Runs',
+    type: 'TEST_CASE',
+    prefix: 'EMCTP-DV-',
+    source: 'Image 2',
+    desc: 'Design Verification (DV) test procedure for conducted and radiated electromagnetic emissions.'
+  },
+  {
+    index: 29,
+    name: 'EMC Test Report DV',
+    key: 'EMCTR_DV',
+    category: 'Testing, Sets & Runs',
+    type: 'DOCUMENT',
+    prefix: 'EMCTR-DV-',
+    source: 'Image 2',
+    desc: 'Anechoic chamber empirical test results and formal compliance certificates for DV phase.'
+  },
+  {
+    index: 30,
+    name: 'EMC Test Plan PV',
+    key: 'EMCTP_PV',
+    category: 'Testing, Sets & Runs',
+    type: 'TEST_CASE',
+    prefix: 'EMCTP-PV-',
+    source: 'Image 2',
+    desc: 'Production Validation (PV) electromagnetic immunity and electrostatic discharge (ESD) test protocol.'
+  },
+  {
+    index: 31,
+    name: 'EMV Test Report PV',
+    key: 'EMVTR_PV',
+    category: 'Testing, Sets & Runs',
+    type: 'DOCUMENT',
+    prefix: 'EMVTR-PV-',
+    source: 'Image 2',
+    desc: 'Final production-intent electromagnetic compatibility validation results and CE/FCC compliance dossier.'
+  },
+  {
+    index: 32,
+    name: 'HW Design Verification',
+    key: 'HWDV',
+    category: 'Testing, Sets & Runs',
+    type: 'TEST_CASE',
+    prefix: 'HWDV-',
+    source: 'Image 2',
+    desc: 'Hardware bench testing suite: oscilloscope signal integrity, voltage rail ripple, and thermals.'
+  },
+  {
+    index: 33,
+    name: 'HW Test Plan',
+    key: 'HWTP',
+    category: 'Testing, Sets & Runs',
+    type: 'TEST_CASE',
+    prefix: 'HWTP-',
+    source: 'Image 2',
+    desc: 'Board bring-up test plan, boundary scan JTAG testing, and flying-probe ICT test coverage.'
+  },
+  {
+    index: 34,
+    name: 'HW Test Report',
+    key: 'HWTR',
+    category: 'Testing, Sets & Runs',
+    type: 'DOCUMENT',
+    prefix: 'HWTR-',
+    source: 'Image 2',
+    desc: 'Empirical hardware verification records, sign-off metrics, and component derating analysis.'
+  },
   {
     index: 40,
-    name: '066_Hardware Software Integration Testplan',
+    name: 'Hardware Software Integration Testplan',
     key: 'HSITP',
-    category: 'Test Specifications & Strategy',
-    type: 'TEST_SPEC',
+    category: 'Testing, Sets & Runs',
+    type: 'TEST_CASE',
     prefix: 'HSITP-',
     source: 'Image 2',
-    desc: 'Integration test plan verifying motor controller firmware, CAN bus latency, and sensor driver communications.'
+    desc: 'Integration test protocol verifying low-level firmware drivers against microcontroller hardware.'
   },
   {
     index: 41,
-    name: '121_Design Verification Plan (B-Samples)',
-    key: 'DVP_B',
-    category: 'Test Specifications & Strategy',
-    type: 'TEST_SPEC',
-    prefix: 'DVP-B-',
-    source: 'Image 4',
-    desc: 'Phase B prototype engineering design verification plan covering environmental, stress, and functional criteria.'
+    name: 'Design Verification Plan (B-Samples)',
+    key: 'DV_PLAN',
+    category: 'Testing, Sets & Runs',
+    type: 'TEST_CASE',
+    prefix: 'DVP-',
+    source: 'Image 2',
+    desc: 'B-sample prototype qualification suite: shock, vibration, thermal cycling, and ingress ingress testing.'
   },
   {
     index: 42,
-    name: '123_Product Validation Plan (C-Samples)',
-    key: 'PVP_C',
-    category: 'Test Specifications & Strategy',
-    type: 'TEST_SPEC',
-    prefix: 'PVP-C-',
-    source: 'Image 4',
-    desc: 'Phase C pilot-production validation plan verifying end-to-end reliability and manufacturing yield.'
+    name: 'Product Validation Plan (C-Samples)',
+    key: 'PV_PLAN',
+    category: 'Testing, Sets & Runs',
+    type: 'TEST_CASE',
+    prefix: 'PVP-',
+    source: 'Image 2',
+    desc: 'C-sample production-line validation: continuous 500-hour endurance trials and restaurant deployment runs.'
   },
   {
     index: 43,
-    name: '127_System Qualification Test Specification',
-    key: 'SQTSPEC',
-    category: 'Test Specifications & Strategy',
-    type: 'TEST_SPEC',
-    prefix: 'SQTSPEC-',
-    source: 'Image 3, Image 4',
-    desc: 'Formal system qualification test procedures validating adherence to ISO 13482 safety requirements.'
+    name: 'System Qualification Test Specification',
+    key: 'SQTS',
+    category: 'Testing, Sets & Runs',
+    type: 'TEST_CASE',
+    prefix: 'SQTS-',
+    source: 'Image 2',
+    desc: 'Formal qualification test specifications proving compliance with ISO 13482 safety requirements.'
   },
   {
     index: 44,
-    name: '133_System Integration and Integration Test Specification',
+    name: 'System Integration and Integration Test Specification',
     key: 'SIITS',
-    category: 'Test Specifications & Strategy',
-    type: 'TEST_SPEC',
+    category: 'Testing, Sets & Runs',
+    type: 'TEST_CASE',
     prefix: 'SIITS-',
-    source: 'Image 3',
-    desc: 'Multi-subsystem integration procedures verifying simultaneous motion, obstacle evasion, and thermal hold.'
+    source: 'Image 2',
+    desc: 'Multi-subsystem integration test procedures verifying Navigation, Vision, and Motor Drive interplay.'
   },
   {
     index: 45,
-    name: '161_Mechanical Qualification Test Plan',
+    name: 'Mechanical Qualification Test Plan',
     key: 'MQTP',
-    category: 'Test Specifications & Strategy',
-    type: 'TEST_SPEC',
+    category: 'Testing, Sets & Runs',
+    type: 'TEST_CASE',
     prefix: 'MQTP-',
-    source: 'Image 3',
-    desc: 'Chassis drop test, dynamic vibration, payload bay spill resistance, and door latch endurance test protocols.'
+    source: 'Image 2',
+    desc: 'Chassis payload stress test, drop impact test, wheel wear characterization, and IPX4 water spray test.'
   },
   {
     index: 46,
     name: 'System Test Strategy RR4x',
-    key: 'STS_RR4x',
-    category: 'Test Specifications & Strategy',
-    type: 'TEST_SPEC',
-    prefix: 'STS-RR4X-',
-    source: 'Image 4',
-    desc: 'System-wide test coverage strategy, verification gates, and release qualification criteria for RR4x milestone.'
+    key: 'STS_RR4X',
+    category: 'Testing, Sets & Runs',
+    type: 'DOCUMENT',
+    prefix: 'STS-',
+    source: 'Image 2',
+    desc: 'Overarching systems test strategy, verification levels, automated CI/CD simulation in Gazebo/Ignition.'
   },
-
-  // 7. Test Cases (8)
   {
     index: 47,
-    name: '0761_Test Engineering Cases',
+    name: 'Test Engineering Cases',
     key: 'TEC',
-    category: 'Test Cases',
+    category: 'Testing, Sets & Runs',
     type: 'TEST_CASE',
     prefix: 'TEC-',
-    source: 'Image 4',
-    desc: 'Engineering test cases verifying low-level bus voltage, optical sensor tripwire timings, and watchdog resets.',
+    source: 'Image 2',
+    desc: 'Detailed test cases engineered for custom hardware rigs, HIL test benches, and automated dynamometers.',
     enable_test_steps: true
   },
   {
     index: 48,
-    name: '0941_Test Cases Software Qualification Test',
-    key: 'TCSQT_C',
-    category: 'Test Cases',
+    name: 'Test Cases Software Qualification Test',
+    key: 'TCSQT',
+    category: 'Testing, Sets & Runs',
     type: 'TEST_CASE',
-    prefix: 'TCSQT-C-',
-    source: 'Image 4',
-    desc: 'Formal software qualification test cases with inputs, preconditions, expected outputs, and pass criteria.',
+    prefix: 'TCSQT-',
+    source: 'Image 2',
+    desc: 'Formal software qualification test cases verifying high-level SW requirements and mission workflows.',
     enable_test_steps: true
   },
   {
     index: 49,
-    name: '0951_Test Cases Software Integration Test',
-    key: 'TCSIT_C',
-    category: 'Test Cases',
+    name: 'Test Cases Software Integration Test',
+    key: 'TCSIT',
+    category: 'Testing, Sets & Runs',
     type: 'TEST_CASE',
-    prefix: 'TCSIT-C-',
-    source: 'Image 4',
-    desc: 'Integration test cases verifying ROS2 inter-node topic streaming, localization accuracy, and cmd_vel twists.',
+    prefix: 'TCSIT-',
+    source: 'Image 2',
+    desc: 'ROS2 inter-node topic communication, message deserialization latency, and service call timeout tests.',
     enable_test_steps: true
   },
   {
     index: 50,
-    name: '0961_Test Cases Software Unit Test',
-    key: 'TCSUT_C',
-    category: 'Test Cases',
+    name: 'Test Cases Software Unit Test',
+    key: 'TCSUT',
+    category: 'Testing, Sets & Runs',
     type: 'TEST_CASE',
-    prefix: 'TCSUT-C-',
-    source: 'Image 4',
-    desc: 'Algorithmic unit test cases testing costmap inflation calculations, path smoothing, and thermal PID algorithms.',
+    prefix: 'TCSUT-',
+    source: 'Image 2',
+    desc: 'GTest/pytest algorithmic unit tests covering path smoothing, quaternion conversions, and math libraries.',
     enable_test_steps: true
   },
   {
     index: 51,
-    name: '371_Test Cases Hardware Qualification Test',
-    key: 'TCHWT',
-    category: 'Test Cases',
+    name: 'Test Cases Hardware Qualification Test',
+    key: 'TCHQT',
+    category: 'Testing, Sets & Runs',
     type: 'TEST_CASE',
-    prefix: 'TCHWT-',
-    source: 'Image 3, Image 5',
-    desc: 'Hardware qualification test cases: thermal chamber load, ESD contact discharge, and mechanical shock.',
+    prefix: 'TCHQT-',
+    source: 'Image 2',
+    desc: 'Hardware qualification tests: power brownout recovery, over-voltage tolerance, and thermal throttling.',
     enable_test_steps: true
   },
   {
     index: 52,
-    name: '372_Test Cases Integration Test',
+    name: 'Test Cases Integration Test',
     key: 'TCIT',
-    category: 'Test Cases',
+    category: 'Testing, Sets & Runs',
     type: 'TEST_CASE',
     prefix: 'TCIT-',
-    source: 'Image 3, Image 5',
-    desc: 'Subsystem-to-subsystem integration test cases for CAN bus failover, LiDAR dropout handling, and e-stop trip.',
+    source: 'Image 2',
+    desc: 'End-to-end integration test scenarios combining sensors, compute, actuation, and cloud fleet dispatch.',
     enable_test_steps: true
   },
   {
     index: 53,
     name: 'Reliability Test',
-    key: 'REL',
-    category: 'Test Cases',
+    key: 'REL_TST',
+    category: 'Testing, Sets & Runs',
     type: 'TEST_CASE',
-    prefix: 'REL-',
-    source: 'Image 3, Image 5',
-    desc: 'Continuous 500-hour stress run test cases, wheel tire wear measurements, and battery cycle degradation.',
+    prefix: 'REL-TST-',
+    source: 'Image 2',
+    desc: 'Accelerated life testing (ALT), thermal shock, continuous runtime stress, and MTBF validation.',
     enable_test_steps: true
   },
   {
     index: 54,
     name: 'Test Cases',
-    key: 'TESTCASE',
-    category: 'Test Cases',
+    key: 'TC_GEN',
+    category: 'Testing, Sets & Runs',
     type: 'TEST_CASE',
     prefix: 'TC-',
-    source: 'Image 3, Image 5',
-    desc: 'Universal test case library supporting step-by-step action sequences, expected outcomes, and parameters.',
+    source: 'Image 1, Image 2',
+    desc: 'General purpose test case repository supporting step-by-step action sequences, expected outcomes, and parameters.',
     enable_test_steps: true
   },
-
-  // 8. Test Configurations (7)
   {
     index: 55,
-    name: '0763_Test Engineering Configuration',
-    key: 'ETCG',
-    category: 'Test Configurations',
-    type: 'TEST_SET',
-    prefix: 'ETCG-',
-    source: 'Image 3, Image 5',
-    desc: 'Engineering test bench hardware setup, power supplies, CAN sniffer configurations, and harness pinouts.'
+    name: 'Test Engineering Configuration',
+    key: 'TE_CFG',
+    category: 'Testing, Sets & Runs',
+    type: 'ARCHITECTURE',
+    prefix: 'TE-CFG-',
+    source: 'Image 2',
+    desc: 'HIL simulator configurations, CAN bus baud rate matrices, sensor calibration targets, and test harness setup.'
   },
   {
     index: 56,
-    name: '0942_Test Configurations Software Qualification Test',
-    key: 'TCSQT',
-    category: 'Test Configurations',
-    type: 'TEST_SET',
-    prefix: 'TCSQT-',
-    source: 'Image 3, Image 5',
-    desc: 'Software qualification environment settings, test node environments, and automated test runner params.'
+    name: 'Test Configurations Software Qualification Test',
+    key: 'TCSQT_CFG',
+    category: 'Testing, Sets & Runs',
+    type: 'ARCHITECTURE',
+    prefix: 'TCSQT-CFG-',
+    source: 'Image 2',
+    desc: 'Software build profiles, compiler flags (-O3, ASAN), ROS2 distro environment variables, and simulation maps.'
   },
   {
     index: 57,
-    name: '0952_Test Configurations Software Integration Test',
-    key: 'TCSIT',
-    category: 'Test Configurations',
-    type: 'TEST_SET',
-    prefix: 'TCSIT-',
-    source: 'Image 3, Image 5',
-    desc: 'Software-in-the-Loop (SIL) simulation world profiles, Gazebo restaurant floor models, and obstacle rigs.'
+    name: 'Test Configurations Software Integration Test',
+    key: 'TCSIT_CFG',
+    category: 'Testing, Sets & Runs',
+    type: 'ARCHITECTURE',
+    prefix: 'TCSIT-CFG-',
+    source: 'Image 2',
+    desc: 'Multi-node network namespace configs, CycloneDDS XML profiles, and mock sensor data replay bag files.'
   },
   {
     index: 58,
-    name: '0962_Test Configurations Software Unit Test',
-    key: 'TCSUT',
-    category: 'Test Configurations',
-    type: 'TEST_SET',
-    prefix: 'TCSUT-',
-    source: 'Image 3, Image 5',
-    desc: 'Unit test framework flags, gtest / pytest runner configurations, and sanitizers (ASan/UBSan).'
+    name: 'Test Configurations Software Unit Test',
+    key: 'TCSUT_CFG',
+    category: 'Testing, Sets & Runs',
+    type: 'ARCHITECTURE',
+    prefix: 'TCSUT-CFG-',
+    source: 'Image 2',
+    desc: 'Isolated unit testing mock injection stubs, memory leak sanitizers, and code coverage tool configurations.'
   },
   {
     index: 59,
-    name: '129_System Qualification Test Configurations',
+    name: 'System Qualification Test Configurations',
     key: 'SQTC',
-    category: 'Test Configurations',
-    type: 'TEST_SET',
+    category: 'Testing, Sets & Runs',
+    type: 'ARCHITECTURE',
     prefix: 'SQTC-',
-    source: 'Image 3, Image 5',
-    desc: 'Full-scale physical test pen configurations, optical motion capture tracking grids, and mannequin fixtures.'
+    source: 'Image 2',
+    desc: 'Full vehicle system configurations: battery charge state, payload ballast weights, and floor traction profiles.'
   },
   {
     index: 60,
-    name: '381_Test Configurations Hardware Qualification Test',
-    key: 'TC_HW_T',
-    category: 'Test Configurations',
-    type: 'TEST_SET',
-    prefix: 'TCHWT-CFG-',
-    source: 'Image 3, Image 5',
-    desc: 'Environmental chamber thermal profiles (-10C to +55C), vibration shaker profiles, and power load profiles.'
+    name: 'Test Configurations Hardware Qualification Test',
+    key: 'TCHQT_CFG',
+    category: 'Testing, Sets & Runs',
+    type: 'ARCHITECTURE',
+    prefix: 'TCHQT-CFG-',
+    source: 'Image 2',
+    desc: 'Bench power supply current limits, climate chamber humidity/temp profiles, and vibration shaker table spectrums.'
   },
   {
     index: 61,
-    name: '382_Test Configurations Integration Test',
+    name: 'Test Configurations Integration Test',
     key: 'TCIT_CFG',
-    category: 'Test Configurations',
-    type: 'TEST_SET',
+    category: 'Testing, Sets & Runs',
+    type: 'ARCHITECTURE',
     prefix: 'TCIT-CFG-',
-    source: 'Image 3, Image 5',
-    desc: 'Hardware-in-the-Loop (HIL) wiring setups, bus fault injection rigs, and simulated wheel speed encoders.'
+    source: 'Image 2',
+    desc: 'Combined electro-mechanical test rig parameter settings and digital twin synchronization environments.'
   },
-
-  // 9. Test Sets (8)
   {
     index: 62,
-    name: '0762_Test Engineering Sets',
-    key: 'ETS',
-    category: 'Test Sets',
+    name: 'Test Engineering Sets',
+    key: 'TE_SET',
+    category: 'Testing, Sets & Runs',
     type: 'TEST_SET',
-    prefix: 'ETS-',
-    source: 'Image 3, Image 5',
-    desc: 'Diagnostic test case collections batched together for automated daily CI engineering smoke tests.'
+    prefix: 'TE-SET-',
+    source: 'Image 2',
+    desc: 'Grouped test suites executing automated bench test sets for continuous nightly regression testing.'
   },
   {
     index: 63,
-    name: '0943_Test Sets Software Qualification Test',
+    name: 'Test Sets Software Qualification Test',
     key: 'TSSQT',
-    category: 'Test Sets',
+    category: 'Testing, Sets & Runs',
     type: 'TEST_SET',
     prefix: 'TSSQT-',
-    source: 'Image 3, Image 5',
-    desc: 'Official software qualification test set packages required for software release sign-off.'
+    source: 'Image 2',
+    desc: 'Official software release gate test suites required prior to signing off customer release candidates.'
   },
   {
     index: 64,
-    name: '0953_Test Sets Software Integration Test',
-    key: 'ISSIT',
-    category: 'Test Sets',
+    name: 'Test Sets Software Integration Test',
+    key: 'TSSIT',
+    category: 'Testing, Sets & Runs',
     type: 'TEST_SET',
-    prefix: 'ISSIT-',
-    source: 'Image 3, Image 5',
-    desc: 'Nightly regression test suites verifying cross-subsystem interface compatibility.'
+    prefix: 'TSSIT-',
+    source: 'Image 2',
+    desc: 'Inter-process communications test sets verifying data fidelity between LiDAR, IMU, and Wheel Odometry.'
   },
   {
     index: 65,
-    name: '0963_Test Sets Software Unit Test',
+    name: 'Test Sets Software Unit Test',
     key: 'TSSUT',
-    category: 'Test Sets',
+    category: 'Testing, Sets & Runs',
     type: 'TEST_SET',
     prefix: 'TSSUT-',
-    source: 'Image 3, Image 5',
-    desc: 'Batched code unit test suites enforcing strict >90% branch and statement coverage.'
+    source: 'Image 2',
+    desc: 'Curated suites of unit tests running on every pull request to enforce 90%+ code coverage.'
   },
   {
     index: 66,
-    name: '128_System Qualification Test Sets',
-    key: 'SQTS',
-    category: 'Test Sets',
+    name: 'System Qualification Test Sets',
+    key: 'SQTS_SET',
+    category: 'Testing, Sets & Runs',
     type: 'TEST_SET',
-    prefix: 'SQTS-',
-    source: 'Image 3, Image 5',
-    desc: 'System-level test suites mapped directly to ISO 13482 safety requirements and customer PRDs.'
+    prefix: 'SQTS-SET-',
+    source: 'Image 2',
+    desc: 'End-to-end qualification test sets executed on fully assembled delivery robots in operational environments.'
   },
   {
     index: 67,
-    name: '135_System Integration Test Sets',
+    name: 'System Integration Test Sets',
     key: 'SITS',
-    category: 'Test Sets',
+    category: 'Testing, Sets & Runs',
     type: 'TEST_SET',
     prefix: 'SITS-',
-    source: 'Image 3, Image 5',
-    desc: 'Integration test packages executed on fully assembled prototype robots on test courses.'
+    source: 'Image 2',
+    desc: 'Complete system integration suites combining mechanical, electrical, and software actuation under load.'
   },
   {
     index: 68,
-    name: '391_Test Sets Hardware Qualification Test',
-    key: 'TSSST',
-    category: 'Test Sets',
+    name: 'Test Sets Hardware Qualification Test',
+    key: 'TSHQT',
+    category: 'Testing, Sets & Runs',
     type: 'TEST_SET',
-    prefix: 'TSSST-',
-    source: 'Image 5',
-    desc: 'Hardware environmental, electrical stress, and thermal qualification test suites.'
+    prefix: 'TSHQT-',
+    source: 'Image 2',
+    desc: 'Physical PCB and motor inverter stress test suites run at extremes of supply voltage and temperature.'
   },
   {
     index: 69,
-    name: '392_Test Sets Integration Test',
+    name: 'Test Sets Integration Test',
     key: 'TSIT',
-    category: 'Test Sets',
+    category: 'Testing, Sets & Runs',
     type: 'TEST_SET',
     prefix: 'TSIT-',
-    source: 'Image 5',
-    desc: 'Combined hardware-software integration test suites run during sprint stabilization.'
+    source: 'Image 2',
+    desc: 'Full-loop hardware-in-the-loop (HIL) test suites connecting real controller hardware to simulated dynamics.'
   },
-
-  // 10. Test Runs & Execution (2)
   {
     index: 70,
-    name: '130_System Qualification Test Runs',
+    name: 'System Qualification Test Runs',
     key: 'SQTR',
-    category: 'Test Runs & Execution',
+    category: 'Testing, Sets & Runs',
     type: 'TEST_SET',
     prefix: 'SQTR-',
-    source: 'Image 1',
-    desc: 'System qualification test run execution records, step-by-step pass/fail verdicts, and sensor logs.'
+    source: 'Image 2',
+    desc: 'Historical execution runs, recorded passes/failures, environmental logs, and formal audit results.'
   },
   {
     index: 71,
     name: 'Test Runs',
-    key: 'TESTRUN',
-    category: 'Test Runs & Execution',
+    key: 'TR_GEN',
+    category: 'Testing, Sets & Runs',
     type: 'TEST_SET',
-    prefix: 'RUN-',
-    source: 'Image 1',
-    desc: 'Global test run execution ledger containing run duration, tester signature, and test evidence attachments.'
+    prefix: 'TR-',
+    source: 'Image 1, Image 2',
+    desc: 'Execution instances of test cases and test sets across builds, serial numbers, and field firmware.'
   },
-
-  // 11. Test Tasks & Reviews (5)
   {
     index: 72,
-    name: '063_HW Tests',
+    name: 'HW Tests',
     key: 'HWT',
-    category: 'Test Tasks & Reviews',
-    type: 'TASK',
+    category: 'Testing, Sets & Runs',
+    type: 'TEST_CASE',
     prefix: 'HWT-',
-    source: 'Image 4',
-    desc: 'Hardware testing tasks assigned to electrical test technicians and validation engineers.'
+    source: 'Image 2',
+    desc: 'General hardware functional test procedures, voltage checks, and sensor sanity checks.'
   },
   {
     index: 73,
-    name: '065_HW Test Tasks',
+    name: 'HW Test Tasks',
     key: 'HWTT',
-    category: 'Test Tasks & Reviews',
+    category: 'Testing, Sets & Runs',
     type: 'TASK',
     prefix: 'HWTT-',
-    source: 'Image 1',
-    desc: 'Specific test execution tasks for environmental chambers, vibration shakers, and power benches.'
+    source: 'Image 2',
+    desc: 'Work assignments for hardware lab engineers: soldering rework, instrument calibration, and test set prep.'
   },
   {
     index: 74,
-    name: '091_SW Test Tasks',
-    key: 'SWT',
-    category: 'Test Tasks & Reviews',
+    name: 'SW Test Tasks',
+    key: 'SWTT',
+    category: 'Testing, Sets & Runs',
     type: 'TASK',
-    prefix: 'SWT-',
-    source: 'Image 4',
-    desc: 'Software testing tasks for test plan writing, test case authoring, and automated CI test script creation.'
+    prefix: 'SWTT-',
+    source: 'Image 2',
+    desc: 'Software QA engineering assignments: test case authoring, automation scripting, and flake investigations.'
   },
   {
     index: 75,
-    name: '092_SW Test Reviews',
-    key: 'SWTR',
-    category: 'Test Tasks & Reviews',
+    name: 'SW Test Reviews',
+    key: 'SWTRV',
+    category: 'Testing, Sets & Runs',
     type: 'TASK',
-    prefix: 'SWTR-',
-    source: 'Image 4',
-    desc: 'Peer reviews of test specifications, test step criteria, test coverage audits, and quality approvals.'
+    prefix: 'SWTRV-',
+    source: 'Image 2',
+    desc: 'Peer reviews of software test procedures, traceability audit sign-offs, and coverage verification.'
   },
   {
     index: 76,
     name: 'System Test Task',
-    key: 'SysTest Task',
-    category: 'Test Tasks & Reviews',
+    key: 'STT',
+    category: 'Testing, Sets & Runs',
     type: 'TASK',
-    prefix: 'SYSTEST-',
-    source: 'Image 4',
-    desc: 'System validation task assignments, course setup tasks, mannequin positioning, and data acquisition.'
+    prefix: 'STT-',
+    source: 'Image 2',
+    desc: 'Field testing operational tasks: test track setup, safety tether installation, and sensor cleanups.'
   },
 
-  // 12. Defects, Failures & Problem Reports (5)
+  // ==========================================
+  // Group 4: Safety & Risks (3)
+  // ==========================================
+  {
+    index: 12,
+    name: 'Risks SWRS',
+    key: 'RSWRS',
+    category: 'Safety & Risks',
+    type: 'RISK',
+    prefix: 'RSWRS-',
+    source: 'Image 1',
+    desc: 'Software safety risks, ASIL hazard ratings, kinetic collision hazards, and fail-safe mitigations.'
+  },
+  {
+    index: 13,
+    name: 'Quality Assurance',
+    key: 'QA',
+    category: 'Safety & Risks',
+    type: 'REQUIREMENT',
+    prefix: 'QA-',
+    source: 'Image 3, Image 4',
+    desc: 'Quality assurance gate checklists, ISO 9001 process audits, and peer inspection approvals.'
+  },
+  {
+    index: 14,
+    name: 'Safetyplan',
+    key: 'SafeP',
+    category: 'Safety & Risks',
+    type: 'DOCUMENT',
+    prefix: 'SafeP-',
+    source: 'Image 3, Image 4',
+    desc: 'Functional safety management plan, safety lifecycle milestones, and ISO 13482 safety case roadmap.'
+  },
+
+  // ==========================================
+  // Group 5: Defects & Problems (5)
+  // ==========================================
   {
     index: 77,
-    name: '055_HW Failures',
-    key: 'HWBUG',
-    category: 'Defects, Failures & Problem Reports',
+    name: 'HW Failures',
+    key: 'HWF',
+    category: 'Defects & Problems',
     type: 'DEFECT',
-    prefix: 'HWBUG-',
-    source: 'Image 4',
-    desc: 'Hardware component defects, PCB solder joint cracks, motor overheating, and sensor disconnects.'
+    prefix: 'HWF-',
+    source: 'Image 2',
+    desc: 'Physical component burnout, cracked solder joints, delamination, and electrical failure root causes.'
   },
   {
     index: 78,
-    name: '064_HW Testing Failures',
+    name: 'HW Testing Failures',
     key: 'HWTF',
-    category: 'Defects, Failures & Problem Reports',
+    category: 'Defects & Problems',
     type: 'DEFECT',
     prefix: 'HWTF-',
-    source: 'Image 4',
-    desc: 'Anomalies and failures detected specifically during environmental, thermal, and stress test campaigns.'
+    source: 'Image 2',
+    desc: 'Defects discovered during bench and chamber testing: thermal runaway, voltage dropouts, and noise.'
   },
   {
     index: 79,
-    name: '075_SW Bugs',
-    key: 'SWBUG',
-    category: 'Defects, Failures & Problem Reports',
+    name: 'SW Bugs',
+    key: 'SWB',
+    category: 'Defects & Problems',
     type: 'DEFECT',
-    prefix: 'SWBUG-',
-    source: 'Image 4',
-    desc: 'Software defects: segmentation faults, ROS2 node crashes, navigation path oscillations, and latency spikes.'
+    prefix: 'SWB-',
+    source: 'Image 2',
+    desc: 'Software defects: segmentation faults, memory leaks, navigation costmap corruption, and race conditions.'
   },
   {
     index: 80,
     name: 'Problem Report',
     key: 'PR',
-    category: 'Defects, Failures & Problem Reports',
+    category: 'Defects & Problems',
     type: 'DEFECT',
     prefix: 'PR-',
-    source: 'Image 4',
-    desc: 'Formal Engineering Problem Reports (PR) detailing defect symptoms, root causes, and containment actions.'
+    source: 'Image 1, Image 2',
+    desc: 'Unified customer and engineering issue reporting tracker for cross-disciplinary triage.'
   },
   {
     index: 81,
     name: 'Problem Report Octane',
     key: 'PRO',
-    category: 'Defects, Failures & Problem Reports',
+    category: 'Defects & Problems',
     type: 'DEFECT',
     prefix: 'PRO-',
-    source: 'Image 4',
-    desc: 'Synchronized enterprise defect tracker interfacing external ALM / Micro Focus Octane systems.'
+    source: 'Image 2',
+    desc: 'ALM Octane synchronized defect tickets, enterprise escalations, and warranty return investigations.'
   },
 
-  // 13. Tasks & Epics (9)
+  // ==========================================
+  // Group 6: Tasks & Epics (9)
+  // ==========================================
   {
     index: 82,
-    name: '037_SYS Tasks',
-    key: 'SYS_TASK',
+    name: 'SYS Tasks',
+    key: 'SYST',
     category: 'Tasks & Epics',
     type: 'TASK',
-    prefix: 'SYS-TASK-',
-    source: 'Image 1',
-    desc: 'System engineering tasks: requirement decomposition, trade studies, safety reviews, and interface audits.'
+    prefix: 'SYST-',
+    source: 'Image 2',
+    desc: 'Systems engineering work items: allocation analysis, interface harmonization, and ICD generation.'
   },
   {
     index: 83,
-    name: '056_HW Tasks',
-    key: 'HWTASK',
+    name: 'HW Tasks',
+    key: 'HWTK',
     category: 'Tasks & Epics',
     type: 'TASK',
-    prefix: 'HWTASK-',
-    source: 'Image 1',
-    desc: 'Hardware design tasks: component selection, PCB schematic drafting, CAD revisions, and harness routing.'
+    prefix: 'HWTK-',
+    source: 'Image 2',
+    desc: 'Electronic and mechanical development tasks: schematic capture, PCB layout, and cable harness drafting.'
   },
   {
     index: 84,
-    name: '074_SW Tasks',
-    key: 'SWTASK',
+    name: 'SW Tasks',
+    key: 'SWTK',
     category: 'Tasks & Epics',
     type: 'TASK',
-    prefix: 'SWTASK-',
-    source: 'Image 1',
-    desc: 'Software sprint tasks: driver development, navigation parameter tuning, and UI dashboard enhancements.'
+    prefix: 'SWTK-',
+    source: 'Image 2',
+    desc: 'Software sprint tasks: path planner optimization, sensor driver development, and web GUI implementation.'
   },
   {
     index: 85,
-    name: '0741 SW Epic',
+    name: 'SW Epic',
     key: 'SWEPIC',
     category: 'Tasks & Epics',
     type: 'TASK',
     prefix: 'SWEPIC-',
-    source: 'Image 4',
-    desc: 'Major software epic initiatives: Autonomous Fleet Management, ISO 13482 Safety Stack, Nav2 Migration.'
+    source: 'Image 2',
+    desc: 'High-level multi-sprint software development initiatives, major subsystem overhauls, and capabilities.'
   },
   {
     index: 86,
-    name: '143_QAD Tasks (Old Version)',
-    key: 'QAD_T_OLD',
+    name: 'QAD Tasks (Old Version)',
+    key: 'QAD_OLD',
     category: 'Tasks & Epics',
     type: 'TASK',
     prefix: 'QAD-OLD-',
-    source: 'Image 1',
-    desc: 'Archived quality assurance tasks and legacy process audit items.'
+    source: 'Image 2',
+    desc: 'Legacy Quality Assurance Division tasks, archive audit items, and historical punch list tasks.'
   },
   {
     index: 87,
-    name: '143_QAD Tasks (XNF)',
-    key: 'QAD_T',
+    name: 'QAD Tasks (XNF)',
+    key: 'QAD_XNF',
     category: 'Tasks & Epics',
     type: 'TASK',
-    prefix: 'QAD-',
-    source: 'Image 4',
-    desc: 'Active quality assurance department tasks, vendor quality checks, and production line audit tasks.'
+    prefix: 'QAD-XNF-',
+    source: 'Image 2',
+    desc: 'Cross-functional Non-Functional QA engineering tasks, reliability audits, and security vulnerability reviews.'
   },
   {
     index: 88,
-    name: '144_QAD Epic',
-    key: 'QADEPIC',
+    name: 'QAD Epic',
+    key: 'QAD_EPIC',
     category: 'Tasks & Epics',
     type: 'TASK',
-    prefix: 'QADEPIC-',
-    source: 'Image 4',
-    desc: 'Quality assurance strategic epics: Supplier Quality Qualification, Cleanroom Standards, Process Capability.'
+    prefix: 'QAD-EPIC-',
+    source: 'Image 2',
+    desc: 'Quality assurance programmatic initiatives, certification audits, and factory acceptance test epics.'
   },
   {
     index: 89,
@@ -933,128 +1033,132 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     category: 'Tasks & Epics',
     type: 'TASK',
     prefix: 'RRT-',
-    source: 'Image 1',
-    desc: 'Release Readiness (RR) action items, regulatory submission tasks, and deployment sign-offs.'
+    source: 'Image 2',
+    desc: 'Restaurant Robot operational tasks, field service technician assignments, and restaurant onboarding.'
   },
   {
     index: 90,
     name: 'Tasks',
-    key: 'TASK',
+    key: 'TSK',
     category: 'Tasks & Epics',
     type: 'TASK',
-    prefix: 'TASK-',
-    source: 'Image 1',
-    desc: 'General engineering and project execution tasks, work packages, and cross-discipline milestones.'
+    prefix: 'TSK-',
+    source: 'Image 1, Image 2',
+    desc: 'General engineering work items, team action items, and technical debt resolution tickets.'
   },
 
-  // 14. Changes, Releases & CM (10)
+  // ==========================================
+  // Group 7: Changes & Releases (10)
+  // ==========================================
   {
     index: 91,
-    name: '079_SW Change Requests',
-    key: 'SWCRQ',
-    category: 'Changes, Releases & CM',
+    name: 'SW Change Requests',
+    key: 'SWCR',
+    category: 'Changes & Releases',
     type: 'RELEASE',
-    prefix: 'SWCRQ-',
-    source: 'Image 4',
-    desc: 'Software Change Requests: feature scope amendments, API breaking changes, and bug fix requests.'
+    prefix: 'SWCR-',
+    source: 'Image 2',
+    desc: 'Formal software change proposals, impact evaluations, regression risk ratings, and CCB approvals.'
   },
   {
     index: 92,
-    name: 'ChangeRequest',
+    name: 'Change Requests',
     key: 'CR',
-    category: 'Changes, Releases & CM',
+    category: 'Changes & Releases',
     type: 'RELEASE',
     prefix: 'CR-',
-    source: 'Image 4',
-    desc: 'Formal Engineering Change Requests (ECR/ECO) evaluating technical impact, BOM cost, and schedule delta.'
+    source: 'Image 1, Image 2',
+    desc: 'Engineering Change Requests (ECR) spanning hardware, software, tooling, and manufacturing processes.'
   },
   {
     index: 93,
-    name: '081_SW Configuration Integration Tickets',
-    key: 'SW-CIT',
-    category: 'Changes, Releases & CM',
+    name: 'SW Configuration Integration Tickets',
+    key: 'SWCIT',
+    category: 'Changes & Releases',
     type: 'RELEASE',
-    prefix: 'SW-CIT-',
-    source: 'Image 1',
-    desc: 'Software configuration integration tickets, build promotions, release tagging, and package verification.'
+    prefix: 'SWCIT-',
+    source: 'Image 2',
+    desc: 'Software branch merge tickets, dependency updates, third-party library licenses, and release tagging.'
   },
   {
     index: 94,
     name: 'Components',
-    key: 'COMP',
-    category: 'Changes, Releases & CM',
-    type: 'ARCHITECTURE',
-    prefix: 'COMP-',
-    source: 'Image 4',
-    desc: 'Hardware and software component catalog, revision control, vendor part numbers, and datasheets.'
+    key: 'CMP',
+    category: 'Changes & Releases',
+    type: 'RELEASE',
+    prefix: 'CMP-',
+    source: 'Image 2',
+    desc: 'Hardware components, off-the-shelf LiDAR sensors, motor controllers, and battery packs.'
   },
   {
     index: 95,
     name: 'CM Report',
     key: 'CMR',
-    category: 'Changes, Releases & CM',
+    category: 'Changes & Releases',
     type: 'DOCUMENT',
     prefix: 'CMR-',
-    source: 'Image 4',
-    desc: 'Configuration Management (CM) baseline verification reports, SBOM disclosures, and checksum audits.'
+    source: 'Image 2',
+    desc: 'Configuration Management audit reports, BOM change history, and hardware revision serial tracking.'
   },
   {
     index: 96,
     name: 'Platforms',
-    key: 'PLAT',
-    category: 'Changes, Releases & CM',
-    type: 'ARCHITECTURE',
-    prefix: 'PLAT-',
-    source: 'Image 4',
-    desc: 'Hardware target architectures, onboard compute carrier boards (Jetson Orin), and low-level MCUs.'
+    key: 'PLT',
+    category: 'Changes & Releases',
+    type: 'RELEASE',
+    prefix: 'PLT-',
+    source: 'Image 2',
+    desc: 'Robot hardware base revisions, chassis revisions, compute modules (Jetson Orin vs Xavier), and wheel bases.'
   },
   {
     index: 97,
     name: 'HW Releases',
-    key: 'HWR',
-    category: 'Changes, Releases & CM',
+    key: 'HWR_REL',
+    category: 'Changes & Releases',
     type: 'RELEASE',
-    prefix: 'HWR-',
-    source: 'Image 4',
-    desc: 'Hardware design release baselines: PCB Gerber packages, schematic release bundles, and CAD archives.'
+    prefix: 'HWR-REL-',
+    source: 'Image 2',
+    desc: 'Hardware engineering release packages (Gerber files, assembly drawings, mechanical STEP files).'
   },
   {
     index: 98,
-    name: 'Project- Releases',
-    key: 'PRJR',
-    category: 'Changes, Releases & CM',
+    name: 'Project Releases',
+    key: 'PROJ_REL',
+    category: 'Changes & Releases',
     type: 'RELEASE',
-    prefix: 'PRJR-',
-    source: 'Image 4',
-    desc: 'Major project milestone deliveries: Concept Phase, Proto A-Sample, Beta B-Sample, Production C-Sample.'
+    prefix: 'PROJ-REL-',
+    source: 'Image 2',
+    desc: 'Master product delivery milestones, customer pilot releases, and commercial market rollouts.'
   },
   {
     index: 99,
     name: 'SW Releases',
-    key: 'SWR',
-    category: 'Changes, Releases & CM',
+    key: 'SWR_REL',
+    category: 'Changes & Releases',
     type: 'RELEASE',
-    prefix: 'SWR-',
-    source: 'Image 4',
-    desc: 'Software firmware release builds, debian package repositories, OTA update bundles, and changelogs.'
+    prefix: 'SWR-REL-',
+    source: 'Image 2',
+    desc: 'Software firmware binaries, OTA docker containers, signed security keys, and release notes.'
   },
   {
     index: 100,
-    name: 'SystemReleases',
-    key: 'SYSR',
-    category: 'Changes, Releases & CM',
+    name: 'System Releases',
+    key: 'SYS_REL',
+    category: 'Changes & Releases',
     type: 'RELEASE',
-    prefix: 'SYSR-',
-    source: 'Image 4',
-    desc: 'Turnkey system releases validated for customer restaurant deployment, with user manuals and certifications.'
+    prefix: 'SYS-REL-',
+    source: 'Image 2',
+    desc: 'Integrated system releases combining verified hardware revisions and qualified firmware images.'
   },
 
-  // 15. Project Management & Governance (4)
+  // ==========================================
+  // Group 8: Documents & Governance (4)
+  // ==========================================
   {
     index: 101,
-    name: '039_Documents',
+    name: 'Documents',
     key: 'DOC',
-    category: 'Project Management & Governance',
+    category: 'Documents & Governance',
     type: 'DOCUMENT',
     prefix: 'DOC-',
     source: 'Image 2',
@@ -1064,7 +1168,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     index: 102,
     name: 'Minutes of Meeting',
     key: 'MoM',
-    category: 'Project Management & Governance',
+    category: 'Documents & Governance',
     type: 'DOCUMENT',
     prefix: 'MoM-',
     source: 'Image 1',
@@ -1074,7 +1178,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     index: 103,
     name: 'Contacts',
     key: 'CNT',
-    category: 'Project Management & Governance',
+    category: 'Documents & Governance',
     type: 'DOCUMENT',
     prefix: 'CNT-',
     source: 'Image 4',
@@ -1084,7 +1188,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     index: 104,
     name: 'Team',
     key: 'TEAM',
-    category: 'Project Management & Governance',
+    category: 'Documents & Governance',
     type: 'DOCUMENT',
     prefix: 'TEAM-',
     source: 'Image 4',
@@ -1103,7 +1207,8 @@ export function createProjectTrackers(projectId: number, projectKey: string): Tr
       id: projectId * 1000 + template.index,
       project_id: projectId,
       key: template.key,
-      name: template.name,
+      name: cleanTrackerName(template.name),
+      category: template.category,
       type: template.type,
       prefix: `${upperKey}-${template.prefix}`,
       object_count: 0,

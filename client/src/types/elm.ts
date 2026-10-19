@@ -61,6 +61,7 @@ export interface Tracker {
   enable_test_steps?: boolean;
   enable_folders?: boolean;
   description?: string;
+  category?: string;
 }
 
 export interface Folder {

@@ -7,6 +7,7 @@ import {
   Tracker, Folder as FolderType, EngineeringObject, RequirementType,
   SafetyLevel, TestSubProcess
 } from '../types/elm';
+import { cleanTrackerName } from '../data/canonicalTrackers';
 
 interface EnterpriseCreateModalProps {
   isOpen: boolean;
@@ -179,7 +180,7 @@ export const EnterpriseCreateModal: React.FC<EnterpriseCreateModalProps> = ({
               {tracker.prefix || tracker.key}
             </span>
             <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
-              New {tracker.name.replace(/s$/, '')}
+              New {cleanTrackerName(tracker.name).replace(/s$/, '')}
             </h2>
           </div>
 
@@ -290,7 +291,7 @@ export const EnterpriseCreateModal: React.FC<EnterpriseCreateModalProps> = ({
                   <input
                     type="text"
                     readOnly
-                    value={tracker.name}
+                    value={cleanTrackerName(tracker.name)}
                     style={{ width: '100%', fontSize: '0.8rem', padding: '6px 10px', backgroundColor: 'var(--bg-card)', opacity: 0.85 }}
                   />
                 </div>

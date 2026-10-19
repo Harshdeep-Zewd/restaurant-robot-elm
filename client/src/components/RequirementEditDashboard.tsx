@@ -10,6 +10,7 @@ import {
   TestStep, Artifact, SafetyLevel, RequirementType, TestSubProcess,
   CustomColumn, ObjectRevision
 } from '../types/elm';
+import { cleanTrackerName } from '../data/canonicalTrackers';
 import { CustomColumnCard } from './CustomColumnCard';
 
 interface RequirementEditDashboardProps {
@@ -685,7 +686,7 @@ export const RequirementEditDashboard: React.FC<RequirementEditDashboardProps> =
                 Tracker
               </label>
               <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-cyan)' }}>
-                {tracker.name} ({tracker.prefix})
+                {cleanTrackerName(tracker.name)} ({tracker.prefix})
               </div>
             </div>
 
