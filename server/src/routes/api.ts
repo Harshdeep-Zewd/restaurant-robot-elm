@@ -40,7 +40,7 @@ router.post('/projects', (req, res) => {
 
   store.projects.unshift(newProject);
 
-  // Auto-initialize all 104 standard engineering trackers for new project
+  // Auto-initialize all 101 standard engineering trackers for new project
   const pId = newProject.id;
   const projectTrackers = createProjectTrackers(pId, upperKey);
   for (const tt of projectTrackers) {
@@ -50,7 +50,8 @@ router.post('/projects', (req, res) => {
       key: tt.key,
       name: tt.name,
       type: tt.type,
-      prefix: tt.prefix
+      prefix: tt.prefix,
+      category: tt.category
     });
   }
 

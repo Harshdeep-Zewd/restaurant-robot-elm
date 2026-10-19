@@ -30,7 +30,7 @@ interface AdminConsoleViewProps {
   onCreateProject: (data: { key: string; name: string; description?: string }) => void;
   onUpdateProject?: (id: number, updates: Partial<Project>) => void;
   onDeleteProject?: (id: number) => void;
-  onCreateTracker: (data: { name: string; key: string; type: string; enable_test_steps: boolean; enable_folders: boolean }) => void;
+  onCreateTracker: (data: { name: string; key: string; type: string; enable_test_steps: boolean; enable_folders: boolean; category?: string }) => void;
   onRefreshData: () => void;
 }
 
@@ -178,6 +178,7 @@ export const AdminConsoleView: React.FC<AdminConsoleViewProps> = ({
       name: req.requested_name,
       key: req.requested_key,
       type: req.type,
+      category: 'Custom Trackers',
       enable_test_steps: req.enable_test_steps,
       enable_folders: req.enable_folders
     });

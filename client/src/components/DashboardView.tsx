@@ -13,7 +13,8 @@ import {
   Boxes,
   FlaskConical,
   CheckSquare,
-  GitBranch
+  GitBranch,
+  Sparkles
 } from 'lucide-react';
 import { ViewMode } from './Sidebar';
 import { Project, Tracker, EngineeringObject, TestRun } from '../types/elm';
@@ -109,6 +110,15 @@ const CATEGORY_GROUPS: CategoryGroupDef[] = [
     borderColor: 'rgba(148, 163, 184, 0.28)',
     icon: FolderArchive,
     subtitle: 'Normative reference standards, minutes of meeting (MoM), stakeholder directories, and project RACI teams.'
+  },
+  {
+    id: 9,
+    name: 'Custom Trackers',
+    color: '#f97316',
+    bgColor: 'rgba(249, 115, 22, 0.1)',
+    borderColor: 'rgba(249, 115, 22, 0.28)',
+    icon: Sparkles,
+    subtitle: 'User-created custom engineering trackers, special inspection modules, and project-specific repositories.'
   }
 ];
 
@@ -280,9 +290,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             }}
           >
             <option value="ALL">All Categories ({trackers.length} Trackers)</option>
-            {CANONICAL_CATEGORIES.map(cat => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
+            {CATEGORY_GROUPS.map(group => {
+              const count = trackers.filter(t => getTrackerCategory(t) === group.name).length;
+              return (
+                <option key={group.name} value={group.name}>
+                  Group {group.id}: {group.name} ({count})
+                </option>
+              );
+            })}
           </select>
         </div>
 
@@ -292,7 +307,76 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
           const groupSections = visibleGroups.map((group) => {
             const groupTrackers = searchMatchedTrackers.filter(t => getTrackerCategory(t) === group.name);
-            if (groupTrackers.length === 0) return null;
+            if (groupTrackers.length === 0) {
+              if (dashboardCategory === group.name) {
+                totalRendered++;
+                const IconComponent = group.icon;
+                return (
+                  <div
+                    key={group.id}
+                    style={{
+                      marginBottom: '32px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.015)',
+                      border: `1px solid ${group.borderColor}`,
+                      borderRadius: '10px',
+                      padding: '20px'
+                    }}
+                  >
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: '16px',
+                      paddingBottom: '12px',
+                      borderBottom: `1px solid ${group.borderColor}`
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{
+                          backgroundColor: group.bgColor,
+                          border: `1px solid ${group.borderColor}`,
+                          color: group.color,
+                          borderRadius: '8px',
+                          padding: '6px 10px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          fontWeight: 800,
+                          fontSize: '0.82rem'
+                        }}>
+                          <IconComponent size={16} color={group.color} />
+                          <span>Group {group.id}</span>
+                        </div>
+                        <div>
+                          <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                            {group.name}
+                          </h3>
+                          <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '3px 0 0 0' }}>
+                            {group.subtitle}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{
+                      padding: '36px 20px',
+                      textAlign: 'center',
+                      backgroundColor: 'var(--bg-dark)',
+                      borderRadius: '8px',
+                      border: '1px dashed var(--border-color)',
+                      color: 'var(--text-muted)'
+                    }}>
+                      <Sparkles size={30} color={group.color} style={{ margin: '0 auto 10px auto', display: 'block', opacity: 0.85 }} />
+                      <div style={{ fontSize: '0.98rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '4px' }}>
+                        No {group.name} in this project yet
+                      </div>
+                      <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                        Click <strong>"+ New"</strong> under Engineering Trackers in the left sidebar to create a custom tracker!
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            }
             totalRendered += groupTrackers.length;
 
             const IconComponent = group.icon;

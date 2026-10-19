@@ -20,7 +20,8 @@ export const CANONICAL_CATEGORIES = [
   'Defects & Problems',
   'Tasks & Epics',
   'Changes & Releases',
-  'Documents & Governance'
+  'Documents & Governance',
+  'Custom Trackers'
 ] as const;
 
 export type CanonicalCategory = typeof CANONICAL_CATEGORIES[number];
@@ -37,69 +38,6 @@ export function cleanTrackerName(name: string): string {
     .replace(/_/g, ' ')               // Replace remaining underscores with spaces
     .replace(/\s+/g, ' ')
     .trim();
-}
-
-/**
- * Resolves a tracker to one of the 8 canonical categories.
- */
-export function getTrackerCategory(t: { category?: string; type?: string; name?: string; key?: string }): CanonicalCategory {
-  if (t.category && (CANONICAL_CATEGORIES as readonly string[]).includes(t.category)) {
-    return t.category as CanonicalCategory;
-  }
-
-  const name = (t.name || '').toLowerCase();
-  const type = (t.type || '').toUpperCase();
-  const key = (t.key || '').toUpperCase();
-
-  // 1. Safety & Risks
-  if (type === 'RISK' || name.includes('risk') || name.includes('safety') || name.includes('hazard') || name.includes('quality assurance')) {
-    return 'Safety & Risks';
-  }
-
-  // 2. Defects & Problems
-  if (type === 'DEFECT' || name.includes('bug') || name.includes('failure') || name.includes('problem') || name.includes('defect') || name.includes('fail')) {
-    return 'Defects & Problems';
-  }
-
-  // 3. Testing, Sets & Runs
-  if (
-    type === 'TEST_CASE' || type === 'TEST_SET' || type.includes('TEST') ||
-    name.includes('test') || name.includes('emc') || name.includes('emv') ||
-    name.includes('verification plan') || name.includes('validation plan') ||
-    key.includes('TST') || key.includes('TC') || key.includes('SET') || key.includes('TR')
-  ) {
-    return 'Testing, Sets & Runs';
-  }
-
-  // 4. Tasks & Epics
-  if (type === 'TASK' || name.includes('task') || name.includes('epic') || key.includes('TASK') || key.includes('EPIC')) {
-    return 'Tasks & Epics';
-  }
-
-  // 5. Changes & Releases
-  if (
-    type === 'RELEASE' || name.includes('release') || name.includes('change') ||
-    name.includes('component') || name.includes('ticket') || name.includes('platform') ||
-    name.includes('cm report')
-  ) {
-    return 'Changes & Releases';
-  }
-
-  // 6. Documents & Governance
-  if (
-    name.includes('document') || name.includes('meeting') || name.includes('mom') ||
-    name.includes('contact') || name.includes('team')
-  ) {
-    return 'Documents & Governance';
-  }
-
-  // 7. Requirements & Verification
-  if (type === 'REQUIREMENT' || name.includes('requirement') || name.includes('specification') || name.includes('parameter') || name.includes('crs')) {
-    return 'Requirements & Verification';
-  }
-
-  // 8. Architecture & Hardware (default fallback for architecture/hardware/interfaces)
-  return 'Architecture & Hardware';
 }
 
 export const CANONICAL_TRACKERS: TrackerTemplate[] = [
@@ -217,7 +155,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Archived prior verification baselines, legacy qualification criteria, and traceability history.'
   },
   {
-    index: 25,
+    index: 12,
     name: 'HW Requirements Specification',
     key: 'HWR',
     category: 'Requirements & Verification',
@@ -227,7 +165,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Electronic hardware requirements, PCB power rails, micro-controller compute constraints, and pinouts.'
   },
   {
-    index: 35,
+    index: 13,
     name: 'High Level SW Requirements',
     key: 'HSWR',
     category: 'Requirements & Verification',
@@ -237,7 +175,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Top-level software architecture capabilities, ROS2 orchestrator goals, and mission state machines.'
   },
   {
-    index: 36,
+    index: 14,
     name: 'SW Requirements Specification',
     key: 'SWR',
     category: 'Requirements & Verification',
@@ -247,7 +185,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Detailed software requirement specifications, dynamic obstacle avoidance logic, and DWB local planner specs.'
   },
   {
-    index: 37,
+    index: 15,
     name: 'Software Customer Topic List',
     key: 'SWCTL',
     category: 'Requirements & Verification',
@@ -261,7 +199,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
   // Group 2: Architecture & Hardware (14)
   // ==========================================
   {
-    index: 15,
+    index: 16,
     name: 'Systems Engineering Strategy',
     key: 'SYS_STRATEGY',
     category: 'Architecture & Hardware',
@@ -271,7 +209,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'V-model systems engineering strategy, milestone review gates, and decomposition architecture.'
   },
   {
-    index: 16,
+    index: 17,
     name: 'COM Matrix',
     key: 'COM',
     category: 'Architecture & Hardware',
@@ -281,7 +219,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'CAN bus 2.0B, Ethernet, and ROS2 DDS topic/service message dictionary and communication frame layout.'
   },
   {
-    index: 17,
+    index: 18,
     name: 'Diagnostic Services',
     key: 'DS',
     category: 'Architecture & Hardware',
@@ -291,7 +229,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Unified Diagnostic Services (UDS / ISO 14229) definitions, session management, and routine control.'
   },
   {
-    index: 18,
+    index: 19,
     name: 'Fault Code List',
     key: 'FC',
     category: 'Architecture & Hardware',
@@ -301,7 +239,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Diagnostic Trouble Codes (DTC), fault detection debounce rules, warning chime triggers, and safe states.'
   },
   {
-    index: 19,
+    index: 20,
     name: 'System Architectural Design',
     key: 'SAD',
     category: 'Architecture & Hardware',
@@ -311,7 +249,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Physical, mechanical, and electrical decomposition into Mobility, Payload, Sensors, and Compute subsystems.'
   },
   {
-    index: 20,
+    index: 21,
     name: 'TCI',
     key: 'TCI',
     category: 'Architecture & Hardware',
@@ -321,7 +259,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Technical Customer Interface (TCI) specifications, telemetry push APIs, and remote dispatch endpoints.'
   },
   {
-    index: 21,
+    index: 22,
     name: 'Hardware-Software-Interface',
     key: 'HSI',
     category: 'Architecture & Hardware',
@@ -331,7 +269,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Hardware-Software Interface (HSI) register maps, GPIO assignments, ADC channels, and HAL drivers.'
   },
   {
-    index: 22,
+    index: 23,
     name: 'SYS Design',
     key: 'SYSD',
     category: 'Architecture & Hardware',
@@ -341,7 +279,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'High-level cyber-physical systems design specifications and multi-domain engineering blueprints.'
   },
   {
-    index: 23,
+    index: 24,
     name: 'Electrical (EM) Design',
     key: 'EMD',
     category: 'Architecture & Hardware',
@@ -351,7 +289,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Electrical wiring harnesses, power distribution boards, battery management BMS schematics, and fusing.'
   },
   {
-    index: 24,
+    index: 25,
     name: 'Mechanical Design',
     key: 'MED',
     category: 'Architecture & Hardware',
@@ -381,7 +319,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Altium PCB layouts, component BOM, trace clearance calculations, and high-speed differential pairs.'
   },
   {
-    index: 38,
+    index: 28,
     name: 'SW Architectural Design',
     key: 'SWAD',
     category: 'Architecture & Hardware',
@@ -391,7 +329,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Layered ROS2 software architecture, node graph, DDS domain ID allocation, and real-time thread priorities.'
   },
   {
-    index: 39,
+    index: 29,
     name: 'SW Detailed Design',
     key: 'SWDD',
     category: 'Architecture & Hardware',
@@ -405,7 +343,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
   // Group 3: Testing, Sets & Runs (44)
   // ==========================================
   {
-    index: 28,
+    index: 30,
     name: 'EMC Test Plan DV',
     key: 'EMCTP_DV',
     category: 'Testing, Sets & Runs',
@@ -415,7 +353,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Design Verification (DV) test procedure for conducted and radiated electromagnetic emissions.'
   },
   {
-    index: 29,
+    index: 31,
     name: 'EMC Test Report DV',
     key: 'EMCTR_DV',
     category: 'Testing, Sets & Runs',
@@ -425,7 +363,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Anechoic chamber empirical test results and formal compliance certificates for DV phase.'
   },
   {
-    index: 30,
+    index: 32,
     name: 'EMC Test Plan PV',
     key: 'EMCTP_PV',
     category: 'Testing, Sets & Runs',
@@ -435,7 +373,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Production Validation (PV) electromagnetic immunity and electrostatic discharge (ESD) test protocol.'
   },
   {
-    index: 31,
+    index: 33,
     name: 'EMV Test Report PV',
     key: 'EMVTR_PV',
     category: 'Testing, Sets & Runs',
@@ -445,7 +383,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Final production-intent electromagnetic compatibility validation results and CE/FCC compliance dossier.'
   },
   {
-    index: 32,
+    index: 34,
     name: 'HW Design Verification',
     key: 'HWDV',
     category: 'Testing, Sets & Runs',
@@ -455,7 +393,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Hardware bench testing suite: oscilloscope signal integrity, voltage rail ripple, and thermals.'
   },
   {
-    index: 33,
+    index: 35,
     name: 'HW Test Plan',
     key: 'HWTP',
     category: 'Testing, Sets & Runs',
@@ -465,7 +403,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Board bring-up test plan, boundary scan JTAG testing, and flying-probe ICT test coverage.'
   },
   {
-    index: 34,
+    index: 36,
     name: 'HW Test Report',
     key: 'HWTR',
     category: 'Testing, Sets & Runs',
@@ -475,7 +413,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Empirical hardware verification records, sign-off metrics, and component derating analysis.'
   },
   {
-    index: 40,
+    index: 37,
     name: 'Hardware Software Integration Testplan',
     key: 'HSITP',
     category: 'Testing, Sets & Runs',
@@ -485,7 +423,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Integration test protocol verifying low-level firmware drivers against microcontroller hardware.'
   },
   {
-    index: 41,
+    index: 38,
     name: 'Design Verification Plan (B-Samples)',
     key: 'DV_PLAN',
     category: 'Testing, Sets & Runs',
@@ -495,7 +433,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'B-sample prototype qualification suite: shock, vibration, thermal cycling, and ingress ingress testing.'
   },
   {
-    index: 42,
+    index: 39,
     name: 'Product Validation Plan (C-Samples)',
     key: 'PV_PLAN',
     category: 'Testing, Sets & Runs',
@@ -505,7 +443,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'C-sample production-line validation: continuous 500-hour endurance trials and restaurant deployment runs.'
   },
   {
-    index: 43,
+    index: 40,
     name: 'System Qualification Test Specification',
     key: 'SQTS',
     category: 'Testing, Sets & Runs',
@@ -515,7 +453,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Formal qualification test specifications proving compliance with ISO 13482 safety requirements.'
   },
   {
-    index: 44,
+    index: 41,
     name: 'System Integration and Integration Test Specification',
     key: 'SIITS',
     category: 'Testing, Sets & Runs',
@@ -525,7 +463,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Multi-subsystem integration test procedures verifying Navigation, Vision, and Motor Drive interplay.'
   },
   {
-    index: 45,
+    index: 42,
     name: 'Mechanical Qualification Test Plan',
     key: 'MQTP',
     category: 'Testing, Sets & Runs',
@@ -536,7 +474,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
   },
 
   {
-    index: 47,
+    index: 43,
     name: 'Test Engineering Cases',
     key: 'TEC',
     category: 'Testing, Sets & Runs',
@@ -547,7 +485,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     enable_test_steps: true
   },
   {
-    index: 48,
+    index: 44,
     name: 'Test Cases Software Qualification Test',
     key: 'TCSQT',
     category: 'Testing, Sets & Runs',
@@ -558,7 +496,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     enable_test_steps: true
   },
   {
-    index: 49,
+    index: 45,
     name: 'Test Cases Software Integration Test',
     key: 'TCSIT',
     category: 'Testing, Sets & Runs',
@@ -569,7 +507,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     enable_test_steps: true
   },
   {
-    index: 50,
+    index: 46,
     name: 'Test Cases Software Unit Test',
     key: 'TCSUT',
     category: 'Testing, Sets & Runs',
@@ -580,7 +518,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     enable_test_steps: true
   },
   {
-    index: 51,
+    index: 47,
     name: 'Test Cases Hardware Qualification Test',
     key: 'TCHQT',
     category: 'Testing, Sets & Runs',
@@ -591,7 +529,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     enable_test_steps: true
   },
   {
-    index: 52,
+    index: 48,
     name: 'Test Cases Integration Test',
     key: 'TCIT',
     category: 'Testing, Sets & Runs',
@@ -602,7 +540,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     enable_test_steps: true
   },
   {
-    index: 53,
+    index: 49,
     name: 'Reliability Test',
     key: 'REL_TST',
     category: 'Testing, Sets & Runs',
@@ -613,7 +551,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     enable_test_steps: true
   },
   {
-    index: 54,
+    index: 50,
     name: 'Test Cases',
     key: 'TC_GEN',
     category: 'Testing, Sets & Runs',
@@ -624,7 +562,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     enable_test_steps: true
   },
   {
-    index: 55,
+    index: 51,
     name: 'Test Engineering Configuration',
     key: 'TE_CFG',
     category: 'Testing, Sets & Runs',
@@ -634,7 +572,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'HIL simulator configurations, CAN bus baud rate matrices, sensor calibration targets, and test harness setup.'
   },
   {
-    index: 56,
+    index: 52,
     name: 'Test Configurations Software Qualification Test',
     key: 'TCSQT_CFG',
     category: 'Testing, Sets & Runs',
@@ -644,7 +582,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Software build profiles, compiler flags (-O3, ASAN), ROS2 distro environment variables, and simulation maps.'
   },
   {
-    index: 57,
+    index: 53,
     name: 'Test Configurations Software Integration Test',
     key: 'TCSIT_CFG',
     category: 'Testing, Sets & Runs',
@@ -654,7 +592,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Multi-node network namespace configs, CycloneDDS XML profiles, and mock sensor data replay bag files.'
   },
   {
-    index: 58,
+    index: 54,
     name: 'Test Configurations Software Unit Test',
     key: 'TCSUT_CFG',
     category: 'Testing, Sets & Runs',
@@ -664,7 +602,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Isolated unit testing mock injection stubs, memory leak sanitizers, and code coverage tool configurations.'
   },
   {
-    index: 59,
+    index: 55,
     name: 'System Qualification Test Configurations',
     key: 'SQTC',
     category: 'Testing, Sets & Runs',
@@ -674,7 +612,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Full vehicle system configurations: battery charge state, payload ballast weights, and floor traction profiles.'
   },
   {
-    index: 60,
+    index: 56,
     name: 'Test Configurations Hardware Qualification Test',
     key: 'TCHQT_CFG',
     category: 'Testing, Sets & Runs',
@@ -684,7 +622,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Bench power supply current limits, climate chamber humidity/temp profiles, and vibration shaker table spectrums.'
   },
   {
-    index: 61,
+    index: 57,
     name: 'Test Configurations Integration Test',
     key: 'TCIT_CFG',
     category: 'Testing, Sets & Runs',
@@ -694,7 +632,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Combined electro-mechanical test rig parameter settings and digital twin synchronization environments.'
   },
   {
-    index: 62,
+    index: 58,
     name: 'Test Engineering Sets',
     key: 'TE_SET',
     category: 'Testing, Sets & Runs',
@@ -704,7 +642,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Grouped test suites executing automated bench test sets for continuous nightly regression testing.'
   },
   {
-    index: 63,
+    index: 59,
     name: 'Test Sets Software Qualification Test',
     key: 'TSSQT',
     category: 'Testing, Sets & Runs',
@@ -714,7 +652,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Official software release gate test suites required prior to signing off customer release candidates.'
   },
   {
-    index: 64,
+    index: 60,
     name: 'Test Sets Software Integration Test',
     key: 'TSSIT',
     category: 'Testing, Sets & Runs',
@@ -724,7 +662,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Inter-process communications test sets verifying data fidelity between LiDAR, IMU, and Wheel Odometry.'
   },
   {
-    index: 65,
+    index: 61,
     name: 'Test Sets Software Unit Test',
     key: 'TSSUT',
     category: 'Testing, Sets & Runs',
@@ -734,7 +672,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Curated suites of unit tests running on every pull request to enforce 90%+ code coverage.'
   },
   {
-    index: 66,
+    index: 62,
     name: 'System Qualification Test Sets',
     key: 'SQTS_SET',
     category: 'Testing, Sets & Runs',
@@ -744,7 +682,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'End-to-end qualification test sets executed on fully assembled delivery robots in operational environments.'
   },
   {
-    index: 67,
+    index: 63,
     name: 'System Integration Test Sets',
     key: 'SITS',
     category: 'Testing, Sets & Runs',
@@ -754,7 +692,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Complete system integration suites combining mechanical, electrical, and software actuation under load.'
   },
   {
-    index: 68,
+    index: 64,
     name: 'Test Sets Hardware Qualification Test',
     key: 'TSHQT',
     category: 'Testing, Sets & Runs',
@@ -764,7 +702,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Physical PCB and motor inverter stress test suites run at extremes of supply voltage and temperature.'
   },
   {
-    index: 69,
+    index: 65,
     name: 'Test Sets Integration Test',
     key: 'TSIT',
     category: 'Testing, Sets & Runs',
@@ -774,7 +712,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Full-loop hardware-in-the-loop (HIL) test suites connecting real controller hardware to simulated dynamics.'
   },
   {
-    index: 70,
+    index: 66,
     name: 'System Qualification Test Runs',
     key: 'SQTR',
     category: 'Testing, Sets & Runs',
@@ -784,7 +722,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Historical execution runs, recorded passes/failures, environmental logs, and formal audit results.'
   },
   {
-    index: 71,
+    index: 67,
     name: 'Test Runs',
     key: 'TR_GEN',
     category: 'Testing, Sets & Runs',
@@ -794,7 +732,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Execution instances of test cases and test sets across builds, serial numbers, and field firmware.'
   },
   {
-    index: 72,
+    index: 68,
     name: 'HW Tests',
     key: 'HWT',
     category: 'Testing, Sets & Runs',
@@ -804,7 +742,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'General hardware functional test procedures, voltage checks, and sensor sanity checks.'
   },
   {
-    index: 73,
+    index: 69,
     name: 'HW Test Tasks',
     key: 'HWTT',
     category: 'Testing, Sets & Runs',
@@ -814,7 +752,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Work assignments for hardware lab engineers: soldering rework, instrument calibration, and test set prep.'
   },
   {
-    index: 74,
+    index: 70,
     name: 'SW Test Tasks',
     key: 'SWTT',
     category: 'Testing, Sets & Runs',
@@ -824,7 +762,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Software QA engineering assignments: test case authoring, automation scripting, and flake investigations.'
   },
   {
-    index: 75,
+    index: 71,
     name: 'SW Test Reviews',
     key: 'SWTRV',
     category: 'Testing, Sets & Runs',
@@ -834,7 +772,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Peer reviews of software test procedures, traceability audit sign-offs, and coverage verification.'
   },
   {
-    index: 76,
+    index: 72,
     name: 'System Test Task',
     key: 'STT',
     category: 'Testing, Sets & Runs',
@@ -848,7 +786,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
   // Group 4: Safety & Risks (3)
   // ==========================================
   {
-    index: 12,
+    index: 73,
     name: 'Risks SWRS',
     key: 'RSWRS',
     category: 'Safety & Risks',
@@ -858,7 +796,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Software safety risks, ASIL hazard ratings, kinetic collision hazards, and fail-safe mitigations.'
   },
   {
-    index: 13,
+    index: 74,
     name: 'Quality Assurance',
     key: 'QA',
     category: 'Safety & Risks',
@@ -868,7 +806,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Quality assurance gate checklists, ISO 9001 process audits, and peer inspection approvals.'
   },
   {
-    index: 14,
+    index: 75,
     name: 'Safetyplan',
     key: 'SafeP',
     category: 'Safety & Risks',
@@ -882,7 +820,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
   // Group 5: Defects & Problems (5)
   // ==========================================
   {
-    index: 77,
+    index: 76,
     name: 'HW Failures',
     key: 'HWF',
     category: 'Defects & Problems',
@@ -892,7 +830,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Physical component burnout, cracked solder joints, delamination, and electrical failure root causes.'
   },
   {
-    index: 78,
+    index: 77,
     name: 'HW Testing Failures',
     key: 'HWTF',
     category: 'Defects & Problems',
@@ -902,7 +840,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Defects discovered during bench and chamber testing: thermal runaway, voltage dropouts, and noise.'
   },
   {
-    index: 79,
+    index: 78,
     name: 'SW Bugs',
     key: 'SWB',
     category: 'Defects & Problems',
@@ -912,7 +850,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Software defects: segmentation faults, memory leaks, navigation costmap corruption, and race conditions.'
   },
   {
-    index: 80,
+    index: 79,
     name: 'Problem Report',
     key: 'PR',
     category: 'Defects & Problems',
@@ -922,7 +860,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Unified customer and engineering issue reporting tracker for cross-disciplinary triage.'
   },
   {
-    index: 81,
+    index: 80,
     name: 'Problem Report Octane',
     key: 'PRO',
     category: 'Defects & Problems',
@@ -936,7 +874,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
   // Group 6: Tasks & Epics (9)
   // ==========================================
   {
-    index: 82,
+    index: 81,
     name: 'SYS Tasks',
     key: 'SYST',
     category: 'Tasks & Epics',
@@ -946,7 +884,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Systems engineering work items: allocation analysis, interface harmonization, and ICD generation.'
   },
   {
-    index: 83,
+    index: 82,
     name: 'HW Tasks',
     key: 'HWTK',
     category: 'Tasks & Epics',
@@ -956,7 +894,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Electronic and mechanical development tasks: schematic capture, PCB layout, and cable harness drafting.'
   },
   {
-    index: 84,
+    index: 83,
     name: 'SW Tasks',
     key: 'SWTK',
     category: 'Tasks & Epics',
@@ -966,7 +904,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Software sprint tasks: path planner optimization, sensor driver development, and web GUI implementation.'
   },
   {
-    index: 85,
+    index: 84,
     name: 'SW Epic',
     key: 'SWEPIC',
     category: 'Tasks & Epics',
@@ -976,7 +914,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'High-level multi-sprint software development initiatives, major subsystem overhauls, and capabilities.'
   },
   {
-    index: 86,
+    index: 85,
     name: 'QAD Tasks (Old Version)',
     key: 'QAD_OLD',
     category: 'Tasks & Epics',
@@ -987,7 +925,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
   },
 
   {
-    index: 88,
+    index: 86,
     name: 'QAD Epic',
     key: 'QAD_EPIC',
     category: 'Tasks & Epics',
@@ -998,7 +936,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
   },
 
   {
-    index: 90,
+    index: 87,
     name: 'Tasks',
     key: 'TSK',
     category: 'Tasks & Epics',
@@ -1012,7 +950,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
   // Group 7: Changes & Releases (10)
   // ==========================================
   {
-    index: 91,
+    index: 88,
     name: 'SW Change Requests',
     key: 'SWCR',
     category: 'Changes & Releases',
@@ -1022,7 +960,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Formal software change proposals, impact evaluations, regression risk ratings, and CCB approvals.'
   },
   {
-    index: 92,
+    index: 89,
     name: 'Change Requests',
     key: 'CR',
     category: 'Changes & Releases',
@@ -1032,7 +970,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Engineering Change Requests (ECR) spanning hardware, software, tooling, and manufacturing processes.'
   },
   {
-    index: 93,
+    index: 90,
     name: 'SW Configuration Integration Tickets',
     key: 'SWCIT',
     category: 'Changes & Releases',
@@ -1042,7 +980,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Software branch merge tickets, dependency updates, third-party library licenses, and release tagging.'
   },
   {
-    index: 94,
+    index: 91,
     name: 'Components',
     key: 'CMP',
     category: 'Changes & Releases',
@@ -1052,7 +990,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Hardware components, off-the-shelf LiDAR sensors, motor controllers, and battery packs.'
   },
   {
-    index: 95,
+    index: 92,
     name: 'CM Report',
     key: 'CMR',
     category: 'Changes & Releases',
@@ -1062,7 +1000,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Configuration Management audit reports, BOM change history, and hardware revision serial tracking.'
   },
   {
-    index: 96,
+    index: 93,
     name: 'Platforms',
     key: 'PLT',
     category: 'Changes & Releases',
@@ -1072,7 +1010,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Robot hardware base revisions, chassis revisions, compute modules (Jetson Orin vs Xavier), and wheel bases.'
   },
   {
-    index: 97,
+    index: 94,
     name: 'HW Releases',
     key: 'HWR_REL',
     category: 'Changes & Releases',
@@ -1082,7 +1020,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Hardware engineering release packages (Gerber files, assembly drawings, mechanical STEP files).'
   },
   {
-    index: 98,
+    index: 95,
     name: 'Project Releases',
     key: 'PROJ_REL',
     category: 'Changes & Releases',
@@ -1092,7 +1030,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Master product delivery milestones, customer pilot releases, and commercial market rollouts.'
   },
   {
-    index: 99,
+    index: 96,
     name: 'SW Releases',
     key: 'SWR_REL',
     category: 'Changes & Releases',
@@ -1102,7 +1040,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Software firmware binaries, OTA docker containers, signed security keys, and release notes.'
   },
   {
-    index: 100,
+    index: 97,
     name: 'System Releases',
     key: 'SYS_REL',
     category: 'Changes & Releases',
@@ -1116,7 +1054,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
   // Group 8: Documents & Governance (4)
   // ==========================================
   {
-    index: 101,
+    index: 98,
     name: 'Documents',
     key: 'DOC',
     category: 'Documents & Governance',
@@ -1126,7 +1064,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'General project engineering documentation, specifications, contractual agreements, and whitepapers.'
   },
   {
-    index: 102,
+    index: 99,
     name: 'Minutes of Meeting',
     key: 'MoM',
     category: 'Documents & Governance',
@@ -1136,7 +1074,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Official minutes of meetings: architecture syncs, customer design reviews, and change control boards.'
   },
   {
-    index: 103,
+    index: 100,
     name: 'Contacts',
     key: 'CNT',
     category: 'Documents & Governance',
@@ -1146,7 +1084,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     desc: 'Project stakeholder directory, engineering leads, component suppliers, and customer representatives.'
   },
   {
-    index: 104,
+    index: 101,
     name: 'Team',
     key: 'TEAM',
     category: 'Documents & Governance',
@@ -1157,8 +1095,62 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
   }
 ];
 
+// Lookup maps for exact canonical matching
+export const CANONICAL_KEY_MAP = new Map<string, CanonicalCategory>();
+export const CANONICAL_NAME_MAP = new Map<string, CanonicalCategory>();
+
+// Core tracker keys mapped to standard canonical categories
+CANONICAL_KEY_MAP.set('SYS-REQ', 'Requirements & Verification');
+CANONICAL_KEY_MAP.set('SYSREQ', 'Requirements & Verification');
+CANONICAL_KEY_MAP.set('SW-REQ', 'Requirements & Verification');
+CANONICAL_KEY_MAP.set('SWREQ', 'Requirements & Verification');
+CANONICAL_KEY_MAP.set('ARCH', 'Architecture & Hardware');
+CANONICAL_KEY_MAP.set('SAD', 'Architecture & Hardware');
+CANONICAL_KEY_MAP.set('RISK', 'Safety & Risks');
+CANONICAL_KEY_MAP.set('SYS-TST', 'Testing, Sets & Runs');
+CANONICAL_KEY_MAP.set('SYSTST', 'Testing, Sets & Runs');
+CANONICAL_KEY_MAP.set('TST-SET', 'Testing, Sets & Runs');
+CANONICAL_KEY_MAP.set('TSTSET', 'Testing, Sets & Runs');
+
+for (const ct of CANONICAL_TRACKERS) {
+  CANONICAL_KEY_MAP.set(ct.key.toUpperCase(), ct.category);
+  CANONICAL_NAME_MAP.set(cleanTrackerName(ct.name).toLowerCase(), ct.category);
+}
+
 /**
- * Creates a complete, independent set of all 104 trackers for a specific project.
+ * Resolves a tracker to one of the 9 categories.
+ * Guaranteed: All custom-created trackers are routed to 'Custom Trackers' (Group 9),
+ * never to a random group.
+ */
+export function getTrackerCategory(t: { category?: string; type?: string; name?: string; key?: string }): CanonicalCategory {
+  // 1. If category is explicitly 'Custom Trackers', preserve it
+  if (t.category === 'Custom Trackers') {
+    return 'Custom Trackers';
+  }
+
+  // 2. If already tagged with one of the standard canonical categories (Groups 1-8)
+  if (t.category && (CANONICAL_CATEGORIES as readonly string[]).includes(t.category) && t.category !== 'Custom Trackers') {
+    return t.category as CanonicalCategory;
+  }
+
+  const cleanName = cleanTrackerName(t.name || '').toLowerCase();
+  const rawKey = (t.key || '').trim().toUpperCase();
+
+  // 3. Exact match against canonical registry
+  const matchByKey = CANONICAL_KEY_MAP.get(rawKey);
+  if (matchByKey) return matchByKey;
+
+  const matchByName = CANONICAL_NAME_MAP.get(cleanName);
+  if (matchByName) return matchByName;
+
+  // 4. Any newly created, user-defined, or non-canonical tracker strictly routes to Group 9
+  return 'Custom Trackers';
+}
+
+
+
+/**
+ * Creates a complete, independent set of all 101 canonical trackers for a specific project.
  * Guaranteed unique tracker IDs per project: `projectId * 1000 + template.index`
  */
 export function createProjectTrackers(projectId: number, projectKey: string): Tracker[] {

@@ -107,19 +107,20 @@ class MemoryStore {
       }
     ];
 
-    // 3. Trackers (104 independent trackers per project)
+    // 3. Trackers (101 independent canonical trackers per project)
     const p1Trackers = [
-      { id: 1, project_id: 1, key: 'SYS-REQ', name: '031_System Requirement Specification', type: 'REQUIREMENT', prefix: 'ROBO-SYS-REQ-' },
-      { id: 2, project_id: 1, key: 'SW-REQ', name: '071_SW Requirements Specification', type: 'REQUIREMENT', prefix: 'ROBO-SW-REQ-' },
-      { id: 3, project_id: 1, key: 'ARCH', name: '032_System Architectural Design', type: 'ARCHITECTURE', prefix: 'ROBO-ARCH-' },
-      { id: 4, project_id: 1, key: 'RISK', name: 'Risks_SWRS', type: 'RISK', prefix: 'ROBO-RISK-' },
-      { id: 5, project_id: 1, key: 'SYS-TST', name: 'Test Cases', type: 'TEST_CASE', prefix: 'ROBO-SYS-TST-' },
-      { id: 6, project_id: 1, key: 'TST-SET', name: '128_System Qualification Test Sets', type: 'TEST_SET', prefix: 'ROBO-TST-SET-' },
+      { id: 1, project_id: 1, key: 'SYS-REQ', name: 'System Requirement Specification', category: 'Requirements & Verification', type: 'REQUIREMENT', prefix: 'ROBO-SYS-REQ-' },
+      { id: 2, project_id: 1, key: 'SW-REQ', name: 'SW Requirements Specification', category: 'Requirements & Verification', type: 'REQUIREMENT', prefix: 'ROBO-SW-REQ-' },
+      { id: 3, project_id: 1, key: 'ARCH', name: 'System Architectural Design', category: 'Architecture & Hardware', type: 'ARCHITECTURE', prefix: 'ROBO-ARCH-' },
+      { id: 4, project_id: 1, key: 'RISK', name: 'Risks SWRS', category: 'Safety & Risks', type: 'RISK', prefix: 'ROBO-RISK-' },
+      { id: 5, project_id: 1, key: 'SYS-TST', name: 'Test Cases', category: 'Testing, Sets & Runs', type: 'TEST_CASE', prefix: 'ROBO-SYS-TST-' },
+      { id: 6, project_id: 1, key: 'TST-SET', name: 'System Qualification Test Sets', category: 'Testing, Sets & Runs', type: 'TEST_SET', prefix: 'ROBO-TST-SET-' },
       ...CANONICAL_TRACKERS.slice(6).map((ct, idx) => ({
         id: 7 + idx,
         project_id: 1,
         key: ct.key,
         name: ct.name,
+        category: ct.category,
         type: ct.type,
         prefix: `ROBO-${ct.prefix}`
       }))
@@ -130,6 +131,7 @@ class MemoryStore {
       project_id: t.project_id,
       key: t.key,
       name: t.name,
+      category: t.category,
       type: t.type,
       prefix: t.prefix
     }));

@@ -43,7 +43,7 @@ function buildProject1Trackers(): Tracker[] {
     { id: 6, project_id: 1, key: 'TST-SET', name: 'System Qualification Test Sets', category: 'Testing, Sets & Runs', type: 'TEST_SET', prefix: 'ROBO-TST-SET-', object_count: 1, enable_test_steps: false, enable_folders: true, description: 'System-level test suites mapped directly to ISO 13482 safety requirements and customer PRDs.' }
   ];
 
-  // Map remaining 98 canonical trackers for project 1
+  // Map remaining 95 canonical trackers for project 1
   const remaining = CANONICAL_TRACKERS.slice(6).map((ct, idx) => ({
     id: 7 + idx,
     project_id: 1,
@@ -786,6 +786,7 @@ export const App: React.FC = () => {
     enable_test_steps: boolean;
     enable_folders: boolean;
     description?: string;
+    category?: string;
   }) => {
     const newTrackerId = Date.now();
     let prefix = data.key.toUpperCase().trim();
@@ -797,6 +798,7 @@ export const App: React.FC = () => {
       project_id: activeProjectId,
       key: cleanKey,
       name: data.name.trim(),
+      category: data.category || 'Custom Trackers',
       type: data.type || 'REQUIREMENT',
       prefix,
       object_count: 0,

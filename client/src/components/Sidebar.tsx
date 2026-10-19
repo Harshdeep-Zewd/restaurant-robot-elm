@@ -18,7 +18,8 @@ import {
   CheckSquare,
   AlertTriangle,
   X,
-  Filter
+  Filter,
+  Sparkles
 } from 'lucide-react';
 import { Tracker, User } from '../types/elm';
 import { authService } from '../api/auth';
@@ -52,6 +53,7 @@ interface SidebarProps {
     enable_test_steps: boolean;
     enable_folders: boolean;
     description?: string;
+    category?: string;
   }) => void;
   onDeleteTracker?: (id: number) => void;
 }
@@ -98,8 +100,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [trackerSearch, setTrackerSearch] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('ALL');
 
-  const getTrackerIcon = (type: string) => {
-    switch (type) {
+  const getTrackerIcon = (t: Tracker) => {
+    if (getTrackerCategory(t) === 'Custom Trackers') {
+      return <Sparkles size={15} color="#f97316" />;
+    }
+    switch (t.type) {
       case 'REQUIREMENT': return <FileText size={15} color="var(--accent-cyan)" />;
       case 'ARCHITECTURE': return <Boxes size={15} color="var(--accent-amber)" />;
       case 'RISK': return <ShieldAlert size={15} color="var(--accent-rose)" />;
@@ -109,7 +114,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       case 'DEFECT': return <AlertTriangle size={15} color="#f43f5e" />;
       case 'RELEASE': return <GitBranch size={15} color="#a855f7" />;
       case 'DOCUMENT': return <FileText size={15} color="#94a3b8" />;
-      default: return <FileText size={15} color="var(--accent-cyan)" />;
+      default: return <Sparkles size={15} color="#f97316" />;
     }
   };
 
@@ -121,6 +126,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       name: trackerName.trim(),
       key: trackerKey.trim(),
       type: trackerType,
+      category: 'Custom Trackers',
       enable_test_steps: enableTestSteps,
       enable_folders: enableFolders,
       description: trackerDesc.trim()
@@ -349,9 +355,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
           }}
         >
           <option value="ALL">All Categories ({trackers.length})</option>
-          {CANONICAL_CATEGORIES.map(cat => (
-            <option key={cat} value={cat}>{cat}</option>
-          ))}
+          {CANONICAL_CATEGORIES.map((cat, idx) => {
+            const count = trackers.filter(t => getTrackerCategory(t) === cat).length;
+            return (
+              <option key={cat} value={cat}>Group {idx + 1}: {cat} ({count})</option>
+            );
+          })}
         </select>
       </div>
 
@@ -416,7 +425,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   overflow: 'hidden'
                 }}
               >
-                {getTrackerIcon(t.type)}
+                {getTrackerIcon(t)}
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cleanName}</span>
               </button>
 
@@ -608,10 +617,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
             maxHeight: '90vh',
             overflowY: 'auto'
           }}>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '16px', color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '14px', color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Plus size={20} />
               <span>Create New Engineering Tracker</span>
             </h3>
+
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              backgroundColor: 'rgba(249, 115, 22, 0.1)',
+              border: '1px solid rgba(249, 115, 22, 0.3)',
+              borderRadius: '6px',
+              padding: '8px 12px',
+              marginBottom: '16px',
+              color: '#f97316',
+              fontSize: '0.78rem',
+              fontWeight: 600
+            }}>
+              <Sparkles size={16} />
+              <span>Target Category: <strong>Group 9 &mdash; Custom Trackers</strong> (All newly created custom trackers are stored here)</span>
+            </div>
 
             <form onSubmit={handleCreateSubmit}>
               <div style={{ marginBottom: '14px' }}>
