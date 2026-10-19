@@ -546,16 +546,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     source: 'Image 2',
     desc: 'Chassis payload stress test, drop impact test, wheel wear characterization, and IPX4 water spray test.'
   },
-  {
-    index: 46,
-    name: 'System Test Strategy RR4x',
-    key: 'STS_RR4X',
-    category: 'Testing, Sets & Runs',
-    type: 'DOCUMENT',
-    prefix: 'STS-',
-    source: 'Image 2',
-    desc: 'Overarching systems test strategy, verification levels, automated CI/CD simulation in Gazebo/Ignition.'
-  },
+
   {
     index: 47,
     name: 'Test Engineering Cases',
@@ -1006,16 +997,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     source: 'Image 2',
     desc: 'Legacy Quality Assurance Division tasks, archive audit items, and historical punch list tasks.'
   },
-  {
-    index: 87,
-    name: 'QAD Tasks (XNF)',
-    key: 'QAD_XNF',
-    category: 'Tasks & Epics',
-    type: 'TASK',
-    prefix: 'QAD-XNF-',
-    source: 'Image 2',
-    desc: 'Cross-functional Non-Functional QA engineering tasks, reliability audits, and security vulnerability reviews.'
-  },
+
   {
     index: 88,
     name: 'QAD Epic',
@@ -1026,16 +1008,7 @@ export const CANONICAL_TRACKERS: TrackerTemplate[] = [
     source: 'Image 2',
     desc: 'Quality assurance programmatic initiatives, certification audits, and factory acceptance test epics.'
   },
-  {
-    index: 89,
-    name: 'RR Tasks',
-    key: 'RRT',
-    category: 'Tasks & Epics',
-    type: 'TASK',
-    prefix: 'RRT-',
-    source: 'Image 2',
-    desc: 'Restaurant Robot operational tasks, field service technician assignments, and restaurant onboarding.'
-  },
+
   {
     index: 90,
     name: 'Tasks',

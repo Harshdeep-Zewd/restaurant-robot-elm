@@ -519,15 +519,30 @@ export const App: React.FC = () => {
     const rawTrackers = getInitialData<Tracker[]>('trackers', INITIAL_TRACKERS);
     const loadedProjects = getInitialData<Project[]>('projects', INITIAL_PROJECTS);
 
-    // Sanitize any existing stored trackers to remove serial numbers and assign canonical category
-    const sanitized: Tracker[] = rawTrackers.map(t => ({
-      ...t,
-      name: cleanTrackerName(t.name),
-      category: getTrackerCategory(t)
-    }));
+    const isRemoved = (t: { key?: string; name?: string }) => {
+      const k = (t.key || '').toUpperCase();
+      const n = (t.name || '').toLowerCase();
+      return (
+        k === 'STS_RR4X' ||
+        k === 'QAD_XNF' ||
+        k === 'RRT' ||
+        n.includes('system test strategy rr4x') ||
+        n.includes('qad tasks (xnf)') ||
+        n.includes('rr tasks')
+      );
+    };
+
+    // Sanitize any existing stored trackers to remove deleted trackers, strip serial numbers, and assign canonical category
+    const sanitized: Tracker[] = rawTrackers
+      .filter(t => !isRemoved(t))
+      .map(t => ({
+        ...t,
+        name: cleanTrackerName(t.name),
+        category: getTrackerCategory(t)
+      }));
 
     // Ensure every project has all independent trackers
-    const merged = [...sanitized];
+    const merged = [...sanitized].filter(t => !isRemoved(t));
     for (const proj of loadedProjects) {
       const projTrackers = merged.filter(t => t.project_id === proj.id);
       if (projTrackers.length < CANONICAL_TRACKERS.length) {
