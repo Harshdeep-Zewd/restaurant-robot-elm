@@ -440,7 +440,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}
           </div>
         </div>
-        ));
+          );
+        });
       })()}
 
       <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginTop: '16px', marginBottom: '8px', paddingLeft: '8px' }}>
