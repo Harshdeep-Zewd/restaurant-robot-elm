@@ -1,5 +1,5 @@
 {
-  "name": "restaurant-robot-elm",
+  "name": "robot-elm-server",
   "version": "1.0.0",
   "private": true,
   "description": "Systems Engineering & Engineering Lifecycle Management (ELM) platform for Autonomous Restaurant Delivery Robot (RoboServ-X1)",

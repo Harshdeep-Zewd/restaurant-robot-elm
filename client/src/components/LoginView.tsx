@@ -14,7 +14,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
   const [error, setError] = useState('');
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
 
-  const baseUrl = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}` : 'https://restaurant-robot-elm-server.vercel.app';
+  const baseUrl = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}` : 'https://robot-elm-server.vercel.app';
   const demoUrl = `${baseUrl}?account=demo`;
   const zewdUrl = `${baseUrl}?account=zewd`;
 
