@@ -187,6 +187,65 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
     setExpandedReqIds([]);
   };
 
+  /**
+   * Smoothly scrolls to the requirement card in the middle panel,
+   * ensures it is expanded, selected, and visually highlighted.
+   */
+  const scrollToRequirementCard = (obj: EngineeringObject, sourceFolderId?: number | null) => {
+    // 1. Ensure object will be visible in the middle panel
+    if (sourceFolderId === null) {
+      if (selectedFolderId !== null) {
+        setSelectedFolderId(null);
+      }
+    } else if (sourceFolderId !== undefined && sourceFolderId !== null) {
+      if (selectedFolderId !== sourceFolderId) {
+        setSelectedFolderId(sourceFolderId);
+      }
+    } else if (selectedFolderId !== null && obj.folder_id !== selectedFolderId) {
+      setSelectedFolderId(null);
+    }
+
+    // 2. Clear filters that would otherwise hide this object
+    if (statusFilter && obj.status !== statusFilter) {
+      setStatusFilter('');
+    }
+    if (search.trim()) {
+      const s = search.toLowerCase();
+      const matchesSearch = obj.object_key.toLowerCase().includes(s) ||
+        obj.title.toLowerCase().includes(s) ||
+        obj.description.toLowerCase().includes(s);
+      if (!matchesSearch) {
+        setSearch('');
+      }
+    }
+
+    // 3. Mark selected object and ensure it is expanded
+    setSelectedObjectId(obj.id);
+    setExpandedReqIds(prev => prev.includes(obj.id) ? prev : [...prev, obj.id]);
+
+    // 4. Smooth scroll to the requirement card in the middle panel and pulse highlight
+    const executeScroll = (attempt = 0) => {
+      const cardEl = document.getElementById(`req-card-${obj.id}`);
+      if (cardEl) {
+        cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        cardEl.style.transition = 'box-shadow 0.3s ease, border-color 0.3s ease, transform 0.2s ease';
+        cardEl.style.borderColor = 'var(--accent-cyan)';
+        cardEl.style.boxShadow = '0 0 0 3px rgba(56, 189, 248, 0.45), 0 8px 30px rgba(56, 189, 248, 0.35)';
+        cardEl.style.transform = 'translateY(-2px)';
+        setTimeout(() => {
+          if (cardEl) {
+            cardEl.style.boxShadow = '0 0 14px rgba(56, 189, 248, 0.15)';
+            cardEl.style.transform = 'none';
+          }
+        }, 1500);
+      } else if (attempt < 8) {
+        setTimeout(() => executeScroll(attempt + 1), 50);
+      }
+    };
+
+    setTimeout(() => executeScroll(0), 40);
+  };
+
   // Get current draft or fallback to object state
   const getDraft = (obj: EngineeringObject) => {
     return {
@@ -574,37 +633,46 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                   </div>
                 </div>
 
-                {isAllItemsExpanded && selectedFolderId === null && (
+                {isAllItemsExpanded && (
                   <div style={{ padding: '4px 8px 8px 24px', display: 'flex', flexDirection: 'column', gap: '4px', borderTop: '1px solid var(--border-color)' }}>
-                    {filteredObjects.map(obj => {
-                      const isSelected = selectedObjectId === obj.id;
-                      return (
-                        <div
-                          key={obj.id}
-                          onClick={() => {
-                            setSelectedObjectId(obj.id);
-                            if (!expandedReqIds.includes(obj.id)) {
-                              setExpandedReqIds(prev => [...prev, obj.id]);
-                            }
-                          }}
-                          style={{
-                            padding: '6px 8px',
-                            borderRadius: '4px',
-                            backgroundColor: isSelected ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
-                            color: isSelected ? 'var(--accent-cyan)' : 'var(--text-main)',
-                            fontSize: '0.78rem',
-                            fontWeight: isSelected ? 700 : 500,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px'
-                          }}
-                        >
-                          <span className="mono" style={{ fontSize: '0.72rem', opacity: 0.8 }}>[{obj.object_key}]</span>
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{obj.title}</span>
-                        </div>
-                      );
-                    })}
+                    {objects
+                      .filter(obj => {
+                        if (statusFilter && obj.status !== statusFilter) return false;
+                        if (search.trim()) {
+                          const s = search.toLowerCase();
+                          return obj.object_key.toLowerCase().includes(s) ||
+                                 obj.title.toLowerCase().includes(s) ||
+                                 obj.description.toLowerCase().includes(s);
+                        }
+                        return true;
+                      })
+                      .map(obj => {
+                        const isSelected = selectedObjectId === obj.id;
+                        return (
+                          <div
+                            key={obj.id}
+                            onClick={() => scrollToRequirementCard(obj, null)}
+                            style={{
+                              padding: '6px 8px',
+                              borderRadius: '4px',
+                              backgroundColor: isSelected ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
+                              borderLeft: isSelected ? '3px solid var(--accent-cyan)' : '3px solid transparent',
+                              color: isSelected ? 'var(--accent-cyan)' : 'var(--text-main)',
+                              fontSize: '0.78rem',
+                              fontWeight: isSelected ? 700 : 500,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              transition: 'all 0.15s ease'
+                            }}
+                            title={`Click to view [${obj.object_key}] in middle panel`}
+                          >
+                            <span className="mono" style={{ fontSize: '0.72rem', opacity: 0.85 }}>[{obj.object_key}]</span>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{obj.title}</span>
+                          </div>
+                        );
+                      })}
                   </div>
                 )}
               </div>
@@ -681,26 +749,24 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
                             return (
                               <div
                                 key={obj.id}
-                                onClick={() => {
-                                  setSelectedObjectId(obj.id);
-                                  if (!expandedReqIds.includes(obj.id)) {
-                                    setExpandedReqIds(prev => [...prev, obj.id]);
-                                  }
-                                }}
+                                onClick={() => scrollToRequirementCard(obj, folder.id)}
                                 style={{
                                   padding: '6px 8px',
                                   borderRadius: '4px',
                                   backgroundColor: isSelected ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
+                                  borderLeft: isSelected ? '3px solid var(--accent-cyan)' : '3px solid transparent',
                                   color: isSelected ? 'var(--accent-cyan)' : 'var(--text-main)',
                                   fontSize: '0.78rem',
                                   fontWeight: isSelected ? 700 : 500,
                                   cursor: 'pointer',
                                   display: 'flex',
                                   alignItems: 'center',
-                                  gap: '6px'
+                                  gap: '6px',
+                                  transition: 'all 0.15s ease'
                                 }}
+                                title={`Click to view [${obj.object_key}] in middle panel`}
                               >
-                                <span className="mono" style={{ fontSize: '0.72rem', opacity: 0.8 }}>[{obj.object_key}]</span>
+                                <span className="mono" style={{ fontSize: '0.72rem', opacity: 0.85 }}>[{obj.object_key}]</span>
                                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{obj.title}</span>
                               </div>
                             );
@@ -719,13 +785,16 @@ export const TrackerTableView: React.FC<TrackerTableViewProps> = ({
         {/* ──────────────────────────────────────────────────────────────────
             MIDDLE PANEL: Sequential Requirements with Dropdowns (Point 3)
             ────────────────────────────────────────────────────────────────── */}
-        <div style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: '24px 28px',
-          backgroundColor: 'var(--bg-dark)',
-          display: 'flex',
-          flexDirection: 'column'
+        <div
+          id="middle-requirements-panel"
+          style={{
+            flex: 1,
+            overflowY: 'auto',
+            scrollBehavior: 'smooth',
+            padding: '24px 28px',
+            backgroundColor: 'var(--bg-dark)',
+            display: 'flex',
+            flexDirection: 'column'
         }}>
           {/* Top Control Bar for Requirements Sequence */}
           <div style={{
