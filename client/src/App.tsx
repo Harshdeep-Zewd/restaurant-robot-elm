@@ -676,7 +676,7 @@ export const App: React.FC = () => {
     return getInitialData('test_run_details', INITIAL_TEST_RUN_DETAILS);
   });
   
-  const [activeView, setActiveView] = useState<ViewMode>('DASHBOARD');
+  const [activeView, setActiveView] = useState<ViewMode>('TRACKER');
   const [searchQuery, setSearchQuery] = useState('');
   const [impactObjectId, setImpactObjectId] = useState<number | null>(null);
 
@@ -730,6 +730,7 @@ export const App: React.FC = () => {
       setArtifacts(buildDemoArtifacts());
       setRelationships(buildDemoRelationships(demoObjects));
       setSelectedTrackerId(demoTrackers[0]?.id || null);
+      setActiveView('TRACKER');
       setCurrentScreen('WORKSPACE');
       try {
         const url = new URL(window.location.href);
@@ -749,7 +750,8 @@ export const App: React.FC = () => {
       setTestSteps(getInitialData('test_steps', INITIAL_TEST_STEPS));
       setArtifacts(getInitialData('artifacts', INITIAL_ARTIFACTS));
       setRelationships(getInitialData('relationships', INITIAL_RELATIONSHIPS));
-      setSelectedTrackerId(loadedTrackers[0]?.id || null);
+      setSelectedTrackerId(loadedTrackers[0]?.id || 1);
+      setActiveView('TRACKER');
       setCurrentScreen('WORKSPACE');
       try {
         const url = new URL(window.location.href);
@@ -846,10 +848,11 @@ export const App: React.FC = () => {
     const pTrackers = allTrackers.filter(t => t.project_id === p.id);
     if (pTrackers.length > 0) {
       setSelectedTrackerId(pTrackers[0].id);
+      setActiveView('TRACKER');
     } else {
       setSelectedTrackerId(null);
+      setActiveView('DASHBOARD');
     }
-    setActiveView('DASHBOARD');
     setCurrentScreen('WORKSPACE');
     try {
       const url = new URL(window.location.href);
@@ -885,7 +888,7 @@ export const App: React.FC = () => {
     setAllTrackers(prev => [...prev, ...newTrackers]);
     setActiveProjectId(newProjectId);
     setSelectedTrackerId(newTrackers[0].id);
-    setActiveView('DASHBOARD');
+    setActiveView('TRACKER');
     setCurrentScreen('WORKSPACE');
     try {
       const url = new URL(window.location.href);
