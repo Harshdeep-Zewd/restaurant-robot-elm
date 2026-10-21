@@ -16,7 +16,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
     return 'DEMO';
   });
   const [username, setUsername] = useState('zewd');
-  const [password, setPassword] = useState('zew_D003');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
 
@@ -40,9 +40,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
     setError('');
     const res = authService.login(username, password);
     if (res.success && res.user) {
+      setPassword('');
       onLoginSuccess(res.user);
     } else {
       setError(res.message || 'Login failed. Please check credentials.');
+      setPassword('');
     }
   };
 
@@ -237,7 +239,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     style={{ width: '100%', paddingLeft: '36px', fontSize: '0.9rem' }}
-                    placeholder="Enter password (zew_D003)"
+                    placeholder="Enter password"
+                    autoComplete="new-password"
                   />
                   <Lock size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '10px', top: '10px' }} />
                 </div>
