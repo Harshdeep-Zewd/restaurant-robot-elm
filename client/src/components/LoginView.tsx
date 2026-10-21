@@ -192,7 +192,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                 }}
               >
                 <Play size={18} fill="#000" />
-                <span>Launch Demo & Open Engineering Workspace</span>
+                <span>Launch Demo & Open Engineering Workspaces</span>
               </button>
             </div>
           )}
@@ -263,7 +263,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                   cursor: 'pointer'
                 }}
               >
-                <span>Sign In to Engineering Workspace</span>
+                <span>Sign In to Engineering Workspaces</span>
                 <ArrowRight size={18} />
               </button>
             </form>

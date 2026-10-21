@@ -540,7 +540,6 @@ export const App: React.FC = () => {
     try {
       const params = new URLSearchParams(window.location.search);
       if (params.get('project')) return 'WORKSPACE';
-      if (params.get('account')?.toLowerCase() === 'demo') return 'WORKSPACE';
     } catch (e) {}
     return 'PROJECTS_PORTAL';
   });
@@ -730,12 +729,12 @@ export const App: React.FC = () => {
       setArtifacts(buildDemoArtifacts());
       setRelationships(buildDemoRelationships(demoObjects));
       setSelectedTrackerId(demoTrackers[0]?.id || null);
-      setActiveView('TRACKER');
-      setCurrentScreen('WORKSPACE');
+      setActiveView('DASHBOARD');
+      setCurrentScreen('PROJECTS_PORTAL');
       try {
         const url = new URL(window.location.href);
         url.searchParams.set('account', 'demo');
-        url.searchParams.set('project', 'DEMO');
+        url.searchParams.delete('project');
         window.history.pushState({}, '', url.toString());
       } catch (e) {}
     } else {
@@ -751,12 +750,12 @@ export const App: React.FC = () => {
       setArtifacts(getInitialData('artifacts', INITIAL_ARTIFACTS));
       setRelationships(getInitialData('relationships', INITIAL_RELATIONSHIPS));
       setSelectedTrackerId(loadedTrackers[0]?.id || 1);
-      setActiveView('TRACKER');
-      setCurrentScreen('WORKSPACE');
+      setActiveView('DASHBOARD');
+      setCurrentScreen('PROJECTS_PORTAL');
       try {
         const url = new URL(window.location.href);
         url.searchParams.set('account', 'zewd');
-        url.searchParams.set('project', loadedProjects[0]?.key.toLowerCase() || 'robo');
+        url.searchParams.delete('project');
         window.history.pushState({}, '', url.toString());
       } catch (e) {}
     }
@@ -848,11 +847,10 @@ export const App: React.FC = () => {
     const pTrackers = allTrackers.filter(t => t.project_id === p.id);
     if (pTrackers.length > 0) {
       setSelectedTrackerId(pTrackers[0].id);
-      setActiveView('TRACKER');
     } else {
       setSelectedTrackerId(null);
-      setActiveView('DASHBOARD');
     }
+    setActiveView('DASHBOARD');
     setCurrentScreen('WORKSPACE');
     try {
       const url = new URL(window.location.href);
@@ -888,7 +886,7 @@ export const App: React.FC = () => {
     setAllTrackers(prev => [...prev, ...newTrackers]);
     setActiveProjectId(newProjectId);
     setSelectedTrackerId(newTrackers[0].id);
-    setActiveView('TRACKER');
+    setActiveView('DASHBOARD');
     setCurrentScreen('WORKSPACE');
     try {
       const url = new URL(window.location.href);
