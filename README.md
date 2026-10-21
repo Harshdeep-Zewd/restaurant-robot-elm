@@ -27,7 +27,7 @@ A Codebeamer and Jama-inspired **Systems Engineering & Engineering Lifecycle Man
 ### Option A: Free 1-Click Deployment on Vercel
 1. Push this repository to your **GitHub** account.
 2. Sign in to [Vercel.com](https://vercel.com) using GitHub.
-3. Click **"New Project"** and select your `restaurant-robot-elm` GitHub repository.
+3. Click **"New Project"** and select your `robot-elm` GitHub repository.
 4. Click **Deploy**. Vercel will build and host your web app on a live HTTPS URL (e.g., `https://roboserv-elm.vercel.app`) accessible from any laptop, tablet, or phone!
 
 ### Option B: Deploy on Render.com
