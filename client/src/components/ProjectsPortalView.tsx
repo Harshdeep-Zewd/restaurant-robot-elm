@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { Bot, Folder, Plus, ArrowRight, Layers, FileText, FlaskConical, Pencil, Trash2, Search, CheckCircle2, ShieldCheck, ExternalLink } from 'lucide-react';
-import { Project, Tracker, EngineeringObject, TestRun } from '../types/elm';
+import { Bot, Folder, Plus, ArrowRight, Layers, FileText, FlaskConical, Pencil, Trash2, Search, CheckCircle2, ShieldCheck, ExternalLink, LogOut } from 'lucide-react';
+import { Project, Tracker, EngineeringObject, TestRun, User } from '../types/elm';
 
 interface ProjectsPortalViewProps {
   projects: Project[];
   allTrackers: Tracker[];
   allObjects: EngineeringObject[];
   testRuns: TestRun[];
+  currentUser?: User | null;
+  onLogout?: () => void;
   onSelectProject: (project: Project) => void;
   onCreateProject: (data: { key: string; name: string; description?: string }) => void;
   onUpdateProject?: (id: number, updates: Partial<Project>) => void;
@@ -18,6 +20,8 @@ export const ProjectsPortalView: React.FC<ProjectsPortalViewProps> = ({
   allTrackers,
   allObjects,
   testRuns,
+  currentUser,
+  onLogout,
   onSelectProject,
   onCreateProject,
   onUpdateProject,
@@ -144,11 +148,11 @@ export const ProjectsPortalView: React.FC<ProjectsPortalViewProps> = ({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          {/* User Badge */}
+          {/* User Badge & Logout */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '10px',
+            gap: '12px',
             borderLeft: '1px solid var(--border-color)',
             paddingLeft: '16px'
           }}>
@@ -156,7 +160,7 @@ export const ProjectsPortalView: React.FC<ProjectsPortalViewProps> = ({
               width: '32px',
               height: '32px',
               borderRadius: '50%',
-              backgroundColor: 'var(--accent-amber)',
+              backgroundColor: currentUser?.username === 'demo' ? 'var(--accent-emerald)' : 'var(--accent-amber)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -164,16 +168,47 @@ export const ProjectsPortalView: React.FC<ProjectsPortalViewProps> = ({
               color: '#000',
               fontSize: '0.85rem'
             }}>
-              Z
+              {currentUser?.username === 'demo' ? 'D' : 'Z'}
             </div>
             <div>
               <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>
-                Zewd
+                {currentUser?.name || (currentUser?.username === 'demo' ? 'Demo User' : 'Zewd')}
               </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--accent-amber)', fontWeight: 800 }}>
-                👑 Zewd (Owner)
+              <div style={{
+                fontSize: '0.75rem',
+                color: currentUser?.username === 'demo' ? 'var(--accent-emerald)' : 'var(--accent-amber)',
+                fontWeight: 800,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}>
+                {currentUser?.username === 'demo' ? '🎭 Demo Sandbox' : '👑 Zewd (Owner)'}
               </div>
             </div>
+
+            {onLogout && (
+              <button
+                onClick={onLogout}
+                title="Log Out of Session"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  color: 'var(--accent-rose)',
+                  padding: '6px 10px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  marginLeft: '4px'
+                }}
+              >
+                <LogOut size={13} />
+                <span>Log Out</span>
+              </button>
+            )}
           </div>
         </div>
       </header>

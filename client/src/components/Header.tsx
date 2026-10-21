@@ -345,11 +345,11 @@ export const Header: React.FC<HeaderProps> = ({
           />
         </div>
 
-        {/* User Profile / Role Indicator */}
+        {/* User Profile / Role Indicator & Logout */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '10px',
+          gap: '12px',
           borderLeft: '1px solid var(--border-color)',
           paddingLeft: '16px'
         }}>
@@ -357,7 +357,7 @@ export const Header: React.FC<HeaderProps> = ({
             width: '32px',
             height: '32px',
             borderRadius: '50%',
-            backgroundColor: 'var(--accent-amber)',
+            backgroundColor: currentUser?.username === 'demo' ? 'var(--accent-emerald)' : 'var(--accent-amber)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -365,16 +365,46 @@ export const Header: React.FC<HeaderProps> = ({
             color: '#000',
             fontSize: '0.85rem'
           }}>
-            Z
+            {currentUser?.username === 'demo' ? 'D' : 'Z'}
           </div>
           <div>
             <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>
-              Zewd
+              {currentUser?.name || (currentUser?.username === 'demo' ? 'Demo User' : 'Zewd')}
             </div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--accent-amber)', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-              👑 Zewd (Owner)
+            <div style={{
+              fontSize: '0.75rem',
+              color: currentUser?.username === 'demo' ? 'var(--accent-emerald)' : 'var(--accent-amber)',
+              fontWeight: 800,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              marginTop: '2px'
+            }}>
+              {currentUser?.username === 'demo' ? '🎭 Demo Sandbox' : '👑 Zewd (Owner)'}
             </div>
           </div>
+
+          <button
+            onClick={onLogout}
+            title="Log Out of Session"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              color: 'var(--accent-rose)',
+              padding: '6px 10px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              marginLeft: '4px'
+            }}
+          >
+            <LogOut size={13} />
+            <span>Log Out</span>
+          </button>
         </div>
       </div>
 

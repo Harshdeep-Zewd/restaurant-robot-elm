@@ -8,9 +8,15 @@ interface LoginViewProps {
 }
 
 export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
-  const [activeTab, setActiveTab] = useState<'DEMO' | 'ZEWD'>('DEMO');
+  const [activeTab, setActiveTab] = useState<'DEMO' | 'ZEWD'>(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('account')?.toLowerCase() === 'zewd') return 'ZEWD';
+    } catch (e) {}
+    return 'DEMO';
+  });
   const [username, setUsername] = useState('zewd');
-  const [password, setPassword] = useState('zewd123');
+  const [password, setPassword] = useState('zew_D003');
   const [error, setError] = useState('');
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
 
@@ -43,7 +49,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
   const handleQuickLogin = (uname: string) => {
     setError('');
     const targetUser = authService.getUsers().find(u => u.username === uname || u.name.toLowerCase().includes(uname));
-    const pwd = targetUser?.password || 'zewd123';
+    const pwd = targetUser?.password || (uname === 'zewd' ? 'zew_D003' : 'user123');
     const res = authService.login(uname, pwd);
     if (res.success && res.user) {
       onLoginSuccess(res.user);
@@ -116,7 +122,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
           </button>
 
           <button
-            onClick={() => { setActiveTab('ZEWD'); setError(''); setUsername('zewd'); setPassword('zewd123'); }}
+            onClick={() => { setActiveTab('ZEWD'); setError(''); setUsername('zewd'); setPassword(''); }}
             style={{
               flex: 1, padding: '14px 0', fontSize: '0.9rem', fontWeight: 700,
               color: activeTab === 'ZEWD' ? 'var(--accent-cyan)' : 'var(--text-muted)',
@@ -161,7 +167,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                   Interactive Public Demo Sandbox
                 </div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px', lineHeight: '1.4' }}>
-                  Explore full features (custom trackers, procedure steps, file uploads). <strong>State automatically resets on tab refresh!</strong>
+                  Includes <strong>Demo Project</strong> with an example requirement pre-populated in <strong>every single tracker</strong>! Explore custom trackers (Group 9), test runs, and traceability. <strong>No data is stored; automatically resets on reload!</strong>
                 </div>
               </div>
 
@@ -191,6 +197,18 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
 
           {activeTab === 'ZEWD' && (
             <form onSubmit={handleUserSubmit}>
+              <div style={{
+                backgroundColor: 'rgba(56, 189, 248, 0.08)',
+                border: '1px solid rgba(56, 189, 248, 0.25)',
+                borderRadius: '8px',
+                padding: '10px 14px',
+                fontSize: '0.8rem',
+                color: 'var(--accent-cyan)',
+                marginBottom: '16px'
+              }}>
+                👑 <strong>Owner Account:</strong> Enter your credentials below to access persistent production projects and settings.
+              </div>
+
               <div style={{ marginBottom: '14px' }}>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
                   Username / Account *
@@ -219,7 +237,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     style={{ width: '100%', paddingLeft: '36px', fontSize: '0.9rem' }}
-                    placeholder="zewd123"
+                    placeholder="Enter password (zew_D003)"
                   />
                   <Lock size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '10px', top: '10px' }} />
                 </div>

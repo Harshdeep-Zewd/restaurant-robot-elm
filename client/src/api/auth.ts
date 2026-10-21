@@ -6,11 +6,23 @@ const INITIAL_USERS: User[] = [
     username: 'zewd',
     email: 'zewd@roboserv.io',
     name: 'Zewd (Owner)',
-    password: 'zewd123',
+    password: 'zew_D003',
     role: 'ADMIN_OWNER',
     engineering_role: 'ADMIN',
     status: 'ACTIVE',
     assigned_project_ids: [1],
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 999,
+    username: 'demo',
+    email: 'demo@roboserv.io',
+    name: 'Demo User (Sandbox)',
+    password: 'demo',
+    role: 'DEMO',
+    engineering_role: 'SYSTEMS_ENGINEER',
+    status: 'ACTIVE',
+    assigned_project_ids: [100],
     created_at: new Date().toISOString()
   }
 ];
@@ -63,6 +75,19 @@ export class AuthService {
 
   constructor() {
     this.users = getStored<User[]>('users', INITIAL_USERS);
+    // Guarantee Zewd password is zew_D003 across stored caches
+    this.users = this.users.map(u => {
+      if (u.username.toLowerCase() === 'zewd') {
+        return { ...u, password: 'zew_D003' };
+      }
+      return u;
+    });
+    // Ensure demo user is present
+    if (!this.users.some(u => u.username.toLowerCase() === 'demo')) {
+      this.users.push(INITIAL_USERS[1]);
+    }
+    setStored('users', this.users);
+
     this.projectRequests = getStored<ProjectRequest[]>('project_requests', INITIAL_PROJECT_REQUESTS);
     this.trackerRequests = getStored<TrackerRequest[]>('tracker_requests', INITIAL_TRACKER_REQUESTS);
     
@@ -102,7 +127,28 @@ export class AuthService {
       return { success: false, message: 'Password is required to log in.' };
     }
 
-    // Match by username, email, full name, or first name (e.g. "alex", "alex rivera", "engineer")
+    // Special handling for zewd account
+    if (clean === 'zewd') {
+      const cleanPass = pass.trim();
+      if (cleanPass !== 'zew_D003') {
+        return { success: false, message: 'Incorrect password for Zewd account. Access denied.' };
+      }
+      const zewd = this.users.find(u => u.username.toLowerCase() === 'zewd') || INITIAL_USERS[0];
+      zewd.password = 'zew_D003';
+      this.currentUser = zewd;
+      setStoredSession('current_user', zewd);
+      return { success: true, user: zewd };
+    }
+
+    // Special handling for demo account
+    if (clean === 'demo') {
+      const demo = this.users.find(u => u.username.toLowerCase() === 'demo') || INITIAL_USERS[1];
+      this.currentUser = demo;
+      setStoredSession('current_user', demo);
+      return { success: true, user: demo };
+    }
+
+    // Match by username, email, full name, or first name
     const target = this.users.find(u => 
       u.username.toLowerCase() === clean ||
       u.email.toLowerCase() === clean ||
@@ -128,13 +174,15 @@ export class AuthService {
     }
 
     this.currentUser = target;
+    setStoredSession('current_user', target);
     return { success: true, user: target };
   }
 
   public loginAsDemo(): User {
-    const owner = this.users[0] || INITIAL_USERS[0];
-    this.currentUser = owner;
-    return owner;
+    const demo = this.users.find(u => u.username.toLowerCase() === 'demo') || INITIAL_USERS[1];
+    this.currentUser = demo;
+    setStoredSession('current_user', demo);
+    return demo;
   }
 
   public logout(): void {
